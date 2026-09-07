@@ -1,0 +1,17 @@
+[sodium] WARNING: INFO: Could not find files for the given pattern(s).
+
+Unhandled exception:
+Exception: No usable bash.exe found on Windows. Install Git for Windows (preferred), MSYS2, or Cygwin. Found only unsupported bash launchers such as WSL or Windows App aliases.
+#0      AutomakeBuilder._findWindowsBash (package:sodium/src/hooks/sodium_builder/automake_builder.dart:188:5)
+<asynchronous suspension>
+#1      AutomakeBuilder.buildCached (package:sodium/src/hooks/sodium_builder/automake_builder.dart:32:21)
+<asynchronous suspension>
+#2      SodiumBuilder.build (package:sodium/src/hooks/sodium_builder/sodium_builder.dart:82:24)
+<asynchronous suspension>
+#3      main.<anonymous closure> (file:///c:/users/leong/appdata/local/pub/cache/hosted/pub.dev/sodium-4.0.4/hook/build.dart:43:17)
+<asynchronous suspension>
+#4      build (package:hooks/src/api/build_and_link.dart:250:5)
+<asynchronous suspension>
+#5      main (file:///c:/users/leong/appdata/local/pub/cache/hosted/pub.dev/sodium-4.0.4/hook/build.dart:9:39)
+<asynchronous suspension>
+
