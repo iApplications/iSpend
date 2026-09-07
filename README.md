@@ -69,6 +69,19 @@ The project is in Phase 1 setup and implementation. The current app shell is
 only a starting point; the expense-tracking features listed above are planned
 work, not yet a completed release.
 
+## Branching and pull-request workflow
+
+All changes follow this workflow:
+
+1. Start from an up-to-date `main` branch.
+2. Create a task branch named `dev/{name}` (for example,
+   `dev/expense-entry`).
+3. Make the changes on that branch and run the relevant tests or build checks.
+4. Commit only after the changes have been tested successfully.
+5. Open a pull request from `dev/{name}` into `main` for review and merge.
+
+Direct changes and commits to `main` should be avoided.
+
 ## Running locally
 
 From the project folder:
