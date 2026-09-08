@@ -5,6 +5,7 @@ import 'expense_model.dart';
 abstract interface class ExpenseRepository {
   Future<List<Expense>> getAll();
   Future<void> save(Expense expense);
+  Future<void> delete(String id);
 }
 
 class InMemoryExpenseRepository implements ExpenseRepository {
@@ -17,6 +18,11 @@ class InMemoryExpenseRepository implements ExpenseRepository {
   Future<void> save(Expense expense) async {
     _expenses.removeWhere((item) => item.id == expense.id);
     _expenses.add(expense);
+  }
+
+  @override
+  Future<void> delete(String id) async {
+    _expenses.removeWhere((expense) => expense.id == id);
   }
 }
 
@@ -41,6 +47,11 @@ class SqlCipherExpenseRepository implements ExpenseRepository {
       _toRow(expense),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+  }
+
+  @override
+  Future<void> delete(String id) async {
+    await _database.delete('expenses', where: 'id = ?', whereArgs: [id]);
   }
 
   Map<String, Object?> _toRow(Expense expense) {

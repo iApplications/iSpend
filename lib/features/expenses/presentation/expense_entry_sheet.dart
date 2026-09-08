@@ -1,24 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/utils/amount_formatter.dart';
 import '../../../core/utils/amount_parser.dart';
 import '../data/expense_model.dart';
 
 Future<Expense?> showExpenseEntrySheet(
   BuildContext context, {
   required bool use24HourFormat,
+  Expense? expense,
 }) {
   return showModalBottomSheet<Expense>(
     context: context,
     isScrollControlled: true,
-    builder: (_) => ExpenseEntrySheet(use24HourFormat: use24HourFormat),
+    builder: (_) =>
+        ExpenseEntrySheet(use24HourFormat: use24HourFormat, expense: expense),
   );
 }
 
 class ExpenseEntrySheet extends StatefulWidget {
-  const ExpenseEntrySheet({required this.use24HourFormat, super.key});
+  const ExpenseEntrySheet({
+    required this.use24HourFormat,
+    this.expense,
+    super.key,
+  });
 
   final bool use24HourFormat;
+  final Expense? expense;
 
   @override
   State<ExpenseEntrySheet> createState() => _ExpenseEntrySheetState();
@@ -41,6 +49,21 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
   DateTime _date = DateTime.now();
   TimeOfDay _time = TimeOfDay.now();
   String? _amountError;
+
+  bool get _isEditing => widget.expense != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final expense = widget.expense;
+    if (expense == null) return;
+    _amountController.text = formatCents(expense.amountCents);
+    _merchantController.text = expense.merchantOrNote ?? '';
+    _category = expense.category;
+    _paymentMethod = expense.paymentMethod;
+    _date = expense.occurredAt;
+    _time = TimeOfDay.fromDateTime(expense.occurredAt);
+  }
 
   @override
   void dispose() {
@@ -87,7 +110,9 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
     final merchant = _merchantController.text.trim();
     Navigator.of(context).pop(
       Expense(
-        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        id:
+            widget.expense?.id ??
+            DateTime.now().microsecondsSinceEpoch.toString(),
         amountCents: amountCents,
         category: _category,
         occurredAt: DateTime(
@@ -97,7 +122,7 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
           _time.hour,
           _time.minute,
         ),
-        createdAt: DateTime.now(),
+        createdAt: widget.expense?.createdAt ?? DateTime.now(),
         merchantOrNote: merchant.isEmpty ? null : merchant,
         paymentMethod: _paymentMethod,
       ),
@@ -116,7 +141,7 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Add expense',
+                _isEditing ? 'Edit expense' : 'Add expense',
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: 20),
@@ -209,7 +234,7 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: _save,
-                  child: const Text('Save expense'),
+                  child: Text(_isEditing ? 'Save changes' : 'Save expense'),
                 ),
               ),
             ],

@@ -16,4 +16,20 @@ class Expense {
   final DateTime createdAt;
   final String? merchantOrNote;
   final String? paymentMethod;
+
+  Expense copyWith({
+    int? amountCents,
+    String? category,
+    DateTime? occurredAt,
+    String? merchantOrNote,
+    String? paymentMethod,
+  }) => Expense(
+    id: id,
+    amountCents: amountCents ?? this.amountCents,
+    category: category ?? this.category,
+    occurredAt: occurredAt ?? this.occurredAt,
+    createdAt: createdAt,
+    merchantOrNote: merchantOrNote,
+    paymentMethod: paymentMethod,
+  );
 }

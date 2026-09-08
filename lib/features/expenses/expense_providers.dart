@@ -29,4 +29,9 @@ class ExpensesNotifier extends Notifier<List<Expense>> {
     await _repository.save(expense);
     await _load();
   }
+
+  Future<void> delete(String id) async {
+    await _repository.delete(id);
+    await _load();
+  }
 }
