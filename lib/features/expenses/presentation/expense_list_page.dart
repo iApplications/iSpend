@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/amount_formatter.dart';
 import '../../../core/widgets/icon_registry.dart';
+import '../../categories/category_providers.dart';
 import '../../settings/time_format_preference.dart';
 import '../data/expense_model.dart';
 import '../expense_providers.dart';
@@ -14,6 +15,7 @@ class ExpenseListPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final expenses = ref.watch(expensesProvider);
+    final categories = ref.watch(categoriesProvider);
     final currency = AppCurrency.fromLocale(Localizations.localeOf(context));
     final timePreference = ref.watch(timeFormatPreferenceProvider);
     final use24HourFormat = timePreference.resolve(
@@ -25,6 +27,7 @@ class ExpenseListPage extends ConsumerWidget {
           final expense = await showExpenseEntrySheet(
             context,
             use24HourFormat: use24HourFormat,
+            categories: categories,
           );
           if (expense != null) {
             await ref.read(expensesProvider.notifier).add(expense);
@@ -88,6 +91,7 @@ class ExpenseListPage extends ConsumerWidget {
     final updatedExpense = await showExpenseEntrySheet(
       context,
       use24HourFormat: use24HourFormat,
+      categories: ref.read(categoriesProvider),
       expense: expense,
     );
     if (updatedExpense != null) {

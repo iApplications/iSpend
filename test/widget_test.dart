@@ -66,4 +66,59 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('No expenses yet'), findsOneWidget);
   });
+
+  testWidgets('manages an unused category from Settings', (tester) async {
+    await tester.pumpWidget(const ProviderScope(child: ISpendApp()));
+
+    await tester.tap(find.text('Settings').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Categories'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Add category'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Pets');
+    await tester.tap(find.text('Add'));
+    await tester.pumpAndSettle();
+    expect(find.text('Pets'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Category options').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Rename'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Pets care');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(find.text('Pets care'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Category options').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Pets care'), findsNothing);
+  });
+
+  testWidgets('blocks deleting a category used by an expense', (tester) async {
+    await tester.pumpWidget(const ProviderScope(child: ISpendApp()));
+
+    await tester.tap(find.text('Add expense'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('amountField')), '5.00');
+    await tester.tap(find.text('Save expense'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Settings').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Categories'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Category options').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Category in use'), findsOneWidget);
+    expect(find.textContaining('1 expense uses this category'), findsOneWidget);
+  });
 }

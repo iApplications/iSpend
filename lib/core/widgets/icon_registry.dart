@@ -7,23 +7,89 @@ class CategoryIconStyle {
   final Color color;
 }
 
-CategoryIconStyle categoryIconStyle(String category) {
-  return switch (category) {
-    'Food' => const CategoryIconStyle(
+const categoryIconKeys = [
+  'food',
+  'transport',
+  'shopping',
+  'bills',
+  'home',
+  'health',
+  'pets',
+  'education',
+  'entertainment',
+  'travel',
+  'gift',
+  'other',
+];
+
+String defaultCategoryIconKey(String category) => switch (category) {
+  'Food' => 'food',
+  'Transport' => 'transport',
+  'Shopping' => 'shopping',
+  'Bills' => 'bills',
+  _ => 'other',
+};
+
+String categoryIconLabel(String iconKey) => switch (iconKey) {
+  'food' => 'Food',
+  'transport' => 'Transport',
+  'shopping' => 'Shopping',
+  'bills' => 'Bills',
+  'home' => 'Home',
+  'health' => 'Health',
+  'pets' => 'Pets',
+  'education' => 'Education',
+  'entertainment' => 'Entertainment',
+  'travel' => 'Travel',
+  'gift' => 'Gift',
+  _ => 'Other',
+};
+
+CategoryIconStyle categoryIconStyleForKey(String iconKey) {
+  return switch (iconKey) {
+    'food' => const CategoryIconStyle(
       icon: Icons.restaurant_outlined,
       color: Color(0xFFE76F51),
     ),
-    'Transport' => const CategoryIconStyle(
+    'transport' => const CategoryIconStyle(
       icon: Icons.directions_car_outlined,
       color: Color(0xFF457B9D),
     ),
-    'Shopping' => const CategoryIconStyle(
+    'shopping' => const CategoryIconStyle(
       icon: Icons.shopping_bag_outlined,
       color: Color(0xFF9B5DE5),
     ),
-    'Bills' => const CategoryIconStyle(
+    'bills' => const CategoryIconStyle(
       icon: Icons.receipt_long_outlined,
       color: Color(0xFFF4A261),
+    ),
+    'home' => const CategoryIconStyle(
+      icon: Icons.home_outlined,
+      color: Color(0xFF2A9D8F),
+    ),
+    'health' => const CategoryIconStyle(
+      icon: Icons.favorite_outline,
+      color: Color(0xFFE63946),
+    ),
+    'pets' => const CategoryIconStyle(
+      icon: Icons.pets_outlined,
+      color: Color(0xFF8D6E63),
+    ),
+    'education' => const CategoryIconStyle(
+      icon: Icons.school_outlined,
+      color: Color(0xFF4361EE),
+    ),
+    'entertainment' => const CategoryIconStyle(
+      icon: Icons.movie_outlined,
+      color: Color(0xFF7209B7),
+    ),
+    'travel' => const CategoryIconStyle(
+      icon: Icons.flight_outlined,
+      color: Color(0xFF00B4D8),
+    ),
+    'gift' => const CategoryIconStyle(
+      icon: Icons.card_giftcard_outlined,
+      color: Color(0xFFE9C46A),
     ),
     _ => const CategoryIconStyle(
       icon: Icons.more_horiz,
@@ -31,3 +97,6 @@ CategoryIconStyle categoryIconStyle(String category) {
     ),
   };
 }
+
+CategoryIconStyle categoryIconStyle(String category) =>
+    categoryIconStyleForKey(defaultCategoryIconKey(category));
