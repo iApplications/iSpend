@@ -8,6 +8,8 @@ abstract interface class ExpenseRepository {
   Future<void> delete(String id);
   Future<int> countByCategory(String category);
   Future<void> renameCategory(String oldName, String newName);
+  Future<int> countByPaymentMethod(String paymentMethod);
+  Future<void> renamePaymentMethod(String oldName, String newName);
 }
 
 class InMemoryExpenseRepository implements ExpenseRepository {
@@ -45,6 +47,21 @@ class InMemoryExpenseRepository implements ExpenseRepository {
           merchantOrNote: expense.merchantOrNote,
           paymentMethod: expense.paymentMethod,
         );
+      }
+    }
+  }
+
+  @override
+  Future<int> countByPaymentMethod(String paymentMethod) async => _expenses
+      .where((expense) => expense.paymentMethod == paymentMethod)
+      .length;
+
+  @override
+  Future<void> renamePaymentMethod(String oldName, String newName) async {
+    for (var i = 0; i < _expenses.length; i++) {
+      final expense = _expenses[i];
+      if (expense.paymentMethod == oldName) {
+        _expenses[i] = Expense(id: expense.id, amountCents: expense.amountCents, category: expense.category, occurredAt: expense.occurredAt, createdAt: expense.createdAt, merchantOrNote: expense.merchantOrNote, paymentMethod: newName);
       }
     }
   }
@@ -98,6 +115,19 @@ class SqlCipherExpenseRepository implements ExpenseRepository {
       whereArgs: [oldName],
     );
   }
+
+  @override
+  Future<int> countByPaymentMethod(String paymentMethod) async =>
+      Sqflite.firstIntValue(
+        await _database.rawQuery(
+          'SELECT COUNT(*) FROM expenses WHERE payment_method = ?',
+          [paymentMethod],
+        ),
+      ) ??
+      0;
+
+  @override
+  Future<void> renamePaymentMethod(String oldName, String newName) => _database.update('expenses', {'payment_method': newName}, where: 'payment_method = ?', whereArgs: [oldName]);
 
   Map<String, Object?> _toRow(Expense expense) {
     return {

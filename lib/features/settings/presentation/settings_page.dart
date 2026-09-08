@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../categories/presentation/category_management_page.dart';
+import '../../payment_methods/presentation/payment_method_management_page.dart';
 import '../time_format_preference.dart';
 
 class SettingsPage extends ConsumerWidget {
@@ -45,7 +46,11 @@ class SettingsPage extends ConsumerWidget {
               title: const Text('Payment methods'),
               subtitle: const Text('Manage local payment labels'),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () {},
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const PaymentMethodManagementPage(),
+                ),
+              ),
             ),
           ),
         ],

@@ -8,6 +8,8 @@ import 'features/expenses/data/expense_repository.dart';
 import 'features/expenses/expense_providers.dart';
 import 'features/categories/category_providers.dart';
 import 'features/categories/data/category_repository.dart';
+import 'features/payment_methods/data/payment_method_repository.dart';
+import 'features/payment_methods/payment_method_providers.dart';
 import 'features/settings/time_format_preference.dart';
 
 Future<void> main() async {
@@ -21,6 +23,9 @@ Future<void> main() async {
         ),
         categoryRepositoryProvider.overrideWithValue(
           SqlCipherCategoryRepository(encryptedDatabase.database),
+        ),
+        paymentMethodRepositoryProvider.overrideWithValue(
+          SqlCipherPaymentMethodRepository(encryptedDatabase.database),
         ),
         appSettingsRepositoryProvider.overrideWithValue(
           SqlCipherAppSettingsRepository(encryptedDatabase.database),
