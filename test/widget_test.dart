@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ispend/app.dart';
@@ -39,5 +39,31 @@ void main() {
 
     expect(find.textContaining('10.00'), findsOneWidget);
     expect(find.text('Food'), findsOneWidget);
+  });
+
+  testWidgets('edits and deletes a saved expense', (tester) async {
+    await tester.pumpWidget(const ProviderScope(child: ISpendApp()));
+
+    await tester.tap(find.text('Add expense'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('amountField')), '5.00');
+    await tester.tap(find.text('Save expense'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(ListTile));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit expense'), findsOneWidget);
+
+    await tester.enterText(find.byKey(const Key('amountField')), '12.50');
+    await tester.tap(find.text('Save changes'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('12.50'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Delete expense'));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete expense?'), findsOneWidget);
+    await tester.tap(find.text('Delete').last);
+    await tester.pumpAndSettle();
+    expect(find.text('No expenses yet'), findsOneWidget);
   });
 }

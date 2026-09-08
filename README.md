@@ -53,6 +53,9 @@ passphrase.
 - Simple, calm, and readable screens.
 - Original provider icons only. Names may be shown as text, but iSpend will
   never reproduce official logos or trademarked artwork.
+- Phase 1 uses simple functional category icons. A later visual-enhancement
+  phase will explore more expressive, entertaining original icon treatments
+  while preserving quick recognition and text labels.
 - Local-first data ownership.
 - Accessible controls and clear confirmation for destructive actions.
 

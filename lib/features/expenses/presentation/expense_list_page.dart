@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/amount_formatter.dart';
 import '../../../core/widgets/icon_registry.dart';
+import '../../settings/time_format_preference.dart';
 import '../data/expense_model.dart';
 import '../expense_providers.dart';
 import 'expense_entry_sheet.dart';
-import '../../settings/time_format_preference.dart';
 
 class ExpenseListPage extends ConsumerWidget {
   const ExpenseListPage({super.key});
@@ -62,6 +62,14 @@ class ExpenseListPage extends ConsumerWidget {
                         expense: expenses[index],
                         currency: currency,
                         use24HourFormat: use24HourFormat,
+                        onEdit: () => _editExpense(
+                          context,
+                          ref,
+                          expenses[index],
+                          use24HourFormat,
+                        ),
+                        onDelete: () =>
+                            _confirmDelete(context, ref, expenses[index]),
                       ),
                     ),
             ),
@@ -69,6 +77,49 @@ class ExpenseListPage extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _editExpense(
+    BuildContext context,
+    WidgetRef ref,
+    Expense expense,
+    bool use24HourFormat,
+  ) async {
+    final updatedExpense = await showExpenseEntrySheet(
+      context,
+      use24HourFormat: use24HourFormat,
+      expense: expense,
+    );
+    if (updatedExpense != null) {
+      await ref.read(expensesProvider.notifier).add(updatedExpense);
+    }
+  }
+
+  Future<void> _confirmDelete(
+    BuildContext context,
+    WidgetRef ref,
+    Expense expense,
+  ) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete expense?'),
+        content: const Text('This expense will be permanently removed.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (shouldDelete == true) {
+      await ref.read(expensesProvider.notifier).delete(expense.id);
+    }
   }
 }
 
@@ -105,11 +156,15 @@ class _ExpenseRow extends StatelessWidget {
     required this.expense,
     required this.currency,
     required this.use24HourFormat,
+    required this.onEdit,
+    required this.onDelete,
   });
 
   final Expense expense;
   final AppCurrency currency;
   final bool use24HourFormat;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -120,6 +175,7 @@ class _ExpenseRow extends StatelessWidget {
     ];
     return Card(
       child: ListTile(
+        onTap: onEdit,
         leading: DecoratedBox(
           decoration: BoxDecoration(
             color: categoryStyle.color.withValues(alpha: 0.15),
@@ -132,17 +188,27 @@ class _ExpenseRow extends StatelessWidget {
         ),
         title: Text(expense.merchantOrNote ?? expense.category),
         subtitle: detailParts.isEmpty ? null : Text(detailParts.join(' · ')),
-        trailing: Column(
+        trailing: Row(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(
-              formatCurrencyCents(expense.amountCents, currency),
-              style: Theme.of(context).textTheme.titleMedium,
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  formatCurrencyCents(expense.amountCents, currency),
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                Text(
+                  _formatTime(expense.occurredAt, use24HourFormat),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
             ),
-            Text(
-              _formatTime(expense.occurredAt, use24HourFormat),
-              style: Theme.of(context).textTheme.bodySmall,
+            IconButton(
+              tooltip: 'Delete expense',
+              onPressed: onDelete,
+              icon: const Icon(Icons.delete_outline),
             ),
           ],
         ),
