@@ -8,13 +8,18 @@ class ISpendDatabase {
 
   final Database database;
 
-  static Future<ISpendDatabase> open({DatabaseKeyStore? keyStore}) async {
-    final databaseKey = await (keyStore ?? DatabaseKeyStore())
-        .readOrCreateKey();
-    final databasePath = join(await getDatabasesPath(), 'ispend.db');
+  static Future<ISpendDatabase> open({
+    DatabaseKeyStore? keyStore,
+    String? databasePath,
+    String? databaseKey,
+  }) async {
+    final resolvedDatabaseKey =
+        databaseKey ?? await (keyStore ?? DatabaseKeyStore()).readOrCreateKey();
+    final resolvedDatabasePath =
+        databasePath ?? join(await getDatabasesPath(), 'ispend.db');
     final database = await openDatabase(
-      databasePath,
-      password: databaseKey,
+      resolvedDatabasePath,
+      password: resolvedDatabaseKey,
       version: 5,
       onCreate: (db, _) async {
         await db.execute('''

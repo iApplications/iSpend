@@ -31,8 +31,12 @@ class PaymentMethodsNotifier extends Notifier<List<String>> {
   }
 
   Future<void> rename(String oldName, String newName) async {
-    await _repository.rename(oldName, newName);
-    await _expenses.renamePaymentMethod(oldName, newName);
+    if (_repository case final SqlCipherPaymentMethodRepository repository) {
+      await repository.renameAndUpdateExpenses(oldName, newName);
+    } else {
+      await _repository.rename(oldName, newName);
+      await _expenses.renamePaymentMethod(oldName, newName);
+    }
     await _load();
     await ref.read(expensesProvider.notifier).refresh();
   }

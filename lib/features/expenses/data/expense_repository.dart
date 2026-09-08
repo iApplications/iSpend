@@ -61,7 +61,15 @@ class InMemoryExpenseRepository implements ExpenseRepository {
     for (var i = 0; i < _expenses.length; i++) {
       final expense = _expenses[i];
       if (expense.paymentMethod == oldName) {
-        _expenses[i] = Expense(id: expense.id, amountCents: expense.amountCents, category: expense.category, occurredAt: expense.occurredAt, createdAt: expense.createdAt, merchantOrNote: expense.merchantOrNote, paymentMethod: newName);
+        _expenses[i] = Expense(
+          id: expense.id,
+          amountCents: expense.amountCents,
+          category: expense.category,
+          occurredAt: expense.occurredAt,
+          createdAt: expense.createdAt,
+          merchantOrNote: expense.merchantOrNote,
+          paymentMethod: newName,
+        );
       }
     }
   }
@@ -127,7 +135,13 @@ class SqlCipherExpenseRepository implements ExpenseRepository {
       0;
 
   @override
-  Future<void> renamePaymentMethod(String oldName, String newName) => _database.update('expenses', {'payment_method': newName}, where: 'payment_method = ?', whereArgs: [oldName]);
+  Future<void> renamePaymentMethod(String oldName, String newName) =>
+      _database.update(
+        'expenses',
+        {'payment_method': newName},
+        where: 'payment_method = ?',
+        whereArgs: [oldName],
+      );
 
   Map<String, Object?> _toRow(Expense expense) {
     return {

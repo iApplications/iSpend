@@ -55,4 +55,21 @@ class SqlCipherPaymentMethodRepository implements PaymentMethodRepository {
   @override
   Future<void> delete(String name) =>
       _database.delete('payment_methods', where: 'name = ?', whereArgs: [name]);
+
+  Future<void> renameAndUpdateExpenses(String oldName, String newName) {
+    return _database.transaction((transaction) async {
+      await transaction.update(
+        'payment_methods',
+        {'name': newName},
+        where: 'name = ?',
+        whereArgs: [oldName],
+      );
+      await transaction.update(
+        'expenses',
+        {'payment_method': newName},
+        where: 'payment_method = ?',
+        whereArgs: [oldName],
+      );
+    });
+  }
 }

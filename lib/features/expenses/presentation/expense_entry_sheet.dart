@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../core/utils/amount_formatter.dart';
 import '../../../core/utils/amount_parser.dart';
@@ -111,9 +112,7 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
     final merchant = _merchantController.text.trim();
     Navigator.of(context).pop(
       Expense(
-        id:
-            widget.expense?.id ??
-            DateTime.now().microsecondsSinceEpoch.toString(),
+        id: widget.expense?.id ?? const Uuid().v4(),
         amountCents: amountCents,
         category: _category,
         occurredAt: DateTime(
