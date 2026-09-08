@@ -24,10 +24,6 @@ enum TimeFormatPreference {
   }
 }
 
-final appSettingsRepositoryProvider = Provider<AppSettingsRepository>(
-  (_) => InMemoryAppSettingsRepository(),
-);
-
 final timeFormatPreferenceProvider =
     NotifierProvider<TimeFormatPreferenceNotifier, TimeFormatPreference>(
       TimeFormatPreferenceNotifier.new,

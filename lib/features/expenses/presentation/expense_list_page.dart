@@ -6,6 +6,7 @@ import '../../../core/widgets/icon_registry.dart';
 import '../../categories/category_providers.dart';
 import '../../payment_methods/payment_method_providers.dart';
 import '../../settings/time_format_preference.dart';
+import '../../settings/currency_preference.dart';
 import '../data/expense_model.dart';
 import '../expense_providers.dart';
 import 'expense_entry_sheet.dart';
@@ -20,7 +21,7 @@ class ExpenseListPage extends ConsumerWidget {
     final categoryIconKeys =
         ref.watch(categoryIconKeysProvider).value ?? const <String, String>{};
     final paymentMethods = ref.watch(paymentMethodsProvider);
-    final currency = AppCurrency.fromLocale(Localizations.localeOf(context));
+    final currency = ref.watch(appCurrencyProvider);
     final timePreference = ref.watch(timeFormatPreferenceProvider);
     final use24HourFormat = timePreference.resolve(
       deviceUses24Hour: MediaQuery.of(context).alwaysUse24HourFormat,

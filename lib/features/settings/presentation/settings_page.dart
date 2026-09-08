@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../categories/presentation/category_management_page.dart';
 import '../../payment_methods/presentation/payment_method_management_page.dart';
+import '../currency_preference.dart';
 import '../time_format_preference.dart';
 
 class SettingsPage extends ConsumerWidget {
@@ -11,6 +12,7 @@ class SettingsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final timeFormat = ref.watch(timeFormatPreferenceProvider);
+    final currency = ref.watch(appCurrencyProvider);
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
       child: Column(
@@ -18,6 +20,15 @@ class SettingsPage extends ConsumerWidget {
         children: [
           Text('Settings', style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 24),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.currency_exchange_outlined),
+              title: const Text('Currency'),
+              subtitle: Text(
+                '${currency.code} (${currency.symbol}) — locked at first launch',
+              ),
+            ),
+          ),
           Card(
             child: ListTile(
               leading: const Icon(Icons.category_outlined),
