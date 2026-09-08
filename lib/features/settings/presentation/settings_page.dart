@@ -57,11 +57,12 @@ class SettingsPage extends ConsumerWidget {
           return SafeArea(
             child: RadioGroup<TimeFormatPreference>(
               groupValue: selected,
-              onChanged: (value) {
+              onChanged: (value) async {
                 if (value == null) return;
-                ref
+                await ref
                     .read(timeFormatPreferenceProvider.notifier)
                     .setPreference(value);
+                if (!context.mounted) return;
                 Navigator.of(context).pop();
               },
               child: Column(

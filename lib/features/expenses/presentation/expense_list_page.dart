@@ -27,7 +27,7 @@ class ExpenseListPage extends ConsumerWidget {
             use24HourFormat: use24HourFormat,
           );
           if (expense != null) {
-            ref.read(expensesProvider.notifier).add(expense);
+            await ref.read(expensesProvider.notifier).add(expense);
           }
         },
         icon: const Icon(Icons.add),
