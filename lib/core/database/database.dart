@@ -15,7 +15,7 @@ class ISpendDatabase {
     final database = await openDatabase(
       databasePath,
       password: databaseKey,
-      version: 4,
+      version: 5,
       onCreate: (db, _) async {
         await db.execute('''
           CREATE TABLE expenses (
@@ -30,6 +30,7 @@ class ISpendDatabase {
         ''');
         await _createSettingsTable(db);
         await _createCategoriesTable(db);
+        await _createPaymentMethodsTable(db);
       },
       onUpgrade: (db, oldVersion, _) async {
         if (oldVersion < 2) {
@@ -57,6 +58,7 @@ class ISpendDatabase {
             );
           }
         }
+        if (oldVersion < 5) await _createPaymentMethodsTable(db);
       },
     );
     return ISpendDatabase._(database);
@@ -102,4 +104,20 @@ class ISpendDatabase {
     'Bills' => 'bills',
     _ => 'other',
   };
+
+  static Future<void> _createPaymentMethodsTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE payment_methods (
+        name TEXT PRIMARY KEY,
+        created_at_millis INTEGER NOT NULL
+      )
+    ''');
+    final createdAt = DateTime.now().millisecondsSinceEpoch;
+    for (final name in const ['Cash', 'Credit Card', 'Debit Card']) {
+      await db.insert('payment_methods', {
+        'name': name,
+        'created_at_millis': createdAt,
+      });
+    }
+  }
 }

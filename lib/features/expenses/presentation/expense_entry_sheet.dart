@@ -9,6 +9,7 @@ Future<Expense?> showExpenseEntrySheet(
   BuildContext context, {
   required bool use24HourFormat,
   required List<String> categories,
+  required List<String> paymentMethods,
   Expense? expense,
 }) {
   return showModalBottomSheet<Expense>(
@@ -17,6 +18,7 @@ Future<Expense?> showExpenseEntrySheet(
     builder: (_) => ExpenseEntrySheet(
       use24HourFormat: use24HourFormat,
       categories: categories,
+      paymentMethods: paymentMethods,
       expense: expense,
     ),
   );
@@ -26,12 +28,14 @@ class ExpenseEntrySheet extends StatefulWidget {
   const ExpenseEntrySheet({
     required this.use24HourFormat,
     required this.categories,
+    required this.paymentMethods,
     this.expense,
     super.key,
   });
 
   final bool use24HourFormat;
   final List<String> categories;
+  final List<String> paymentMethods;
   final Expense? expense;
 
   @override
@@ -39,8 +43,6 @@ class ExpenseEntrySheet extends StatefulWidget {
 }
 
 class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
-  static const _paymentMethods = ['Cash', 'Credit Card', 'Debit Card'];
-
   final _amountController = TextEditingController();
   final _merchantController = TextEditingController();
   String _category = 'Food';
@@ -130,6 +132,17 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
 
   @override
   Widget build(BuildContext context) {
+    final uniquePaymentMethods = <String>[];
+    final seenPaymentMethodNames = <String>{};
+    for (final paymentMethod in widget.paymentMethods) {
+      if (seenPaymentMethodNames.add(paymentMethod.toLowerCase())) {
+        uniquePaymentMethods.add(paymentMethod);
+      }
+    }
+    if (_paymentMethod != null &&
+        !uniquePaymentMethods.contains(_paymentMethod)) {
+      _paymentMethod = null;
+    }
     final uniqueCategories = <String>[];
     final seenCategoryNames = <String>{};
     for (final category in widget.categories) {
@@ -214,7 +227,7 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
                     value: null,
                     child: Text('None'),
                   ),
-                  ..._paymentMethods.map(
+                  ...uniquePaymentMethods.map(
                     (method) => DropdownMenuItem<String?>(
                       value: method,
                       child: Text(method),
