@@ -19,6 +19,7 @@ include:
 
 - A three-tab navigation bar: **Expenses**, **Summary**, and **Settings**.
 - Manual expense entry, editing, and deletion.
+- Expense list ordered newest first and grouped under date headers.
 - Default categories and payment methods, with management in Settings.
 - Food preselected as the default category for a new expense.
 - Category and payment-method deletion protection: deletion is blocked when

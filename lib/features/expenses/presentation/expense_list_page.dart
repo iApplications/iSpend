@@ -25,6 +25,7 @@ class ExpenseListPage extends ConsumerWidget {
     final use24HourFormat = timePreference.resolve(
       deviceUses24Hour: MediaQuery.of(context).alwaysUse24HourFormat,
     );
+    final expensesByDay = _groupByDay(expenses);
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
@@ -63,24 +64,37 @@ class ExpenseListPage extends ConsumerWidget {
             Expanded(
               child: expenses.isEmpty
                   ? _EmptyExpenses()
-                  : ListView.separated(
-                      itemCount: expenses.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 8),
-                      itemBuilder: (context, index) => _ExpenseRow(
-                        expense: expenses[index],
-                        currency: currency,
-                        categoryIconKey:
-                            categoryIconKeys[expenses[index].category],
-                        use24HourFormat: use24HourFormat,
-                        onEdit: () => _editExpense(
-                          context,
-                          ref,
-                          expenses[index],
-                          use24HourFormat,
-                        ),
-                        onDelete: () =>
-                            _confirmDelete(context, ref, expenses[index]),
-                      ),
+                  : ListView(
+                      children: [
+                        for (final entry in expensesByDay.entries) ...[
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
+                            child: Text(
+                              _dateLabel(entry.key),
+                              style: Theme.of(context).textTheme.titleSmall,
+                            ),
+                          ),
+                          for (final expense in entry.value)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: _ExpenseRow(
+                                expense: expense,
+                                currency: currency,
+                                categoryIconKey:
+                                    categoryIconKeys[expense.category],
+                                use24HourFormat: use24HourFormat,
+                                onEdit: () => _editExpense(
+                                  context,
+                                  ref,
+                                  expense,
+                                  use24HourFormat,
+                                ),
+                                onDelete: () =>
+                                    _confirmDelete(context, ref, expense),
+                              ),
+                            ),
+                        ],
+                      ],
                     ),
             ),
           ],
@@ -132,6 +146,41 @@ class ExpenseListPage extends ConsumerWidget {
     if (shouldDelete == true) {
       await ref.read(expensesProvider.notifier).delete(expense.id);
     }
+  }
+
+  Map<DateTime, List<Expense>> _groupByDay(List<Expense> expenses) {
+    final groups = <DateTime, List<Expense>>{};
+    for (final expense in expenses) {
+      final day = DateTime(
+        expense.occurredAt.year,
+        expense.occurredAt.month,
+        expense.occurredAt.day,
+      );
+      (groups[day] ??= []).add(expense);
+    }
+    return groups;
+  }
+
+  String _dateLabel(DateTime date) {
+    final today = DateTime.now();
+    final todayDay = DateTime(today.year, today.month, today.day);
+    if (date == todayDay) return 'Today';
+    if (date == todayDay.subtract(const Duration(days: 1))) return 'Yesterday';
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 }
 

@@ -13,10 +13,9 @@ void main() {
 
     await tester.tap(find.text('Summary').last);
     await tester.pumpAndSettle();
-    expect(
-      find.text('Your spending summary will appear here.'),
-      findsOneWidget,
-    );
+    expect(find.text('Spending'), findsOneWidget);
+    expect(find.text('Category breakdown'), findsOneWidget);
+    expect(find.text('Payment method breakdown'), findsOneWidget);
 
     await tester.tap(find.text('Settings').last);
     await tester.pumpAndSettle();
