@@ -27,7 +27,8 @@ include:
   integer cents/sen to avoid floating-point errors.
 - Weekly and monthly totals, with Monday as the first day of the week.
 - A currency selected at first launch and kept fixed even if the device region
-  changes later.
+  changes later. There is no currency selector on Phase 1 expenses;
+  multi-currency is deferred to the Phase 4a enhancement.
 - Automatic device backups and a recovery-passphrase onboarding flow.
 
 ## Privacy and security
@@ -74,11 +75,16 @@ work, not yet a completed release.
 All changes follow this workflow:
 
 1. Start from an up-to-date `main` branch.
-2. Create a task branch named `dev/{name}` (for example,
-   `dev/expense-entry`).
-3. Make the changes on that branch and run the relevant tests or build checks.
-4. Commit only after the changes have been tested successfully.
-5. Open a pull request from `dev/{name}` into `main` for review and merge.
+2. For Phase 1, use `dev/Phase1_main` as the integration branch. Create each
+   Phase 1 feature branch from it as `dev/Phase1_{feature}`, push that branch
+   to GitHub before making changes, then open its pull request back into
+   `dev/Phase1_main`.
+3. For work outside Phase 1, create a task branch from `main` named
+   `dev/{name}` (for example, `dev/expense-entry`), and push it before making
+   changes.
+4. Run the relevant tests or build checks, then commit only after they pass.
+5. Open a pull request for review and merge. Once Phase 1 is complete,
+   `dev/Phase1_main` is the branch that opens the pull request into `main`.
 
 Direct changes and commits to `main` should be avoided.
 
