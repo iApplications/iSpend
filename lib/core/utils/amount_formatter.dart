@@ -24,6 +24,16 @@ class AppCurrency {
       _ => const AppCurrency(code: 'MYR', symbol: 'RM'),
     };
   }
+
+  static AppCurrency fromCode(String code) {
+    return switch (code) {
+      'SGD' => const AppCurrency(code: 'SGD', symbol: 'S\$'),
+      'USD' => const AppCurrency(code: 'USD', symbol: '\$'),
+      'GBP' => const AppCurrency(code: 'GBP', symbol: '£'),
+      'JPY' => const AppCurrency(code: 'JPY', symbol: '¥'),
+      _ => const AppCurrency(code: 'MYR', symbol: 'RM'),
+    };
+  }
 }
 
 String formatCurrencyCents(int cents, AppCurrency currency) {

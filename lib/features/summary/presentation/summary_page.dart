@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/amount_formatter.dart';
 import '../../expenses/data/expense_model.dart';
 import '../../expenses/expense_providers.dart';
+import '../../settings/currency_preference.dart';
 
 class SummaryPage extends ConsumerStatefulWidget {
   const SummaryPage({super.key});
@@ -21,7 +22,7 @@ class _SummaryPageState extends ConsumerState<SummaryPage> {
   Widget build(BuildContext context) {
     final expenses = ref.watch(expensesProvider);
     final now = _referenceDate;
-    final currency = AppCurrency.fromLocale(Localizations.localeOf(context));
+    final currency = ref.watch(appCurrencyProvider);
     final filteredExpenses = expenses
         .where((expense) => _includes(expense.occurredAt, now))
         .toList();

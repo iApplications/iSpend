@@ -10,7 +10,6 @@ import 'features/categories/category_providers.dart';
 import 'features/categories/data/category_repository.dart';
 import 'features/payment_methods/data/payment_method_repository.dart';
 import 'features/payment_methods/payment_method_providers.dart';
-import 'features/settings/time_format_preference.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

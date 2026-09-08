@@ -1,9 +1,14 @@
 import 'package:sqflite_sqlcipher/sqflite.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 abstract interface class AppSettingsRepository {
   Future<String?> read(String key);
   Future<void> write(String key, String value);
 }
+
+final appSettingsRepositoryProvider = Provider<AppSettingsRepository>(
+  (_) => InMemoryAppSettingsRepository(),
+);
 
 class InMemoryAppSettingsRepository implements AppSettingsRepository {
   final Map<String, String> _values = {};
