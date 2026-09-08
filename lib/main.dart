@@ -6,6 +6,8 @@ import 'core/database/app_settings_repository.dart';
 import 'core/database/database.dart';
 import 'features/expenses/data/expense_repository.dart';
 import 'features/expenses/expense_providers.dart';
+import 'features/categories/category_providers.dart';
+import 'features/categories/data/category_repository.dart';
 import 'features/settings/time_format_preference.dart';
 
 Future<void> main() async {
@@ -16,6 +18,9 @@ Future<void> main() async {
       overrides: [
         expenseRepositoryProvider.overrideWithValue(
           SqlCipherExpenseRepository(encryptedDatabase.database),
+        ),
+        categoryRepositoryProvider.overrideWithValue(
+          SqlCipherCategoryRepository(encryptedDatabase.database),
         ),
         appSettingsRepositoryProvider.overrideWithValue(
           SqlCipherAppSettingsRepository(encryptedDatabase.database),

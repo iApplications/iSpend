@@ -8,24 +8,30 @@ import '../data/expense_model.dart';
 Future<Expense?> showExpenseEntrySheet(
   BuildContext context, {
   required bool use24HourFormat,
+  required List<String> categories,
   Expense? expense,
 }) {
   return showModalBottomSheet<Expense>(
     context: context,
     isScrollControlled: true,
-    builder: (_) =>
-        ExpenseEntrySheet(use24HourFormat: use24HourFormat, expense: expense),
+    builder: (_) => ExpenseEntrySheet(
+      use24HourFormat: use24HourFormat,
+      categories: categories,
+      expense: expense,
+    ),
   );
 }
 
 class ExpenseEntrySheet extends StatefulWidget {
   const ExpenseEntrySheet({
     required this.use24HourFormat,
+    required this.categories,
     this.expense,
     super.key,
   });
 
   final bool use24HourFormat;
+  final List<String> categories;
   final Expense? expense;
 
   @override
@@ -33,13 +39,6 @@ class ExpenseEntrySheet extends StatefulWidget {
 }
 
 class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
-  static const _categories = [
-    'Food',
-    'Transport',
-    'Shopping',
-    'Bills',
-    'Other',
-  ];
   static const _paymentMethods = ['Cash', 'Credit Card', 'Debit Card'];
 
   final _amountController = TextEditingController();
@@ -131,6 +130,16 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
 
   @override
   Widget build(BuildContext context) {
+    final uniqueCategories = <String>[];
+    final seenCategoryNames = <String>{};
+    for (final category in widget.categories) {
+      if (seenCategoryNames.add(category.toLowerCase())) {
+        uniqueCategories.add(category);
+      }
+    }
+    if (!uniqueCategories.contains(_category) && uniqueCategories.isNotEmpty) {
+      _category = uniqueCategories.first;
+    }
     final bottomPadding = MediaQuery.viewInsetsOf(context).bottom;
     return SafeArea(
       child: Padding(
@@ -183,7 +192,7 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
                   labelText: 'Category',
                   border: OutlineInputBorder(),
                 ),
-                items: _categories
+                items: uniqueCategories
                     .map(
                       (category) => DropdownMenuItem(
                         value: category,

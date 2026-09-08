@@ -15,7 +15,7 @@ class ISpendDatabase {
     final database = await openDatabase(
       databasePath,
       password: databaseKey,
-      version: 2,
+      version: 4,
       onCreate: (db, _) async {
         await db.execute('''
           CREATE TABLE expenses (
@@ -29,10 +29,33 @@ class ISpendDatabase {
           )
         ''');
         await _createSettingsTable(db);
+        await _createCategoriesTable(db);
       },
       onUpgrade: (db, oldVersion, _) async {
         if (oldVersion < 2) {
           await _createSettingsTable(db);
+        }
+        if (oldVersion < 3) {
+          await _createCategoriesTable(db);
+        }
+        if (oldVersion < 4) {
+          await db.execute(
+            "ALTER TABLE categories ADD COLUMN icon_key TEXT NOT NULL DEFAULT 'other'",
+          );
+          for (final name in const [
+            'Food',
+            'Transport',
+            'Shopping',
+            'Bills',
+            'Other',
+          ]) {
+            await db.update(
+              'categories',
+              {'icon_key': _defaultCategoryIconKey(name)},
+              where: 'name = ?',
+              whereArgs: [name],
+            );
+          }
         }
       },
     );
@@ -47,4 +70,36 @@ class ISpendDatabase {
       )
     ''');
   }
+
+  static Future<void> _createCategoriesTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE categories (
+        name TEXT PRIMARY KEY,
+        icon_key TEXT NOT NULL,
+        created_at_millis INTEGER NOT NULL
+      )
+    ''');
+    final createdAt = DateTime.now().millisecondsSinceEpoch;
+    for (final name in const [
+      'Food',
+      'Transport',
+      'Shopping',
+      'Bills',
+      'Other',
+    ]) {
+      await db.insert('categories', {
+        'name': name,
+        'icon_key': _defaultCategoryIconKey(name),
+        'created_at_millis': createdAt,
+      });
+    }
+  }
+
+  static String _defaultCategoryIconKey(String name) => switch (name) {
+    'Food' => 'food',
+    'Transport' => 'transport',
+    'Shopping' => 'shopping',
+    'Bills' => 'bills',
+    _ => 'other',
+  };
 }

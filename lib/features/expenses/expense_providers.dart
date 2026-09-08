@@ -25,6 +25,8 @@ class ExpensesNotifier extends Notifier<List<Expense>> {
     state = await _repository.getAll();
   }
 
+  Future<void> refresh() => _load();
+
   Future<void> add(Expense expense) async {
     await _repository.save(expense);
     await _load();

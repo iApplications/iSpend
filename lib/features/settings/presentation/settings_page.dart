@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../categories/presentation/category_management_page.dart';
 import '../time_format_preference.dart';
 
 class SettingsPage extends ConsumerWidget {
@@ -22,7 +23,11 @@ class SettingsPage extends ConsumerWidget {
               title: const Text('Categories'),
               subtitle: const Text('Manage your expense categories'),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () {},
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const CategoryManagementPage(),
+                ),
+              ),
             ),
           ),
           Card(
