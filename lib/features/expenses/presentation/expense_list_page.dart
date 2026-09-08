@@ -17,6 +17,8 @@ class ExpenseListPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final expenses = ref.watch(expensesProvider);
     final categories = ref.watch(categoriesProvider);
+    final categoryIconKeys =
+        ref.watch(categoryIconKeysProvider).value ?? const <String, String>{};
     final paymentMethods = ref.watch(paymentMethodsProvider);
     final currency = AppCurrency.fromLocale(Localizations.localeOf(context));
     final timePreference = ref.watch(timeFormatPreferenceProvider);
@@ -67,6 +69,8 @@ class ExpenseListPage extends ConsumerWidget {
                       itemBuilder: (context, index) => _ExpenseRow(
                         expense: expenses[index],
                         currency: currency,
+                        categoryIconKey:
+                            categoryIconKeys[expenses[index].category],
                         use24HourFormat: use24HourFormat,
                         onEdit: () => _editExpense(
                           context,
@@ -163,6 +167,7 @@ class _ExpenseRow extends StatelessWidget {
   const _ExpenseRow({
     required this.expense,
     required this.currency,
+    this.categoryIconKey,
     required this.use24HourFormat,
     required this.onEdit,
     required this.onDelete,
@@ -170,13 +175,16 @@ class _ExpenseRow extends StatelessWidget {
 
   final Expense expense;
   final AppCurrency currency;
+  final String? categoryIconKey;
   final bool use24HourFormat;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
-    final categoryStyle = categoryIconStyle(expense.category);
+    final categoryStyle = categoryIconKey == null
+        ? categoryIconStyle(expense.category)
+        : categoryIconStyleForKey(categoryIconKey!);
     final detailParts = <String>[
       if (expense.merchantOrNote != null) expense.category,
       if (expense.paymentMethod != null) expense.paymentMethod!,

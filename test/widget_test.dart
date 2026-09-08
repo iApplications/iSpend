@@ -121,4 +121,51 @@ void main() {
     expect(find.text('Category in use'), findsOneWidget);
     expect(find.textContaining('1 expense uses this category'), findsOneWidget);
   });
+
+  testWidgets('blocks a duplicate payment method name', (tester) async {
+    await tester.pumpWidget(const ProviderScope(child: ISpendApp()));
+
+    await tester.tap(find.text('Settings').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Payment methods'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add method'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'cash');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('This payment method already exists.'), findsOneWidget);
+    expect(find.text('Cash'), findsOneWidget);
+  });
+
+  testWidgets('blocks deleting a payment method used by an expense', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const ProviderScope(child: ISpendApp()));
+
+    await tester.tap(find.text('Add expense'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('amountField')), '5.00');
+    await tester.tap(find.text('None'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cash').last);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Save expense'));
+    await tester.tap(find.text('Save expense'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Settings').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Payment methods'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.delete_outline).first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Payment method in use'), findsOneWidget);
+    expect(
+      find.textContaining('1 expense uses this payment method'),
+      findsOneWidget,
+    );
+  });
 }

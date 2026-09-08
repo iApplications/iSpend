@@ -12,6 +12,10 @@ final categoriesProvider = NotifierProvider<CategoriesNotifier, List<String>>(
   CategoriesNotifier.new,
 );
 
+final categoryIconKeysProvider = FutureProvider<Map<String, String>>(
+  (ref) => ref.watch(categoryRepositoryProvider).getIconKeys(),
+);
+
 class CategoriesNotifier extends Notifier<List<String>> {
   late final CategoryRepository _repository;
   late final ExpenseRepository _expenseRepository;
@@ -39,8 +43,12 @@ class CategoriesNotifier extends Notifier<List<String>> {
   }
 
   Future<void> rename(String oldName, String newName) async {
-    await _repository.rename(oldName, newName);
-    await _expenseRepository.renameCategory(oldName, newName);
+    if (_repository case final SqlCipherCategoryRepository repository) {
+      await repository.renameAndUpdateExpenses(oldName, newName);
+    } else {
+      await _repository.rename(oldName, newName);
+      await _expenseRepository.renameCategory(oldName, newName);
+    }
     await _load();
     await ref.read(expensesProvider.notifier).refresh();
   }
@@ -51,5 +59,10 @@ class CategoriesNotifier extends Notifier<List<String>> {
   Future<void> delete(String name) async {
     await _repository.delete(name);
     await _load();
+  }
+
+  Future<void> updateIconKey(String name, String iconKey) async {
+    await _repository.updateIconKey(name, iconKey);
+    ref.invalidate(categoryIconKeysProvider);
   }
 }

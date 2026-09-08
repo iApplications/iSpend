@@ -14,10 +14,14 @@ class PaymentMethodManagementPage extends ConsumerWidget {
         icon: const Icon(Icons.add),
         label: const Text('Add method'),
       ),
-      body: ListView(
-        children: [
-          for (final method in methods)
-            ListTile(
+      body: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 96),
+        separatorBuilder: (_, _) => const SizedBox(height: 8),
+        itemCount: methods.length,
+        itemBuilder: (context, index) {
+          final method = methods[index];
+          return Card(
+            child: ListTile(
               leading: const Icon(Icons.account_balance_wallet_outlined),
               title: Text(method),
               onTap: () => _edit(context, ref, method),
@@ -26,7 +30,8 @@ class PaymentMethodManagementPage extends ConsumerWidget {
                 onPressed: () => _delete(context, ref, method),
               ),
             ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -37,27 +42,48 @@ class PaymentMethodManagementPage extends ConsumerWidget {
     String? oldName,
   ]) async {
     final controller = TextEditingController(text: oldName ?? '');
+    String? error;
     final name = await showDialog<String>(
       context: context,
-      builder: (c) => AlertDialog(
-        title: Text(
-          oldName == null ? 'Add payment method' : 'Rename payment method',
-        ),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: 'Name'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c),
-            child: const Text('Cancel'),
+      builder: (c) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text(
+            oldName == null ? 'Add payment method' : 'Rename payment method',
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(c, controller.text.trim()),
-            child: const Text('Save'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: InputDecoration(labelText: 'Name', errorText: error),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(c),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final name = controller.text.trim();
+                final duplicate = ref
+                    .read(paymentMethodsProvider)
+                    .any(
+                      (method) =>
+                          method.toLowerCase() == name.toLowerCase() &&
+                          method != oldName,
+                    );
+                if (name.isEmpty || duplicate) {
+                  setState(
+                    () => error = name.isEmpty
+                        ? 'Enter a payment method name.'
+                        : 'This payment method already exists.',
+                  );
+                  return;
+                }
+                Navigator.pop(c, name);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
       ),
     );
     if (name == null || name.isEmpty) return;

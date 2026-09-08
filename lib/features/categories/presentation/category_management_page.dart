@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/widgets/icon_registry.dart';
 import '../category_providers.dart';
 
 class CategoryManagementPage extends ConsumerWidget {
@@ -9,6 +10,8 @@ class CategoryManagementPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final categories = ref.watch(categoriesProvider);
+    final iconKeys =
+        ref.watch(categoryIconKeysProvider).value ?? const <String, String>{};
     return Scaffold(
       appBar: AppBar(title: const Text('Categories')),
       floatingActionButton: FloatingActionButton.extended(
@@ -22,9 +25,12 @@ class CategoryManagementPage extends ConsumerWidget {
         separatorBuilder: (_, _) => const SizedBox(height: 8),
         itemBuilder: (context, index) {
           final category = categories[index];
+          final iconStyle = categoryIconStyleForKey(
+            iconKeys[category] ?? defaultCategoryIconKey(category),
+          );
           return Card(
             child: ListTile(
-              leading: const Icon(Icons.category_outlined),
+              leading: Icon(iconStyle.icon, color: iconStyle.color),
               title: Text(category),
               trailing: PopupMenuButton<_CategoryAction>(
                 tooltip: 'Category options',
@@ -32,6 +38,8 @@ class CategoryManagementPage extends ConsumerWidget {
                   switch (action) {
                     case _CategoryAction.rename:
                       _showNameDialog(context, ref, existingName: category);
+                    case _CategoryAction.changeIcon:
+                      _showIconPicker(context, ref, category);
                     case _CategoryAction.delete:
                       _confirmDelete(context, ref, category);
                   }
@@ -40,6 +48,10 @@ class CategoryManagementPage extends ConsumerWidget {
                   PopupMenuItem(
                     value: _CategoryAction.rename,
                     child: Text('Rename'),
+                  ),
+                  PopupMenuItem(
+                    value: _CategoryAction.changeIcon,
+                    child: Text('Change icon'),
                   ),
                   PopupMenuItem(
                     value: _CategoryAction.delete,
@@ -122,9 +134,49 @@ class CategoryManagementPage extends ConsumerWidget {
     if (shouldDelete != true) return;
     await ref.read(categoriesProvider.notifier).delete(category);
   }
+
+  Future<void> _showIconPicker(
+    BuildContext context,
+    WidgetRef ref,
+    String category,
+  ) async {
+    final selectedKey = ref.read(categoryIconKeysProvider).value?[category];
+    final iconKey = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Choose category icon'),
+        content: SizedBox(
+          width: 320,
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final key in categoryIconKeys)
+                Tooltip(
+                  message: categoryIconLabel(key),
+                  child: IconButton(
+                    isSelected: key == selectedKey,
+                    onPressed: () => Navigator.pop(dialogContext, key),
+                    icon: Icon(
+                      categoryIconStyleForKey(key).icon,
+                      color: categoryIconStyleForKey(key).color,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (iconKey != null) {
+      await ref
+          .read(categoriesProvider.notifier)
+          .updateIconKey(category, iconKey);
+    }
+  }
 }
 
-enum _CategoryAction { rename, delete }
+enum _CategoryAction { rename, changeIcon, delete }
 
 class _CategoryNameDialog extends StatefulWidget {
   const _CategoryNameDialog({

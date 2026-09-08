@@ -29,7 +29,7 @@ class Expense {
     category: category ?? this.category,
     occurredAt: occurredAt ?? this.occurredAt,
     createdAt: createdAt,
-    merchantOrNote: merchantOrNote,
-    paymentMethod: paymentMethod,
+    merchantOrNote: merchantOrNote ?? this.merchantOrNote,
+    paymentMethod: paymentMethod ?? this.paymentMethod,
   );
 }
