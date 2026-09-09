@@ -6,6 +6,7 @@ import '../../payment_methods/presentation/payment_method_management_page.dart';
 import '../appearance_preference.dart';
 import '../currency_preference.dart';
 import '../time_format_preference.dart';
+import 'about_page.dart';
 import 'recovery_passphrase_settings_page.dart';
 
 class SettingsPage extends ConsumerWidget {
@@ -90,6 +91,17 @@ class SettingsPage extends ConsumerWidget {
                 builder: (_) => const RecoveryPassphraseSettingsPage(),
               ),
             ),
+          ),
+        ),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: const Text('About iSpend'),
+            subtitle: const Text('Version, privacy, and provider attribution'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute<void>(builder: (_) => const AboutPage())),
           ),
         ),
       ],
