@@ -50,9 +50,22 @@ class RecoveryKeyEnvelope {
   }
 }
 
-class RecoveryKeyService {
+abstract interface class RecoveryKeyOperations {
+  Future<RecoveryKeyEnvelope> wrap({
+    required String databaseKey,
+    required String passphrase,
+  });
+
+  Future<String> unwrap({
+    required RecoveryKeyEnvelope envelope,
+    required String passphrase,
+  });
+}
+
+class RecoveryKeyService implements RecoveryKeyOperations {
   const RecoveryKeyService();
 
+  @override
   Future<RecoveryKeyEnvelope> wrap({
     required String databaseKey,
     required String passphrase,
@@ -69,6 +82,7 @@ class RecoveryKeyService {
     );
   }
 
+  @override
   Future<String> unwrap({
     required RecoveryKeyEnvelope envelope,
     required String passphrase,

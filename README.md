@@ -8,7 +8,7 @@ spending quick to record, easy to review, and securely stored on the device.
 
 - Record an expense in a few taps.
 - Organise expenses by category and payment method.
-- See clear weekly, monthly, and category-based spending summaries.
+- See clear rolling-period and category-based spending summaries.
 - Keep financial data private, encrypted, and usable without an account.
 - Support safe device backup and recovery without collecting user data.
 
@@ -26,7 +26,7 @@ include:
   expenses still use the item, and iSpend shows the number affected.
 - Amounts rounded normally to two decimal places and stored internally as
   integer cents/sen to avoid floating-point errors.
-- Weekly and monthly totals, with Monday as the first day of the week.
+- Today, last 7 days, and last 30 days totals, ending on a user-selected date.
 - A currency selected at first launch and kept fixed even if the device region
   changes later. There is no currency selector on Phase 1 expenses;
   multi-currency is deferred to the Phase 4a enhancement.
@@ -48,6 +48,10 @@ user's recovery passphrase.
 Recovery passphrases are protected with Argon2id using fixed parameters:
 `t=3`, `m=65536` (64 MiB), and `p=4`, plus a unique random salt for each
 passphrase.
+
+Recovery passphrases must be at least 10 characters and can be changed in
+Settings for future backups. Backups made before a change still need the
+previous passphrase.
 
 ## Design principles
 

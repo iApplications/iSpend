@@ -3,7 +3,13 @@ import 'dart:math';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-class DatabaseKeyStore {
+abstract interface class DatabaseKeyAccess {
+  Future<String?> readKey();
+  Future<void> writeKey(String key);
+  Future<String> readOrCreateKey();
+}
+
+class DatabaseKeyStore implements DatabaseKeyAccess {
   DatabaseKeyStore({FlutterSecureStorage? storage})
     : _storage =
           storage ??
@@ -17,11 +23,14 @@ class DatabaseKeyStore {
 
   final FlutterSecureStorage _storage;
 
+  @override
   Future<String?> readKey() => _storage.read(key: _databaseKeyName);
 
+  @override
   Future<void> writeKey(String key) =>
       _storage.write(key: _databaseKeyName, value: key);
 
+  @override
   Future<String> readOrCreateKey() async {
     final existing = await readKey();
     if (existing != null) return existing;

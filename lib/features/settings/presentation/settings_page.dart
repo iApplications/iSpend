@@ -6,6 +6,7 @@ import '../../payment_methods/presentation/payment_method_management_page.dart';
 import '../appearance_preference.dart';
 import '../currency_preference.dart';
 import '../time_format_preference.dart';
+import 'recovery_passphrase_settings_page.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -72,6 +73,21 @@ class SettingsPage extends ConsumerWidget {
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => const PaymentMethodManagementPage(),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        const _SettingsSectionLabel('PRIVACY & DATA'),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.key_outlined),
+            title: const Text('Recovery passphrase'),
+            subtitle: const Text('Change the passphrase for future backups'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const RecoveryPassphraseSettingsPage(),
               ),
             ),
           ),

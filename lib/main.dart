@@ -6,7 +6,9 @@ import 'core/database/app_settings_repository.dart';
 import 'core/database/database.dart';
 import 'core/database/database_key_store.dart';
 import 'core/database/recovery_envelope_store.dart';
+import 'core/database/recovery_bootstrap.dart';
 import 'core/database/recovery_key.dart';
+import 'core/utils/amount_formatter.dart';
 import 'features/categories/category_providers.dart';
 import 'features/categories/data/category_repository.dart';
 import 'features/expenses/data/expense_repository.dart';
@@ -14,6 +16,7 @@ import 'features/expenses/expense_providers.dart';
 import 'features/onboarding/presentation/recovery_passphrase_page.dart';
 import 'features/payment_methods/data/payment_method_repository.dart';
 import 'features/payment_methods/payment_method_providers.dart';
+import 'features/settings/currency_preference.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,10 +34,16 @@ class _ISpendBootstrapState extends State<_ISpendBootstrap> {
   final _keyStore = DatabaseKeyStore();
   final _envelopeStore = RecoveryEnvelopeStore();
   final _recoveryKeyService = const RecoveryKeyService();
+  late final _recoveryBootstrap = RecoveryBootstrap(
+    keyStore: _keyStore,
+    envelopeStore: _envelopeStore,
+    recoveryKeyService: _recoveryKeyService,
+  );
 
   ISpendDatabase? _database;
   String? _databaseKey;
   RecoveryKeyEnvelope? _envelope;
+  AppCurrency? _lockedCurrency;
   bool _restoring = false;
   Object? _startupError;
 
@@ -46,22 +55,26 @@ class _ISpendBootstrapState extends State<_ISpendBootstrap> {
 
   Future<void> _initialise() async {
     try {
-      final envelope = await _envelopeStore.read();
-      final existingKey = await _keyStore.readKey();
-      if (existingKey == null && envelope != null) {
+      final recoveryState = await _recoveryBootstrap.initialise();
+      if (recoveryState.path == RecoveryBootstrapPath.restore) {
         setState(() {
-          _envelope = envelope;
+          _envelope = recoveryState.envelope;
           _restoring = true;
         });
         return;
       }
-      final databaseKey = existingKey ?? await _keyStore.readOrCreateKey();
+      final databaseKey = recoveryState.databaseKey!;
       final database = await ISpendDatabase.open(databaseKey: databaseKey);
+      final settingsRepository = SqlCipherAppSettingsRepository(
+        database.database,
+      );
+      final lockedCurrency = await loadLockedAppCurrency(settingsRepository);
       if (!mounted) return;
       setState(() {
         _databaseKey = databaseKey;
         _database = database;
-        _envelope = envelope;
+        _envelope = recoveryState.envelope;
+        _lockedCurrency = lockedCurrency;
       });
     } catch (error) {
       if (mounted) setState(() => _startupError = error);
@@ -70,11 +83,10 @@ class _ISpendBootstrapState extends State<_ISpendBootstrap> {
 
   Future<String?> _createEnvelope(String passphrase) async {
     try {
-      final envelope = await _recoveryKeyService.wrap(
+      final envelope = await _recoveryBootstrap.createEnvelope(
         databaseKey: _databaseKey!,
         passphrase: passphrase,
       );
-      await _envelopeStore.write(envelope);
       if (mounted) setState(() => _envelope = envelope);
       return null;
     } catch (_) {
@@ -84,17 +96,22 @@ class _ISpendBootstrapState extends State<_ISpendBootstrap> {
 
   Future<String?> _restore(String passphrase) async {
     try {
-      final databaseKey = await _recoveryKeyService.unwrap(
-        envelope: _envelope!,
-        passphrase: passphrase,
+      final databaseKey = await _recoveryBootstrap.restore(
+        _envelope!,
+        passphrase,
       );
       final database = await ISpendDatabase.open(databaseKey: databaseKey);
-      await _keyStore.writeKey(databaseKey);
+      await _recoveryBootstrap.persistRecoveredKey(databaseKey);
+      final settingsRepository = SqlCipherAppSettingsRepository(
+        database.database,
+      );
+      final lockedCurrency = await loadLockedAppCurrency(settingsRepository);
       if (!mounted) return null;
       setState(() {
         _databaseKey = databaseKey;
         _database = database;
         _restoring = false;
+        _lockedCurrency = lockedCurrency;
       });
       return null;
     } catch (_) {
@@ -145,6 +162,7 @@ class _ISpendBootstrapState extends State<_ISpendBootstrap> {
         appSettingsRepositoryProvider.overrideWithValue(
           SqlCipherAppSettingsRepository(database),
         ),
+        startupAppCurrencyProvider.overrideWithValue(_lockedCurrency),
       ],
       child: const ISpendThemedApp(),
     );
