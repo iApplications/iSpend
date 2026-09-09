@@ -146,7 +146,7 @@ class _ISpendBootstrapState extends State<_ISpendBootstrap> {
           SqlCipherAppSettingsRepository(database),
         ),
       ],
-      child: const ISpendApp(),
+      child: const ISpendThemedApp(),
     );
   }
 }
