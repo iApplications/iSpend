@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/amount_formatter.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_surface.dart';
+import '../../../core/widgets/icon_registry.dart';
+import '../../categories/category_providers.dart';
 import '../../expenses/data/expense_model.dart';
 import '../../expenses/expense_providers.dart';
 import '../../settings/currency_preference.dart';
@@ -25,6 +27,8 @@ class _SummaryPageState extends ConsumerState<SummaryPage> {
     final expenses = ref.watch(expensesProvider);
     final now = _referenceDate;
     final currency = ref.watch(appCurrencyProvider);
+    final categoryIconKeys =
+        ref.watch(categoryIconKeysProvider).value ?? const <String, String>{};
     final filteredExpenses = expenses
         .where((expense) => _includes(expense.occurredAt, now))
         .toList();
@@ -79,6 +83,8 @@ class _SummaryPageState extends ConsumerState<SummaryPage> {
           title: 'Category breakdown',
           totals: _group(filteredExpenses, (expense) => expense.category),
           currency: currency,
+          categoryIconKeys: categoryIconKeys,
+          type: _BreakdownType.category,
         ),
         const SizedBox(height: AppSpacing.xl),
         _Breakdown(
@@ -88,6 +94,7 @@ class _SummaryPageState extends ConsumerState<SummaryPage> {
             (expense) => expense.paymentMethod ?? 'No payment method',
           ),
           currency: currency,
+          type: _BreakdownType.paymentMethod,
         ),
       ],
     );
@@ -153,40 +160,162 @@ class _TotalsCard extends StatelessWidget {
   );
 }
 
+enum _BreakdownType { category, paymentMethod }
+
 class _Breakdown extends StatelessWidget {
   const _Breakdown({
     required this.title,
     required this.totals,
     required this.currency,
+    required this.type,
+    this.categoryIconKeys = const {},
   });
   final String title;
   final Map<String, int> totals;
   final AppCurrency currency;
+  final _BreakdownType type;
+  final Map<String, String> categoryIconKeys;
+
   @override
-  Widget build(BuildContext context) => AppSurface(
-    padding: const EdgeInsets.all(AppSpacing.lg),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: Theme.of(context).textTheme.titleLarge),
-        if (totals.isEmpty)
-          const Padding(
-            padding: EdgeInsets.only(top: 12),
-            child: Text('No expenses recorded yet.'),
-          )
-        else
-          for (final entry in totals.entries)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(entry.key),
-              trailing: Text(
-                formatCurrencyCents(entry.value, currency),
-                style: Theme.of(context).textTheme.titleMedium,
+  Widget build(BuildContext context) {
+    final sortedEntries = totals.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final total = totals.values.fold(0, (sum, amount) => sum + amount);
+    return AppSurface(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleLarge),
+          if (totals.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 12),
+              child: Text('No expenses recorded yet.'),
+            )
+          else
+            for (final entry in sortedEntries)
+              _BreakdownRow(
+                label: entry.key,
+                amount: entry.value,
+                total: total,
+                currency: currency,
+                type: type,
+                categoryIconKey: categoryIconKeys[entry.key],
               ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BreakdownRow extends StatelessWidget {
+  const _BreakdownRow({
+    required this.label,
+    required this.amount,
+    required this.total,
+    required this.currency,
+    required this.type,
+    this.categoryIconKey,
+  });
+
+  final String label;
+  final int amount;
+  final int total;
+  final AppCurrency currency;
+  final _BreakdownType type;
+  final String? categoryIconKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final percentage = total == 0 ? 0.0 : amount / total;
+    final percentLabel = '${(percentage * 100).round()}%';
+    final isCategory = type == _BreakdownType.category;
+    final categoryStyle = categoryIconKey == null
+        ? categoryIconStyle(label)
+        : categoryIconStyleForKey(categoryIconKey!);
+    final accent = isCategory
+        ? categoryStyle.color
+        : Theme.of(context).colorScheme.primary.withValues(alpha: 0.72);
+    final icon = isCategory ? categoryStyle.icon : _paymentMethodIcon(label);
+
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.lg),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: isCategory ? 0.14 : 0.10),
+              borderRadius: BorderRadius.circular(12),
             ),
-      ],
-    ),
-  );
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Icon(icon, color: accent, size: 20),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      formatCurrencyCents(amount, currency),
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Expanded(
+                      child: LinearProgressIndicator(
+                        value: percentage,
+                        minHeight: 5,
+                        borderRadius: BorderRadius.circular(99),
+                        color: accent,
+                        backgroundColor: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Text(
+                      percentLabel,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _paymentMethodIcon(String method) {
+    final normalized = method.toLowerCase();
+    if (normalized.contains('cash')) return Icons.payments_outlined;
+    if (normalized.contains('card') || normalized.contains('visa')) {
+      return Icons.credit_card_outlined;
+    }
+    if (normalized == 'no payment method') return Icons.help_outline;
+    return Icons.account_balance_wallet_outlined;
+  }
 }
 
 int _total(List<Expense> expenses, bool Function(DateTime) includes) => expenses
