@@ -49,4 +49,5 @@ then reinstall the same APK to trigger restoration.
 - [ ] A private Android upload-signing key is configured and stored outside the
   repository before any public distribution.
 - [x] The final Phase 1 pull request is opened from `dev/Phase1_main` into
+
   `main` only after all relevant checks above pass.
