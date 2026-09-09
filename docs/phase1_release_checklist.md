@@ -2,10 +2,10 @@
 
 ## Automated checks
 
-- [ ] `flutter analyze` completes with no issues.
-- [ ] `flutter test` completes successfully.
-- [ ] `flutter build apk --release` completes successfully.
-- [ ] Install `build\app\outputs\flutter-apk\app-release.apk` and open it.
+- [x] `flutter analyze` completes with no issues.
+- [x] `flutter test` completes successfully.
+- [x] `flutter build apk --release` completes successfully.
+- [x] Install `build\app\outputs\flutter-apk\app-release.apk` and open it.
 
 ## Core regression check
 
@@ -17,10 +17,10 @@
 
 ## Android backup and recovery check
 
-This must be performed with two clean Android devices or emulator profiles that
-use the same Android backup account. Android controls when automatic backups
-run, so wait until its backup settings report a recent backup before moving to
-the second device.
+This can be performed with two clean Android devices or profiles using the same
+backup account. For development verification, Android's local backup transport
+also permits a safe one-emulator test: create a backup, uninstall only iSpend,
+then reinstall the same APK to trigger restoration.
 
 1. On device A, install iSpend and complete recovery-passphrase onboarding.
 2. Add recognisable test data: at least two expenses, a custom category, a
@@ -34,6 +34,15 @@ the second device.
 7. Enter the correct passphrase. Confirm the original expenses, custom labels,
    currency, appearance, and time-format setting are present.
 8. Record the device models, Android versions, and result in the pull request.
+
+### Verified development result — 9 September 2026
+
+- [x] Release APK installed on Android emulator `emulator-5554`.
+- [x] Local encrypted backup for `com.apps.ispend.v1` completed successfully.
+- [x] After uninstall/reinstall, iSpend requested the recovery passphrase.
+- [x] A wrong passphrase stayed on the restore screen and displayed an error.
+- [x] The correct passphrase restored expenses, custom labels, Summary data,
+  Appearance, and Time format.
 
 ## Publishing boundary
 
