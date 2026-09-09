@@ -44,6 +44,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Food'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 2));
   });
 
   testWidgets('edits and deletes a saved expense', (tester) async {
@@ -54,6 +55,7 @@ void main() {
     await tester.enterText(find.byKey(const Key('amountField')), '5.00');
     await tester.tap(find.byKey(const Key('saveExpenseButton')));
     await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 2));
 
     await tester.tap(find.byType(ListTile));
     await tester.pumpAndSettle();
@@ -69,6 +71,7 @@ void main() {
       ),
       findsOneWidget,
     );
+    await tester.pump(const Duration(seconds: 2));
 
     await tester.drag(find.byType(Dismissible).first, const Offset(-500, 0));
     await tester.pumpAndSettle();
@@ -119,6 +122,7 @@ void main() {
     await tester.enterText(find.byKey(const Key('amountField')), '5.00');
     await tester.tap(find.byKey(const Key('saveExpenseButton')));
     await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 2));
 
     await tester.tap(find.text('Settings').last);
     await tester.pumpAndSettle();
@@ -165,6 +169,7 @@ void main() {
     await tester.ensureVisible(find.byKey(const Key('saveExpenseButton')));
     await tester.tap(find.byKey(const Key('saveExpenseButton')));
     await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 2));
 
     await tester.tap(find.text('Settings').last);
     await tester.pumpAndSettle();
