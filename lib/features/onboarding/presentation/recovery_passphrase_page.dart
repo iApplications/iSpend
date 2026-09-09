@@ -15,6 +15,7 @@ class RecoveryPassphrasePage extends StatefulWidget {
 }
 
 class _RecoveryPassphrasePageState extends State<RecoveryPassphrasePage> {
+  static const _minimumPassphraseLength = 10;
   final _passphraseController = TextEditingController();
   final _confirmationController = TextEditingController();
   bool _obscure = true;
@@ -32,6 +33,13 @@ class _RecoveryPassphrasePageState extends State<RecoveryPassphrasePage> {
     final passphrase = _passphraseController.text;
     if (passphrase.isEmpty) {
       setState(() => _error = 'Enter your recovery passphrase.');
+      return;
+    }
+    if (!widget.isRestore && passphrase.length < _minimumPassphraseLength) {
+      setState(
+        () => _error =
+            'Use at least $_minimumPassphraseLength characters for your recovery passphrase.',
+      );
       return;
     }
     if (!widget.isRestore && passphrase != _confirmationController.text) {
@@ -96,6 +104,9 @@ class _RecoveryPassphrasePageState extends State<RecoveryPassphrasePage> {
                     onSubmitted: widget.isRestore ? (_) => _submit() : null,
                     decoration: InputDecoration(
                       labelText: 'Recovery passphrase',
+                      helperText: widget.isRestore
+                          ? null
+                          : 'Use at least $_minimumPassphraseLength characters.',
                       border: const OutlineInputBorder(),
                       suffixIcon: IconButton(
                         tooltip: _obscure

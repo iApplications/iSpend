@@ -62,4 +62,31 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets(
+    'setup requires a recovery passphrase of at least 10 characters',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: RecoveryPassphrasePage(
+            isRestore: false,
+            onSubmit: (_) async => null,
+          ),
+        ),
+      );
+
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Recovery passphrase'),
+        'short',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Confirm recovery passphrase'),
+        'short',
+      );
+      await tester.tap(find.text('Continue'));
+      await tester.pump();
+
+      expect(find.textContaining('Use at least 10 characters'), findsWidgets);
+    },
+  );
 }
