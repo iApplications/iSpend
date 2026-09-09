@@ -74,9 +74,9 @@ previous passphrase.
 
 ## Development status
 
-The project is in Phase 1 setup and implementation. The current app shell is
-only a starting point; the expense-tracking features listed above are planned
-work, not yet a completed release.
+Phase 1 implementation is complete and is in release-readiness verification.
+The final checks are an Android backup/restore test on real devices and a
+release APK build.
 
 ## Branching and pull-request workflow
 
@@ -104,6 +104,18 @@ From the project folder:
 & "C:\Users\leong\develop\flutter\bin\flutter.bat" pub get
 & "C:\Users\leong\develop\flutter\bin\flutter.bat" run
 ```
+
+### Release APK
+
+From the project folder, create an installable release APK with:
+
+```powershell
+& "C:\Users\leong\develop\flutter\bin\flutter.bat" build apk --release
+```
+
+The resulting file is `build\app\outputs\flutter-apk\app-release.apk`.
+Before publishing outside testing, configure a private Android upload-signing
+key; do not distribute a build signed with a development key.
 
 On Windows, the `sodium` dependency needs MSYS2 build tools available on
 `PATH`, including `C:\msys64\usr\bin\bash.exe` and
