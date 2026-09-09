@@ -33,7 +33,7 @@ void main() {
     expect(find.text('Food'), findsOneWidget);
 
     await tester.enterText(find.byKey(const Key('amountField')), '9.999');
-    await tester.tap(find.text('Save expense'));
+    await tester.tap(find.byKey(const Key('saveExpenseButton')));
     await tester.pumpAndSettle();
 
     expect(
@@ -52,7 +52,7 @@ void main() {
     await tester.tap(find.text('Add'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('amountField')), '5.00');
-    await tester.tap(find.text('Save expense'));
+    await tester.tap(find.byKey(const Key('saveExpenseButton')));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byType(ListTile));
@@ -117,7 +117,7 @@ void main() {
     await tester.tap(find.text('Add'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('amountField')), '5.00');
-    await tester.tap(find.text('Save expense'));
+    await tester.tap(find.byKey(const Key('saveExpenseButton')));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Settings').last);
@@ -162,8 +162,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Cash').last);
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Save expense'));
-    await tester.tap(find.text('Save expense'));
+    await tester.ensureVisible(find.byKey(const Key('saveExpenseButton')));
+    await tester.tap(find.byKey(const Key('saveExpenseButton')));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Settings').last);

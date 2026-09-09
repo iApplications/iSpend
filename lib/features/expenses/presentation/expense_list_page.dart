@@ -36,6 +36,7 @@ class ExpenseListPage extends ConsumerWidget {
             use24HourFormat: use24HourFormat,
             categories: categories,
             paymentMethods: paymentMethods,
+            currency: currency,
           );
           if (expense != null) {
             await ref.read(expensesProvider.notifier).add(expense);
@@ -126,6 +127,7 @@ class ExpenseListPage extends ConsumerWidget {
       use24HourFormat: use24HourFormat,
       categories: ref.read(categoriesProvider),
       paymentMethods: ref.read(paymentMethodsProvider),
+      currency: ref.read(appCurrencyProvider),
       expense: expense,
     );
     if (updatedExpense != null) {
