@@ -8,7 +8,7 @@ spending quick to record, easy to review, and securely stored on the device.
 
 - Record an expense in a few taps.
 - Organise expenses by category and payment method.
-- See clear weekly, monthly, and category-based spending summaries.
+- See clear rolling-period and category-based spending summaries.
 - Keep financial data private, encrypted, and usable without an account.
 - Support safe device backup and recovery without collecting user data.
 
@@ -19,15 +19,17 @@ include:
 
 - A three-tab navigation bar: **Expenses**, **Summary**, and **Settings**.
 - Manual expense entry, editing, and deletion.
+- Expense list ordered newest first and grouped under date headers.
 - Default categories and payment methods, with management in Settings.
 - Food preselected as the default category for a new expense.
 - Category and payment-method deletion protection: deletion is blocked when
   expenses still use the item, and iSpend shows the number affected.
 - Amounts rounded normally to two decimal places and stored internally as
   integer cents/sen to avoid floating-point errors.
-- Weekly and monthly totals, with Monday as the first day of the week.
+- Today, last 7 days, and last 30 days totals, ending on a user-selected date.
 - A currency selected at first launch and kept fixed even if the device region
-  changes later.
+  changes later. There is no currency selector on Phase 1 expenses;
+  multi-currency is deferred to the Phase 4a enhancement.
 - Automatic device backups and a recovery-passphrase onboarding flow.
 
 ## Privacy and security
@@ -47,11 +49,18 @@ Recovery passphrases are protected with Argon2id using fixed parameters:
 `t=3`, `m=65536` (64 MiB), and `p=4`, plus a unique random salt for each
 passphrase.
 
+Recovery passphrases must be at least 10 characters and can be changed in
+Settings for future backups. Backups made before a change still need the
+previous passphrase.
+
 ## Design principles
 
 - Simple, calm, and readable screens.
 - Original provider icons only. Names may be shown as text, but iSpend will
   never reproduce official logos or trademarked artwork.
+- Phase 1 uses simple functional category icons. A later visual-enhancement
+  phase will explore more expressive, entertaining original icon treatments
+  while preserving quick recognition and text labels.
 - Local-first data ownership.
 - Accessible controls and clear confirmation for destructive actions.
 
@@ -65,20 +74,25 @@ passphrase.
 
 ## Development status
 
-The project is in Phase 1 setup and implementation. The current app shell is
-only a starting point; the expense-tracking features listed above are planned
-work, not yet a completed release.
+Phase 1 implementation is complete and is in release-readiness verification.
+The final checks are an Android backup/restore test on real devices and a
+release APK build.
 
 ## Branching and pull-request workflow
 
 All changes follow this workflow:
 
 1. Start from an up-to-date `main` branch.
-2. Create a task branch named `dev/{name}` (for example,
-   `dev/expense-entry`).
-3. Make the changes on that branch and run the relevant tests or build checks.
-4. Commit only after the changes have been tested successfully.
-5. Open a pull request from `dev/{name}` into `main` for review and merge.
+2. For Phase 1, use `dev/Phase1_main` as the integration branch. Create each
+   Phase 1 feature branch from it as `dev/Phase1_{feature}`, push that branch
+   to GitHub before making changes, then open its pull request back into
+   `dev/Phase1_main`.
+3. For work outside Phase 1, create a task branch from `main` named
+   `dev/{name}` (for example, `dev/expense-entry`), and push it before making
+   changes.
+4. Run the relevant tests or build checks, then commit only after they pass.
+5. Open a pull request for review and merge. Once Phase 1 is complete,
+   `dev/Phase1_main` is the branch that opens the pull request into `main`.
 
 Direct changes and commits to `main` should be avoided.
 
@@ -90,6 +104,18 @@ From the project folder:
 & "C:\Users\leong\develop\flutter\bin\flutter.bat" pub get
 & "C:\Users\leong\develop\flutter\bin\flutter.bat" run
 ```
+
+### Release APK
+
+From the project folder, create an installable release APK with:
+
+```powershell
+& "C:\Users\leong\develop\flutter\bin\flutter.bat" build apk --release
+```
+
+The resulting file is `build\app\outputs\flutter-apk\app-release.apk`.
+Before publishing outside testing, configure a private Android upload-signing
+key; do not distribute a build signed with a development key.
 
 On Windows, the `sodium` dependency needs MSYS2 build tools available on
 `PATH`, including `C:\msys64\usr\bin\bash.exe` and
