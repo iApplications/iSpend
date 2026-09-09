@@ -121,6 +121,7 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
     }
 
     final merchant = _merchantController.text.trim();
+    HapticFeedback.lightImpact();
     Navigator.of(context).pop(
       Expense(
         id: widget.expense?.id ?? const Uuid().v4(),
@@ -365,14 +366,18 @@ class _CategoryChoice extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
-    final style = categoryIconStyle(category);
-    return ChoiceChip(
+  Widget build(BuildContext context) => AnimatedScale(
+    duration: const Duration(milliseconds: 140),
+    curve: Curves.easeOut,
+    scale: selected ? 1.02 : 1,
+    child: ChoiceChip(
       selected: selected,
       onSelected: (_) => onTap(),
       avatar: Icon(style.icon, size: 18, color: selected ? style.color : null),
       label: Text(category),
       showCheckmark: selected,
-    );
-  }
+    ),
+  );
+
+  CategoryIconStyle get style => categoryIconStyle(category);
 }

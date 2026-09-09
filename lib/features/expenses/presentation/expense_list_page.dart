@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/amount_formatter.dart';
 import '../../../core/widgets/icon_registry.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_toast.dart';
 import '../../categories/category_providers.dart';
 import '../../payment_methods/payment_method_providers.dart';
 import '../../settings/time_format_preference.dart';
@@ -40,6 +41,8 @@ class ExpenseListPage extends ConsumerWidget {
           );
           if (expense != null) {
             await ref.read(expensesProvider.notifier).add(expense);
+            if (!context.mounted) return;
+            AppToast.show(context, 'Expense saved');
           }
         },
         icon: const Icon(Icons.add),
@@ -132,6 +135,8 @@ class ExpenseListPage extends ConsumerWidget {
     );
     if (updatedExpense != null) {
       await ref.read(expensesProvider.notifier).add(updatedExpense);
+      if (!context.mounted) return;
+      AppToast.show(context, 'Expense updated');
     }
   }
 
