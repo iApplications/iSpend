@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/amount_formatter.dart';
 import '../../../core/widgets/icon_registry.dart';
+import '../../../core/theme/app_tokens.dart';
 import '../../categories/category_providers.dart';
 import '../../payment_methods/payment_method_providers.dart';
 import '../../settings/time_format_preference.dart';
@@ -41,10 +42,10 @@ class ExpenseListPage extends ConsumerWidget {
           }
         },
         icon: const Icon(Icons.add),
-        label: const Text('Add expense'),
+        label: const Text('Add'),
       ),
       body: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+        padding: AppSpacing.screen,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -61,7 +62,9 @@ class ExpenseListPage extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.lg),
+            _SpendingContextCard(expenses: expenses, currency: currency),
+            const SizedBox(height: AppSpacing.lg),
             Expanded(
               child: expenses.isEmpty
                   ? _EmptyExpenses()
@@ -78,20 +81,28 @@ class ExpenseListPage extends ConsumerWidget {
                           for (final expense in entry.value)
                             Padding(
                               padding: const EdgeInsets.only(bottom: 8),
-                              child: _ExpenseRow(
-                                expense: expense,
-                                currency: currency,
-                                categoryIconKey:
-                                    categoryIconKeys[expense.category],
-                                use24HourFormat: use24HourFormat,
-                                onEdit: () => _editExpense(
-                                  context,
-                                  ref,
-                                  expense,
-                                  use24HourFormat,
-                                ),
-                                onDelete: () =>
+                              child: Dismissible(
+                                key: Key('expense-${expense.id}'),
+                                direction: DismissDirection.endToStart,
+                                background: const _DeleteBackground(),
+                                confirmDismiss: (_) =>
                                     _confirmDelete(context, ref, expense),
+                                onDismissed: (_) => ref
+                                    .read(expensesProvider.notifier)
+                                    .delete(expense.id),
+                                child: _ExpenseRow(
+                                  expense: expense,
+                                  currency: currency,
+                                  categoryIconKey:
+                                      categoryIconKeys[expense.category],
+                                  use24HourFormat: use24HourFormat,
+                                  onEdit: () => _editExpense(
+                                    context,
+                                    ref,
+                                    expense,
+                                    use24HourFormat,
+                                  ),
+                                ),
                               ),
                             ),
                         ],
@@ -122,7 +133,7 @@ class ExpenseListPage extends ConsumerWidget {
     }
   }
 
-  Future<void> _confirmDelete(
+  Future<bool> _confirmDelete(
     BuildContext context,
     WidgetRef ref,
     Expense expense,
@@ -144,9 +155,7 @@ class ExpenseListPage extends ConsumerWidget {
         ],
       ),
     );
-    if (shouldDelete == true) {
-      await ref.read(expensesProvider.notifier).delete(expense.id);
-    }
+    return shouldDelete ?? false;
   }
 
   Map<DateTime, List<Expense>> _groupByDay(List<Expense> expenses) {
@@ -204,7 +213,7 @@ class _EmptyExpenses extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Your recorded expenses will appear here.',
+            'Your spending history will appear here.',
             textAlign: TextAlign.center,
           ),
         ],
@@ -220,7 +229,6 @@ class _ExpenseRow extends StatelessWidget {
     this.categoryIconKey,
     required this.use24HourFormat,
     required this.onEdit,
-    required this.onDelete,
   });
 
   final Expense expense;
@@ -228,7 +236,6 @@ class _ExpenseRow extends StatelessWidget {
   final String? categoryIconKey;
   final bool use24HourFormat;
   final VoidCallback onEdit;
-  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -271,11 +278,6 @@ class _ExpenseRow extends StatelessWidget {
                 ),
               ],
             ),
-            IconButton(
-              tooltip: 'Delete expense',
-              onPressed: onDelete,
-              icon: const Icon(Icons.delete_outline),
-            ),
           ],
         ),
       ),
@@ -293,4 +295,147 @@ class _ExpenseRow extends StatelessWidget {
     final minute = dateTime.minute.toString().padLeft(2, '0');
     return '$hour:$minute';
   }
+}
+
+class _DeleteBackground extends StatelessWidget {
+  const _DeleteBackground();
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.errorContainer,
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.only(right: 24),
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: Icon(
+          Icons.delete_outline,
+          color: Theme.of(context).colorScheme.onErrorContainer,
+        ),
+      ),
+    ),
+  );
+}
+
+class _SpendingContextCard extends StatelessWidget {
+  const _SpendingContextCard({required this.expenses, required this.currency});
+
+  final List<Expense> expenses;
+  final AppCurrency currency;
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final monthStart = DateTime(now.year, now.month);
+    final monthTotal = _sumSince(monthStart);
+    final todayTotal = _sumSince(DateTime(now.year, now.month, now.day));
+    final weekTotal = _sumSince(
+      DateTime(now.year, now.month, now.day).subtract(const Duration(days: 6)),
+    );
+    final monthName = const [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ][now.month - 1];
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: AppColors.heroGradient,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '$monthName spending',
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: Colors.white.withValues(alpha: 0.88),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              formatCurrencyCents(monthTotal, currency),
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                _ContextAmount(
+                  label: 'Today',
+                  amount: todayTotal,
+                  currency: currency,
+                ),
+                _ContextAmount(
+                  label: '7 days',
+                  amount: weekTotal,
+                  currency: currency,
+                ),
+                _ContextAmount(
+                  label: 'This month',
+                  amount: monthTotal,
+                  currency: currency,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  int _sumSince(DateTime start) => expenses
+      .where((expense) => !expense.occurredAt.isBefore(start))
+      .fold(0, (total, expense) => total + expense.amountCents);
+}
+
+class _ContextAmount extends StatelessWidget {
+  const _ContextAmount({
+    required this.label,
+    required this.amount,
+    required this.currency,
+  });
+
+  final String label;
+  final int amount;
+  final AppCurrency currency;
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: Colors.white.withValues(alpha: 0.78),
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          formatCurrencyCents(amount, currency),
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    ),
+  );
 }

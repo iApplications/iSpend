@@ -1,33 +1,40 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/theme/app_theme.dart';
 import 'features/expenses/presentation/expense_list_page.dart';
 import 'features/settings/presentation/settings_page.dart';
+import 'features/settings/appearance_preference.dart';
 import 'features/summary/presentation/summary_page.dart';
 
 class ISpendApp extends StatelessWidget {
-  const ISpendApp({super.key, this.home = const AppShell()});
+  const ISpendApp({
+    super.key,
+    this.home = const AppShell(),
+    this.themeMode = ThemeMode.system,
+  });
 
   final Widget home;
+  final ThemeMode themeMode;
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'iSpend',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0F766E)),
-      ),
-      darkTheme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF2DD4BF),
-          brightness: Brightness.dark,
-        ),
-      ),
-      themeMode: ThemeMode.system,
-      home: home,
-    );
+  Widget build(BuildContext context) => MaterialApp(
+    title: 'iSpend',
+    debugShowCheckedModeBanner: false,
+    theme: AppTheme.light(),
+    darkTheme: AppTheme.dark(),
+    themeMode: themeMode,
+    home: home,
+  );
+}
+
+class ISpendThemedApp extends ConsumerWidget {
+  const ISpendThemedApp({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final appearance = ref.watch(appearancePreferenceProvider);
+    return ISpendApp(themeMode: appearance.themeMode);
   }
 }
 

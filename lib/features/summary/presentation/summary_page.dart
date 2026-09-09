@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/amount_formatter.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_surface.dart';
 import '../../expenses/data/expense_model.dart';
 import '../../expenses/expense_providers.dart';
 import '../../settings/currency_preference.dart';
@@ -32,7 +34,7 @@ class _SummaryPageState extends ConsumerState<SummaryPage> {
       _SummaryPeriod.last30Days => 'Last 30 days',
     };
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+      padding: AppSpacing.listScreen,
       children: [
         Text('Summary', style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: 16),
@@ -66,18 +68,19 @@ class _SummaryPageState extends ConsumerState<SummaryPage> {
             ),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.xl),
         _TotalsCard(
           currency: currency,
-          totals: {periodLabel: _total(filteredExpenses, (_) => true)},
+          periodLabel: periodLabel,
+          total: _total(filteredExpenses, (_) => true),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.xl),
         _Breakdown(
           title: 'Category breakdown',
           totals: _group(filteredExpenses, (expense) => expense.category),
           currency: currency,
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.xl),
         _Breakdown(
           title: 'Payment method breakdown',
           totals: _group(
@@ -112,33 +115,40 @@ class _SummaryPageState extends ConsumerState<SummaryPage> {
 }
 
 class _TotalsCard extends StatelessWidget {
-  const _TotalsCard({required this.currency, required this.totals});
+  const _TotalsCard({
+    required this.currency,
+    required this.periodLabel,
+    required this.total,
+  });
+
   final AppCurrency currency;
-  final Map<String, int> totals;
+  final String periodLabel;
+  final int total;
+
   @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Spending', style: Theme.of(context).textTheme.titleLarge),
-          for (final entry in totals.entries)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(entry.key),
-                  Text(
-                    formatCurrencyCents(entry.value, currency),
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
+  Widget build(BuildContext context) => AppSurface(
+    padding: const EdgeInsets.all(AppSpacing.xl),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Spending', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          periodLabel,
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          formatCurrencyCents(total, currency),
+          style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+            fontWeight: FontWeight.w800,
+            letterSpacing: -1.0,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+      ],
     ),
   );
 }
@@ -153,30 +163,28 @@ class _Breakdown extends StatelessWidget {
   final Map<String, int> totals;
   final AppCurrency currency;
   @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: Theme.of(context).textTheme.titleLarge),
-          if (totals.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(top: 12),
-              child: Text('No expenses recorded yet.'),
-            )
-          else
-            for (final entry in totals.entries)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(entry.key),
-                trailing: Text(
-                  formatCurrencyCents(entry.value, currency),
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
+  Widget build(BuildContext context) => AppSurface(
+    padding: const EdgeInsets.all(AppSpacing.lg),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: Theme.of(context).textTheme.titleLarge),
+        if (totals.isEmpty)
+          const Padding(
+            padding: EdgeInsets.only(top: 12),
+            child: Text('No expenses recorded yet.'),
+          )
+        else
+          for (final entry in totals.entries)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(entry.key),
+              trailing: Text(
+                formatCurrencyCents(entry.value, currency),
+                style: Theme.of(context).textTheme.titleMedium,
               ),
-        ],
-      ),
+            ),
+      ],
     ),
   );
 }
