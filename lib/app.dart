@@ -5,7 +5,9 @@ import 'features/settings/presentation/settings_page.dart';
 import 'features/summary/presentation/summary_page.dart';
 
 class ISpendApp extends StatelessWidget {
-  const ISpendApp({super.key});
+  const ISpendApp({super.key, this.home = const AppShell()});
+
+  final Widget home;
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +26,7 @@ class ISpendApp extends StatelessWidget {
         ),
       ),
       themeMode: ThemeMode.system,
-      home: const AppShell(),
+      home: home,
     );
   }
 }
