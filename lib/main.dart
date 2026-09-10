@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
+import 'features/backup/backup_providers.dart';
 import 'core/database/app_settings_repository.dart';
 import 'core/database/database.dart';
 import 'core/database/database_key_store.dart';
@@ -163,6 +164,8 @@ class _ISpendBootstrapState extends State<_ISpendBootstrap> {
           SqlCipherAppSettingsRepository(database),
         ),
         startupAppCurrencyProvider.overrideWithValue(_lockedCurrency),
+        backupDatabaseProvider.overrideWithValue(database),
+        backupDatabaseKeyProvider.overrideWithValue(_databaseKey!),
       ],
       child: const ISpendThemedApp(),
     );

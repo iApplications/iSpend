@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../categories/presentation/category_management_page.dart';
+import '../../backup/presentation/backup_restore_page.dart';
 import '../../payment_methods/presentation/payment_method_management_page.dart';
 import '../appearance_preference.dart';
 import '../currency_preference.dart';
@@ -23,6 +24,19 @@ class SettingsPage extends ConsumerWidget {
         Text('Settings', style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: 24),
         const _SettingsSectionLabel('GENERAL'),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.backup_outlined),
+            title: const Text('Backup & Restore'),
+            subtitle: const Text('Export or restore your encrypted data'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const BackupRestorePage(),
+              ),
+            ),
+          ),
+        ),
         Card(
           child: ListTile(
             leading: const Icon(Icons.currency_exchange_outlined),

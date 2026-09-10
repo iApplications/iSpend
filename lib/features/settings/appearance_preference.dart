@@ -46,6 +46,9 @@ class AppearancePreferenceNotifier extends Notifier<AppearancePreference> {
     };
   }
 
+  /// Reloads the saved preference after a backup restore.
+  Future<void> refresh() => _load();
+
   Future<void> setPreference(AppearancePreference preference) async {
     state = preference;
     await _repository.write(_settingKey, preference.name);
