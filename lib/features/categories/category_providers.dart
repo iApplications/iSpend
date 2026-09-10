@@ -37,6 +37,11 @@ class CategoriesNotifier extends Notifier<List<String>> {
     ];
   }
 
+  /// Reloads the persisted categories after an external data operation, such
+  /// as restoring a backup, without disposing the provider currently watched
+  /// by the UI.
+  Future<void> refresh() => _load();
+
   Future<void> add(String name) async {
     await _repository.add(name);
     await _load();

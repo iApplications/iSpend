@@ -142,6 +142,8 @@ void main() {
 
     await tester.tap(find.text('Settings').last);
     await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Payment methods'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Add method'));
@@ -172,6 +174,8 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
 
     await tester.tap(find.text('Settings').last);
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Payment methods'));
     await tester.pumpAndSettle();

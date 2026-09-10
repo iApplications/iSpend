@@ -42,4 +42,9 @@ class AppCurrencyNotifier extends Notifier<AppCurrency> {
     });
     return detected;
   }
+
+  /// Applies the currency contained in restored settings immediately.
+  Future<void> refresh() async {
+    state = await loadLockedAppCurrency(_repository);
+  }
 }

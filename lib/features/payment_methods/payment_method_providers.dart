@@ -25,6 +25,11 @@ class PaymentMethodsNotifier extends Notifier<List<String>> {
   }
 
   Future<void> _load() async => state = await _repository.getAll();
+
+  /// Reloads the persisted payment methods after an external data operation,
+  /// such as restoring a backup, without disposing the active provider.
+  Future<void> refresh() => _load();
+
   Future<void> add(String name) async {
     await _repository.add(name);
     await _load();
