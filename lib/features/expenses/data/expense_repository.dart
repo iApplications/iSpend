@@ -46,6 +46,8 @@ class InMemoryExpenseRepository implements ExpenseRepository {
           createdAt: expense.createdAt,
           merchantOrNote: expense.merchantOrNote,
           paymentMethod: expense.paymentMethod,
+          recurringRuleId: expense.recurringRuleId,
+          recurringOccurrence: expense.recurringOccurrence,
         );
       }
     }
@@ -69,6 +71,8 @@ class InMemoryExpenseRepository implements ExpenseRepository {
           createdAt: expense.createdAt,
           merchantOrNote: expense.merchantOrNote,
           paymentMethod: newName,
+          recurringRuleId: expense.recurringRuleId,
+          recurringOccurrence: expense.recurringOccurrence,
         );
       }
     }
@@ -152,6 +156,9 @@ class SqlCipherExpenseRepository implements ExpenseRepository {
       'payment_method': expense.paymentMethod,
       'occurred_at_millis': expense.occurredAt.millisecondsSinceEpoch,
       'created_at_millis': expense.createdAt.millisecondsSinceEpoch,
+      'recurring_rule_id': expense.recurringRuleId,
+      'recurring_occurrence_millis':
+          expense.recurringOccurrence?.millisecondsSinceEpoch,
     };
   }
 
@@ -168,6 +175,12 @@ class SqlCipherExpenseRepository implements ExpenseRepository {
       createdAt: DateTime.fromMillisecondsSinceEpoch(
         row['created_at_millis']! as int,
       ),
+      recurringRuleId: row['recurring_rule_id'] as String?,
+      recurringOccurrence: row['recurring_occurrence_millis'] == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(
+              row['recurring_occurrence_millis']! as int,
+            ),
     );
   }
 }

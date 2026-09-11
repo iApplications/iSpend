@@ -113,6 +113,8 @@ class _BackupRestorePageState extends ConsumerState<BackupRestorePage> {
       await ref.read(categoriesProvider.notifier).refresh();
       await ref.read(paymentMethodsProvider.notifier).refresh();
       ref.invalidate(categoryIconKeysProvider);
+      ref.invalidate(recurringExpensesProvider);
+      ref.invalidate(dueRecurringExpensesProvider);
       await ref.read(appCurrencyProvider.notifier).refresh();
       await ref.read(timeFormatPreferenceProvider.notifier).refresh();
       await ref.read(appearancePreferenceProvider.notifier).refresh();

@@ -119,6 +119,12 @@ class SqlCipherCategoryRepository implements CategoryRepository {
         where: 'category = ?',
         whereArgs: [oldName],
       );
+      await transaction.update(
+        'recurring_expenses',
+        {'category': newName},
+        where: 'category = ?',
+        whereArgs: [oldName],
+      );
     });
   }
 }

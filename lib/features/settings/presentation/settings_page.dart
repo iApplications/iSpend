@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../categories/presentation/category_management_page.dart';
 import '../../backup/presentation/backup_restore_page.dart';
+import '../../expenses/presentation/recurring_expenses_page.dart';
 import '../../payment_methods/presentation/payment_method_management_page.dart';
 import '../appearance_preference.dart';
 import '../currency_preference.dart';
@@ -66,6 +67,19 @@ class SettingsPage extends ConsumerWidget {
         ),
         const SizedBox(height: 16),
         const _SettingsSectionLabel('ORGANISATION'),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.repeat_outlined),
+            title: const Text('Recurring expenses'),
+            subtitle: const Text('Review monthly expense templates'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const RecurringExpensesPage(),
+              ),
+            ),
+          ),
+        ),
         Card(
           child: ListTile(
             leading: const Icon(Icons.category_outlined),
