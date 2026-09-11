@@ -7,6 +7,8 @@ class Expense {
     required this.createdAt,
     this.merchantOrNote,
     this.paymentMethod,
+    this.recurringRuleId,
+    this.recurringOccurrence,
   });
 
   final String id;
@@ -16,6 +18,8 @@ class Expense {
   final DateTime createdAt;
   final String? merchantOrNote;
   final String? paymentMethod;
+  final String? recurringRuleId;
+  final DateTime? recurringOccurrence;
 
   Expense copyWith({
     int? amountCents,
@@ -23,6 +27,8 @@ class Expense {
     DateTime? occurredAt,
     String? merchantOrNote,
     String? paymentMethod,
+    String? recurringRuleId,
+    DateTime? recurringOccurrence,
   }) => Expense(
     id: id,
     amountCents: amountCents ?? this.amountCents,
@@ -31,5 +37,7 @@ class Expense {
     createdAt: createdAt,
     merchantOrNote: merchantOrNote ?? this.merchantOrNote,
     paymentMethod: paymentMethod ?? this.paymentMethod,
+    recurringRuleId: recurringRuleId ?? this.recurringRuleId,
+    recurringOccurrence: recurringOccurrence ?? this.recurringOccurrence,
   );
 }

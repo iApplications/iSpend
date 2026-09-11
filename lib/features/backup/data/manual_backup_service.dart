@@ -24,6 +24,7 @@ class ManualBackupService {
       'categories': await database.query('categories'),
       'payment_methods': await database.query('payment_methods'),
       'app_settings': await database.query('app_settings'),
+      'recurring_expenses': await database.query('recurring_expenses'),
     };
     final encodedPayload = base64UrlEncode(utf8.encode(jsonEncode(payload)));
     final encryptedPayload = await _recoveryKeyService.wrap(
@@ -68,6 +69,9 @@ class ManualBackupService {
     final categories = _rows(decodedPayload['categories']);
     final paymentMethods = _rows(decodedPayload['payment_methods']);
     final settings = _rows(decodedPayload['app_settings']);
+    final recurringExpenses = _optionalRows(
+      decodedPayload['recurring_expenses'],
+    );
 
     await database.transaction((transaction) async {
       for (final table in const [
@@ -75,6 +79,7 @@ class ManualBackupService {
         'categories',
         'payment_methods',
         'app_settings',
+        'recurring_expenses',
       ]) {
         await transaction.delete(table);
       }
@@ -82,6 +87,7 @@ class ManualBackupService {
       await _insertAll(transaction, 'categories', categories);
       await _insertAll(transaction, 'payment_methods', paymentMethods);
       await _insertAll(transaction, 'app_settings', settings);
+      await _insertAll(transaction, 'recurring_expenses', recurringExpenses);
     });
   }
 
@@ -96,6 +102,9 @@ class ManualBackupService {
       return row.map((key, value) => MapEntry(key as String, value));
     }).toList();
   }
+
+  static List<Map<String, Object?>> _optionalRows(Object? value) =>
+      value == null ? const [] : _rows(value);
 
   static Future<void> _insertAll(
     Transaction transaction,

@@ -70,6 +70,12 @@ class SqlCipherPaymentMethodRepository implements PaymentMethodRepository {
         where: 'payment_method = ?',
         whereArgs: [oldName],
       );
+      await transaction.update(
+        'recurring_expenses',
+        {'payment_method': newName},
+        where: 'payment_method = ?',
+        whereArgs: [oldName],
+      );
     });
   }
 }

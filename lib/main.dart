@@ -13,6 +13,7 @@ import 'core/utils/amount_formatter.dart';
 import 'features/categories/category_providers.dart';
 import 'features/categories/data/category_repository.dart';
 import 'features/expenses/data/expense_repository.dart';
+import 'features/expenses/data/recurring_expense_repository.dart';
 import 'features/expenses/expense_providers.dart';
 import 'features/onboarding/presentation/recovery_passphrase_page.dart';
 import 'features/payment_methods/data/payment_method_repository.dart';
@@ -153,6 +154,9 @@ class _ISpendBootstrapState extends State<_ISpendBootstrap> {
       overrides: [
         expenseRepositoryProvider.overrideWithValue(
           SqlCipherExpenseRepository(database),
+        ),
+        recurringExpenseRepositoryProvider.overrideWithValue(
+          SqlCipherRecurringExpenseRepository(database),
         ),
         categoryRepositoryProvider.overrideWithValue(
           SqlCipherCategoryRepository(database),
