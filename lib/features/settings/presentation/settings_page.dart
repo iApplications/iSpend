@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../categories/presentation/category_management_page.dart';
 import '../../backup/presentation/backup_restore_page.dart';
+import '../../budgets/presentation/budget_limits_page.dart';
 import '../../expenses/presentation/recurring_expenses_page.dart';
 import '../../payment_methods/presentation/payment_method_management_page.dart';
 import '../appearance_preference.dart';
@@ -67,6 +68,17 @@ class SettingsPage extends ConsumerWidget {
         ),
         const SizedBox(height: 16),
         const _SettingsSectionLabel('ORGANISATION'),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.savings_outlined),
+            title: const Text('Budget limits'),
+            subtitle: const Text('Set monthly targets by category'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const BudgetLimitsPage()),
+            ),
+          ),
+        ),
         Card(
           child: ListTile(
             leading: const Icon(Icons.repeat_outlined),

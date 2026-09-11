@@ -125,6 +125,50 @@ void main() {
     expect(find.text('Pets care'), findsNothing);
   });
 
+  testWidgets('sets a monthly category budget and shows it in Summary', (
+    tester,
+  ) async {
+    final expenses = InMemoryExpenseRepository();
+    final now = DateTime.now();
+    await expenses.save(
+      Expense(
+        id: 'budget-food-expense',
+        amountCents: 4000,
+        category: 'Food',
+        occurredAt: now,
+        createdAt: now,
+      ),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [expenseRepositoryProvider.overrideWithValue(expenses)],
+        child: const ISpendApp(),
+      ),
+    );
+
+    await tester.tap(find.text('Settings').last);
+    await tester.pumpAndSettle();
+    final budgetTile = find.widgetWithText(ListTile, 'Budget limits');
+    await tester.ensureVisible(budgetTile);
+    await tester.tap(budgetTile);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Food'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '100');
+    await tester.tap(find.text('Save limit'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('100.00'), findsOneWidget);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Summary').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Monthly budgets'), findsOneWidget);
+    expect(find.textContaining('40.00 of'), findsOneWidget);
+    expect(find.textContaining('60.00 remaining'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 2));
+  });
+
   testWidgets('blocks deleting a category used by an expense', (tester) async {
     await tester.pumpWidget(const ProviderScope(child: ISpendApp()));
 
@@ -379,8 +423,10 @@ void main() {
 
     await tester.tap(find.text('Settings').last);
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Recurring expenses'));
-    await tester.tap(find.text('Recurring expenses'));
+    final recurringTile = find.widgetWithText(ListTile, 'Recurring expenses');
+    await tester.drag(find.byType(ListView), const Offset(0, -260));
+    await tester.pumpAndSettle();
+    await tester.tap(recurringTile);
     await tester.pumpAndSettle();
 
     expect(find.text('Updated description'), findsOneWidget);

@@ -70,6 +70,12 @@ Stopping a schedule preserves its series history. It can be reactivated from
 **Settings > Recurring expenses** by choosing its next occurrence date; this
 resumes the same rule rather than creating a duplicate series.
 
+Monthly category budget limits are managed from **Settings > Budget limits**.
+Summary compares each configured category's spending in the selected reference
+month with its target, including a plain remaining or over-budget amount.
+Limits are encrypted app settings, included in manual backups, and follow a
+category when it is renamed.
+
 ## Design principles
 
 - Simple, calm, and readable screens.
