@@ -76,6 +76,11 @@ month with its target, including a plain remaining or over-budget amount.
 Limits are encrypted app settings, included in manual backups, and follow a
 category when it is renamed.
 
+App lock is optional and off by default. When enabled from **Settings > Privacy
+& Data**, iSpend uses the device's biometric or device-credential prompt when
+opening the app and after it returns from the background. Recovery onboarding
+and backup recovery remain available before the app shell is unlocked.
+
 ## Design principles
 
 - Simple, calm, and readable screens.

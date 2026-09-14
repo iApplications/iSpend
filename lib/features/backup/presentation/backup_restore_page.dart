@@ -12,6 +12,7 @@ import '../../payment_methods/payment_method_providers.dart';
 import '../../settings/appearance_preference.dart';
 import '../../settings/currency_preference.dart';
 import '../../settings/time_format_preference.dart';
+import '../../security/app_lock.dart';
 import '../backup_providers.dart';
 
 class BackupRestorePage extends ConsumerStatefulWidget {
@@ -118,6 +119,7 @@ class _BackupRestorePageState extends ConsumerState<BackupRestorePage> {
       await ref.read(appCurrencyProvider.notifier).refresh();
       await ref.read(timeFormatPreferenceProvider.notifier).refresh();
       await ref.read(appearancePreferenceProvider.notifier).refresh();
+      await ref.read(appLockEnabledProvider.notifier).refresh();
       if (mounted) AppToast.show(context, 'Backup restored');
     } on RecoveryPassphraseException {
       err(

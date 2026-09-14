@@ -19,6 +19,7 @@ dependencies:
   sodium: ^4.0.4
   sqflite_sqlcipher: ^3.4.1
   uuid: ^4.5.3
+  local_auth: ^3.0.2
 
 dev_dependencies:
   flutter_test:
