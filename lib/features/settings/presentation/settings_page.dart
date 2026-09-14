@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/widgets/app_toast.dart';
 import '../../categories/presentation/category_management_page.dart';
 import '../../backup/presentation/backup_restore_page.dart';
 import '../../budgets/presentation/budget_limits_page.dart';
@@ -9,6 +10,7 @@ import '../../payment_methods/presentation/payment_method_management_page.dart';
 import '../appearance_preference.dart';
 import '../currency_preference.dart';
 import '../time_format_preference.dart';
+import '../../security/app_lock.dart';
 import 'about_page.dart';
 import 'recovery_passphrase_settings_page.dart';
 
@@ -20,6 +22,7 @@ class SettingsPage extends ConsumerWidget {
     final timeFormat = ref.watch(timeFormatPreferenceProvider);
     final currency = ref.watch(appCurrencyProvider);
     final appearance = ref.watch(appearancePreferenceProvider);
+    final appLockEnabled = ref.watch(appLockEnabledProvider);
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
       children: [
@@ -121,6 +124,19 @@ class SettingsPage extends ConsumerWidget {
         const SizedBox(height: 16),
         const _SettingsSectionLabel('PRIVACY & DATA'),
         Card(
+          child: SwitchListTile(
+            secondary: const Icon(Icons.lock_outline),
+            title: const Text('App lock'),
+            subtitle: const Text(
+              'Require device authentication when opening iSpend',
+            ),
+            value: appLockEnabled ?? false,
+            onChanged: appLockEnabled == null
+                ? null
+                : (enabled) => _setAppLock(context, ref, enabled),
+          ),
+        ),
+        Card(
           child: ListTile(
             leading: const Icon(Icons.key_outlined),
             title: const Text('Recovery passphrase'),
@@ -146,6 +162,28 @@ class SettingsPage extends ConsumerWidget {
         ),
       ],
     );
+  }
+
+  Future<void> _setAppLock(
+    BuildContext context,
+    WidgetRef ref,
+    bool enabled,
+  ) async {
+    if (enabled) {
+      final authenticated = await ref
+          .read(appLockAuthenticatorProvider)
+          .authenticate();
+      if (!authenticated) {
+        if (context.mounted) {
+          AppToast.showError(
+            context,
+            'Device authentication is unavailable or was cancelled.',
+          );
+        }
+        return;
+      }
+    }
+    await ref.read(appLockEnabledProvider.notifier).setEnabled(enabled);
   }
 
   void _showTimeFormatPicker(BuildContext context, WidgetRef ref) {
