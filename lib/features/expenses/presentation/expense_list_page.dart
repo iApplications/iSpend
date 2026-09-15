@@ -554,8 +554,18 @@ class _ExpenseRow extends StatelessWidget {
             child: Icon(categoryStyle.icon, color: categoryStyle.color),
           ),
         ),
-        title: Text(expense.merchantOrNote ?? expense.category),
-        subtitle: detailParts.isEmpty ? null : Text(detailParts.join(' · ')),
+        title: Text(
+          expense.merchantOrNote ?? expense.category,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: detailParts.isEmpty
+            ? null
+            : Text(
+                detailParts.join(' · '),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -629,21 +639,6 @@ class _SpendingContextCard extends StatelessWidget {
     final weekTotal = _sumSince(
       DateTime(now.year, now.month, now.day).subtract(const Duration(days: 6)),
     );
-    final monthName = const [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ][now.month - 1];
-
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: AppColors.heroGradient,
@@ -655,14 +650,14 @@ class _SpendingContextCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '$monthName spending',
+              'Spent today',
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
                 color: Colors.white.withValues(alpha: 0.88),
               ),
             ),
             const SizedBox(height: 4),
             Text(
-              formatCurrencyCents(monthTotal, currency),
+              formatCurrencyCents(todayTotal, currency),
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 color: Colors.white,
                 fontWeight: FontWeight.w800,
@@ -672,12 +667,7 @@ class _SpendingContextCard extends StatelessWidget {
             Row(
               children: [
                 _ContextAmount(
-                  label: 'Today',
-                  amount: todayTotal,
-                  currency: currency,
-                ),
-                _ContextAmount(
-                  label: '7 days',
+                  label: 'Last 7 days',
                   amount: weekTotal,
                   currency: currency,
                 ),

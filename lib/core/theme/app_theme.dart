@@ -15,6 +15,7 @@ abstract final class AppTheme {
         ).copyWith(
           primary: isDark ? const Color(0xFF35D1CD) : AppColors.teal,
           secondary: isDark ? const Color(0xFF61DDE6) : AppColors.cyan,
+          error: isDark ? const Color(0xFFFF6B6B) : const Color(0xFFB3261E),
           surface: isDark ? AppColors.darkSurface : const Color(0xFFF8FAFC),
           surfaceContainerHighest: isDark
               ? AppColors.darkSurfaceVariant
