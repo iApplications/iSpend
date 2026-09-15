@@ -20,7 +20,7 @@ class ISpendDatabase {
     final database = await openDatabase(
       resolvedDatabasePath,
       password: resolvedDatabaseKey,
-      version: 9,
+      version: 10,
       onCreate: (db, _) async {
         await db.execute('''
           CREATE TABLE expenses (
@@ -98,9 +98,37 @@ class ISpendDatabase {
           );
         }
         if (oldVersion < 9) {
+          if (oldVersion >= 6) {
+            await db.execute(
+              'ALTER TABLE recurring_expenses ADD COLUMN is_tax_deductible INTEGER NOT NULL DEFAULT 0',
+            );
+          }
+        }
+        if (oldVersion < 10 && oldVersion >= 6) {
           await db.execute(
-            'ALTER TABLE recurring_expenses ADD COLUMN is_tax_deductible INTEGER NOT NULL DEFAULT 0',
+            'ALTER TABLE recurring_expenses ADD COLUMN anchor_day INTEGER NOT NULL DEFAULT 1',
           );
+          final schedules = await db.query('recurring_expenses');
+          for (final schedule in schedules) {
+            final original = await db.query(
+              'expenses',
+              columns: ['occurred_at_millis'],
+              where: 'id = ?',
+              whereArgs: [schedule['id']],
+              limit: 1,
+            );
+            // Best-effort fallback: the original occurrence may have been
+            // deleted and next_occurrence may already reflect prior drift.
+            final millis = original.isEmpty
+                ? schedule['next_occurrence_millis']! as int
+                : original.single['occurred_at_millis']! as int;
+            await db.update(
+              'recurring_expenses',
+              {'anchor_day': DateTime.fromMillisecondsSinceEpoch(millis).day},
+              where: 'id = ?',
+              whereArgs: [schedule['id']],
+            );
+          }
         }
       },
     );
@@ -175,7 +203,8 @@ class ISpendDatabase {
         next_occurrence_millis INTEGER NOT NULL,
         created_at_millis INTEGER NOT NULL,
         is_active INTEGER NOT NULL DEFAULT 1,
-        is_tax_deductible INTEGER NOT NULL DEFAULT 0
+        is_tax_deductible INTEGER NOT NULL DEFAULT 0,
+        anchor_day INTEGER NOT NULL
       )
     ''');
     await db.execute('''
