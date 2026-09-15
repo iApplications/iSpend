@@ -61,11 +61,11 @@ CategoryIconStyle categoryIconStyleForKey(String iconKey) {
     ),
     'bills' => const CategoryIconStyle(
       icon: Icons.receipt_long_outlined,
-      color: Color(0xFFF4A261),
+      color: Color(0xFF2A9D8F),
     ),
     'home' => const CategoryIconStyle(
       icon: Icons.home_outlined,
-      color: Color(0xFF2A9D8F),
+      color: Color(0xFF4D7C0F),
     ),
     'health' => const CategoryIconStyle(
       icon: Icons.favorite_outline,
@@ -100,3 +100,41 @@ CategoryIconStyle categoryIconStyleForKey(String iconKey) {
 
 CategoryIconStyle categoryIconStyle(String category) =>
     categoryIconStyleForKey(defaultCategoryIconKey(category));
+
+CategoryIconStyle paymentMethodIconStyle(String paymentMethod) {
+  final normalized = paymentMethod.toLowerCase();
+  if (normalized.contains('cash')) {
+    return const CategoryIconStyle(
+      icon: Icons.payments_outlined,
+      color: Color(0xFF15803D),
+    );
+  }
+  if (normalized.contains('credit') || normalized.contains('visa')) {
+    return const CategoryIconStyle(
+      icon: Icons.credit_card_outlined,
+      color: Color(0xFF7C3AED),
+    );
+  }
+  if (normalized.contains('debit') || normalized.contains('mastercard')) {
+    return const CategoryIconStyle(
+      icon: Icons.credit_card_outlined,
+      color: Color(0xFFB45309),
+    );
+  }
+  if (normalized.contains('card')) {
+    return const CategoryIconStyle(
+      icon: Icons.credit_card_outlined,
+      color: Color(0xFF7C3AED),
+    );
+  }
+  if (normalized == 'no payment method') {
+    return const CategoryIconStyle(
+      icon: Icons.help_outline,
+      color: Color(0xFF94A3B8),
+    );
+  }
+  return const CategoryIconStyle(
+    icon: Icons.account_balance_wallet_outlined,
+    color: Color(0xFF475569),
+  );
+}

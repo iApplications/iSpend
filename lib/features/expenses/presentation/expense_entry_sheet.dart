@@ -239,14 +239,19 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
                       selected: category == _category,
                       onTap: () => setState(() => _category = category),
                     ),
-                  if (uniqueCategories.length > commonCategories.length)
-                    OutlinedButton.icon(
-                      onPressed: () => _chooseMoreCategory(uniqueCategories),
-                      icon: const Icon(Icons.more_horiz),
-                      label: const Text('More categories'),
-                    ),
                 ],
               ),
+              if (uniqueCategories.length > commonCategories.length) ...[
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _chooseMoreCategory(uniqueCategories),
+                    icon: const Icon(Icons.more_horiz),
+                    label: const Text('More categories'),
+                  ),
+                ),
+              ],
               const SizedBox(height: 20),
               Text(
                 'Payment method',
@@ -293,19 +298,21 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
               Row(
                 children: [
                   Expanded(
-                    child: TextButton.icon(
+                    child: _DateTimePickerField(
+                      label: 'Date',
+                      icon: Icons.calendar_today_outlined,
+                      value:
+                          '${_date.year}-${_date.month.toString().padLeft(2, '0')}-${_date.day.toString().padLeft(2, '0')}',
                       onPressed: _chooseDate,
-                      icon: const Icon(Icons.calendar_today_outlined),
-                      label: Text(
-                        '${_date.year}-${_date.month.toString().padLeft(2, '0')}-${_date.day.toString().padLeft(2, '0')}',
-                      ),
                     ),
                   ),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: TextButton.icon(
+                    child: _DateTimePickerField(
+                      label: 'Time',
+                      icon: Icons.schedule_outlined,
+                      value: _formatTime(_time, widget.use24HourFormat),
                       onPressed: _chooseTime,
-                      icon: const Icon(Icons.schedule_outlined),
-                      label: Text(_formatTime(_time, widget.use24HourFormat)),
                     ),
                   ),
                 ],
@@ -359,6 +366,8 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
                 ),
                 const SizedBox(height: 12),
               ],
+              const Divider(),
+              const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
@@ -399,7 +408,10 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
           children: [
             for (final category in categories)
               ListTile(
-                leading: Icon(categoryIconStyle(category).icon),
+                leading: Icon(
+                  categoryIconStyle(category).icon,
+                  color: categoryIconStyle(category).color,
+                ),
                 title: Text(category),
                 trailing: category == _category
                     ? const Icon(Icons.check)
@@ -422,6 +434,44 @@ class ExpenseEntryResult {
 
   final Expense expense;
   final bool repeatsMonthly;
+}
+
+class _DateTimePickerField extends StatelessWidget {
+  const _DateTimePickerField({
+    required this.label,
+    required this.icon,
+    required this.value,
+    required this.onPressed,
+  });
+
+  final String label;
+  final IconData icon;
+  final String value;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: '$label: $value',
+    child: Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(4),
+        child: InputDecorator(
+          isEmpty: false,
+          decoration: InputDecoration(labelText: label),
+          child: Row(
+            children: [
+              Icon(icon, size: 18),
+              const SizedBox(width: 8),
+              Expanded(child: Text(value, overflow: TextOverflow.ellipsis)),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class _AmountField extends StatelessWidget {

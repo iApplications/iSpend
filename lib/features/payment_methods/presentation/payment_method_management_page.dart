@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/widgets/icon_registry.dart';
 import '../payment_method_providers.dart';
 
 class PaymentMethodManagementPage extends ConsumerWidget {
@@ -20,9 +21,19 @@ class PaymentMethodManagementPage extends ConsumerWidget {
         itemCount: methods.length,
         itemBuilder: (context, index) {
           final method = methods[index];
+          final style = paymentMethodIconStyle(method);
           return Card(
             child: ListTile(
-              leading: const Icon(Icons.account_balance_wallet_outlined),
+              leading: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: style.color.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Icon(style.icon, color: style.color),
+                ),
+              ),
               title: Text(method),
               onTap: () => _edit(context, ref, method),
               trailing: IconButton(

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/amount_formatter.dart';
 import '../../../core/theme/app_tokens.dart';
-import '../../../core/widgets/app_surface.dart';
 import '../../../core/widgets/icon_registry.dart';
 import '../../categories/category_providers.dart';
 import '../../budgets/budget_providers.dart';
@@ -118,7 +117,6 @@ class _SummaryPageState extends ConsumerState<SummaryPage> {
           currency: currency,
           categoryIconKeys: categoryIconKeys,
           type: _BreakdownType.category,
-          useSurface: true,
         ),
         const SizedBox(height: AppSpacing.xl),
         _Breakdown(
@@ -129,7 +127,6 @@ class _SummaryPageState extends ConsumerState<SummaryPage> {
           ),
           currency: currency,
           type: _BreakdownType.paymentMethod,
-          useSurface: false,
         ),
       ],
     );
@@ -175,51 +172,57 @@ class _TaxDeductibleCard extends StatelessWidget {
       0,
       (sum, expense) => sum + expense.amountCents,
     );
-    return AppSurface(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.receipt_long_outlined,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Tax-deductible expenses',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${expenses.length} tagged in $periodLabel',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
+    return Column(
+      children: [
+        const Divider(),
+        InkWell(
+          onTap: onView,
+          borderRadius: AppRadii.rowBorder,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.receipt_long_outlined,
+                  color: expenses.isEmpty
+                      ? Theme.of(context).colorScheme.onSurfaceVariant
+                      : Theme.of(context).colorScheme.primary,
                 ),
-              ),
-              Text(
-                formatCurrencyCents(total, currency),
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: onView,
-              child: const Text('View tagged expenses'),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Tax-deductible expenses',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        expenses.isEmpty
+                            ? 'None tagged · ${periodLabel.toLowerCase()}'
+                            : '${expenses.length} tagged · ${periodLabel.toLowerCase()}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  formatCurrencyCents(total, currency),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: expenses.isEmpty
+                        ? Theme.of(context).colorScheme.onSurfaceVariant
+                        : null,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                const Icon(Icons.chevron_right),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -242,20 +245,12 @@ class _TotalsCard extends StatelessWidget {
       borderRadius: AppRadii.cardBorder,
     ),
     child: Padding(
-      padding: const EdgeInsets.all(AppSpacing.xl),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Spending',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            '$periodLabel spending',
+            periodLabel,
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
               color: Colors.white.withValues(alpha: 0.82),
             ),
@@ -267,8 +262,9 @@ class _TotalsCard extends StatelessWidget {
             child: Text(
               formatCurrencyCents(total, currency),
               style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                fontWeight: FontWeight.w800,
-                letterSpacing: -1.4,
+                fontSize: 28,
+                fontWeight: FontWeight.w500,
+                letterSpacing: -0.4,
                 color: Colors.white,
               ),
             ),
@@ -305,7 +301,12 @@ class _BudgetLimitsCard extends StatelessWidget {
         .toList();
     final totals = _group(monthlyExpenses, (expense) => expense.category);
     final entries = limits.entries.toList()
-      ..sort((a, b) => a.key.compareTo(b.key));
+      ..sort((a, b) {
+        final aPercentage = (totals[a.key] ?? 0) / a.value;
+        final bPercentage = (totals[b.key] ?? 0) / b.value;
+        final comparison = bPercentage.compareTo(aPercentage);
+        return comparison != 0 ? comparison : a.key.compareTo(b.key);
+      });
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -329,7 +330,7 @@ class _BudgetLimitsCard extends StatelessWidget {
           ],
         ),
         Text(
-          '${_monthName(referenceDate.month)} ${referenceDate.year}',
+          '${_monthName(referenceDate.month)} ${referenceDate.year} · calendar month',
           style: Theme.of(context).textTheme.labelLarge?.copyWith(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
@@ -366,28 +367,27 @@ class _BudgetLimitRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final difference = limit - spent;
-    final status = difference >= 0
-        ? '${formatCurrencyCents(difference, currency)} remaining'
-        : '${formatCurrencyCents(-difference, currency)} over budget';
+    final isOverBudget = difference < 0;
     final style = categoryIconKey == null
         ? categoryIconStyle(category)
         : categoryIconStyleForKey(categoryIconKey!);
-    final statusColor = difference < 0
+    final valueColor = isOverBudget
         ? Theme.of(context).colorScheme.error
-        : Theme.of(context).colorScheme.onSurfaceVariant;
+        : style.color;
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.md),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           DecoratedBox(
             decoration: BoxDecoration(
               color: style.color.withValues(alpha: 0.12),
-              borderRadius: AppRadii.rowBorder,
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: Icon(style.icon, color: style.color, size: 18),
+            child: SizedBox(
+              width: 26,
+              height: 26,
+              child: Icon(style.icon, color: style.color, size: 16),
             ),
           ),
           const SizedBox(width: AppSpacing.md),
@@ -396,33 +396,40 @@ class _BudgetLimitRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(category, style: Theme.of(context).textTheme.titleSmall),
-                const SizedBox(height: 2),
-                Text(
-                  '${formatCurrencyCents(spent, currency)} of '
-                  '${formatCurrencyCents(limit, currency)} used',
-                  style: Theme.of(context).textTheme.labelLarge,
-                ),
                 const SizedBox(height: 4),
                 LinearProgressIndicator(
                   value: (spent / limit).clamp(0, 1),
-                  minHeight: 4,
+                  minHeight: 3,
                   borderRadius: AppRadii.pillBorder,
-                  color: difference < 0
-                      ? Theme.of(context).colorScheme.error
-                      : style.color,
+                  color: valueColor,
                   backgroundColor: Theme.of(
                     context,
                   ).colorScheme.surfaceContainerHighest,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  status,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelMedium?.copyWith(color: statusColor),
-                ),
               ],
             ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                formatCurrencyCents(spent, currency),
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: valueColor,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                isOverBudget
+                    ? '${formatCurrencyCents(-difference, currency)} over'
+                    : 'of ${formatCurrencyCents(limit, currency)}',
+                style: Theme.of(
+                  context,
+                ).textTheme.labelSmall?.copyWith(color: valueColor),
+              ),
+            ],
           ),
         ],
       ),
@@ -439,32 +446,39 @@ class _Breakdown extends StatelessWidget {
     required this.currency,
     required this.type,
     this.categoryIconKeys = const {},
-    required this.useSurface,
   });
   final String title;
   final Map<String, int> totals;
   final AppCurrency currency;
   final _BreakdownType type;
   final Map<String, String> categoryIconKeys;
-  final bool useSurface;
 
   @override
   Widget build(BuildContext context) {
     final sortedEntries = totals.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     final total = totals.values.fold(0, (sum, amount) => sum + amount);
-    final content = Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const Divider(),
+        const SizedBox(height: AppSpacing.lg),
         Text(title, style: Theme.of(context).textTheme.titleLarge),
         if (totals.isEmpty)
           const Padding(
             padding: EdgeInsets.only(top: 12),
             child: Text('No expenses recorded yet.'),
           )
-        else
+        else ...[
+          const SizedBox(height: AppSpacing.md),
+          _StackedBreakdownBar(
+            entries: sortedEntries,
+            total: total,
+            type: type,
+            categoryIconKeys: categoryIconKeys,
+          ),
           for (final entry in sortedEntries)
-            _BreakdownRow(
+            _BreakdownLegendRow(
               label: entry.key,
               amount: entry.value,
               total: total,
@@ -472,19 +486,54 @@ class _Breakdown extends StatelessWidget {
               type: type,
               categoryIconKey: categoryIconKeys[entry.key],
             ),
+        ],
       ],
     );
-    return useSurface
-        ? AppSurface(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: content,
-          )
-        : content;
   }
 }
 
-class _BreakdownRow extends StatelessWidget {
-  const _BreakdownRow({
+class _StackedBreakdownBar extends StatelessWidget {
+  const _StackedBreakdownBar({
+    required this.entries,
+    required this.total,
+    required this.type,
+    required this.categoryIconKeys,
+  });
+
+  final List<MapEntry<String, int>> entries;
+  final int total;
+  final _BreakdownType type;
+  final Map<String, String> categoryIconKeys;
+
+  @override
+  Widget build(BuildContext context) => ClipRRect(
+    borderRadius: AppRadii.pillBorder,
+    child: SizedBox(
+      height: 10,
+      child: LayoutBuilder(
+        builder: (context, constraints) => Row(
+          children: [
+            for (final entry in entries)
+              SizedBox(
+                width: constraints.maxWidth * entry.value / total,
+                height: constraints.maxHeight,
+                child: ColoredBox(
+                  color: _breakdownStyle(
+                    label: entry.key,
+                    type: type,
+                    categoryIconKey: categoryIconKeys[entry.key],
+                  ).color,
+                ),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _BreakdownLegendRow extends StatelessWidget {
+  const _BreakdownLegendRow({
     required this.label,
     required this.amount,
     required this.total,
@@ -504,94 +553,69 @@ class _BreakdownRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final percentage = total == 0 ? 0.0 : amount / total;
     final percentLabel = '${(percentage * 100).round()}%';
-    final isCategory = type == _BreakdownType.category;
-    final categoryStyle = categoryIconKey == null
-        ? categoryIconStyle(label)
-        : categoryIconStyleForKey(categoryIconKey!);
-    final accent = isCategory
-        ? categoryStyle.color
-        : Theme.of(context).colorScheme.primary.withValues(alpha: 0.72);
-    final icon = isCategory ? categoryStyle.icon : _paymentMethodIcon(label);
+    final style = _breakdownStyle(
+      label: label,
+      type: type,
+      categoryIconKey: categoryIconKey,
+    );
 
     return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.lg),
+      padding: const EdgeInsets.only(top: AppSpacing.md),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: isCategory ? 0.14 : 0.10),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: Icon(icon, color: accent, size: 20),
+          SizedBox(
+            width: 9,
+            height: 9,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: style.color,
+                borderRadius: AppRadii.pillBorder,
+              ),
             ),
           ),
-          const SizedBox(width: AppSpacing.md),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        label,
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      formatCurrencyCents(amount, currency),
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Expanded(
-                      child: LinearProgressIndicator(
-                        value: percentage,
-                        minHeight: 5,
-                        borderRadius: BorderRadius.circular(99),
-                        color: accent,
-                        backgroundColor: Theme.of(
-                          context,
-                        ).colorScheme.surfaceContainerHighest,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Text(
-                      percentLabel,
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Text(
+            formatCurrencyCents(amount, currency),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          SizedBox(
+            width: 36,
+            child: Text(
+              percentLabel,
+              textAlign: TextAlign.right,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
         ],
       ),
     );
   }
-
-  IconData _paymentMethodIcon(String method) {
-    final normalized = method.toLowerCase();
-    if (normalized.contains('cash')) return Icons.payments_outlined;
-    if (normalized.contains('card') || normalized.contains('visa')) {
-      return Icons.credit_card_outlined;
-    }
-    if (normalized == 'no payment method') return Icons.help_outline;
-    return Icons.account_balance_wallet_outlined;
-  }
 }
+
+CategoryIconStyle _breakdownStyle({
+  required String label,
+  required _BreakdownType type,
+  String? categoryIconKey,
+}) => type == _BreakdownType.category
+    ? categoryIconKey == null
+          ? categoryIconStyle(label)
+          : categoryIconStyleForKey(categoryIconKey)
+    : paymentMethodIconStyle(label);
 
 int _total(List<Expense> expenses, bool Function(DateTime) includes) => expenses
     .where((expense) => includes(expense.occurredAt))
