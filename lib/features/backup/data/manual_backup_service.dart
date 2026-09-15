@@ -6,7 +6,20 @@ import '../../../core/database/recovery_key.dart';
 
 /// Creates a complete, encrypted logical backup without exposing a raw
 /// database file. The document can only be opened with the recovery passphrase.
-class ManualBackupService {
+abstract interface class ManualBackupOperations {
+  Future<String> export({
+    required Database database,
+    required String passphrase,
+  });
+
+  Future<void> restore({
+    required Database database,
+    required String document,
+    required String passphrase,
+  });
+}
+
+class ManualBackupService implements ManualBackupOperations {
   const ManualBackupService({RecoveryKeyOperations? recoveryKeyService})
     : _recoveryKeyService = recoveryKeyService ?? const RecoveryKeyService();
 
@@ -15,6 +28,7 @@ class ManualBackupService {
 
   final RecoveryKeyOperations _recoveryKeyService;
 
+  @override
   Future<String> export({
     required Database database,
     required String passphrase,
@@ -39,6 +53,7 @@ class ManualBackupService {
     });
   }
 
+  @override
   Future<void> restore({
     required Database database,
     required String document,

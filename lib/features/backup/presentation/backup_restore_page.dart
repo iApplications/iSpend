@@ -1,9 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/database/recovery_envelope_store.dart';
 import '../../../core/database/recovery_key.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../categories/category_providers.dart';
@@ -36,22 +34,22 @@ class _BackupRestorePageState extends ConsumerState<BackupRestorePage> {
     if (p == null) return;
     setState(() => busy = true);
     try {
-      final e = await RecoveryEnvelopeStore().read();
+      final e = await ref.read(recoveryEnvelopeAccessProvider).read();
       if (e == null) throw const RecoveryPassphraseException();
-      await const RecoveryKeyService().unwrap(envelope: e, passphrase: p);
+      await ref
+          .read(recoveryKeyOperationsProvider)
+          .unwrap(envelope: e, passphrase: p);
       final d = await ref
           .read(manualBackupServiceProvider)
           .export(database: ref.read(backupDatabaseProvider), passphrase: p);
       final date = DateTime.now().toIso8601String().substring(0, 10);
-      final location = await FilePicker.saveFile(
-        dialogTitle: 'Save encrypted iSpend backup',
-        fileName: 'ispend-backup-$date.ispendbackup',
-        bytes: Uint8List.fromList(utf8.encode(d)),
-        mimeType: 'application/octet-stream',
-        type: FileType.custom,
-        allowedExtensions: ['ispendbackup'],
-      );
-      if (location != null && mounted) {
+      final saved = await ref
+          .read(backupFileAccessProvider)
+          .save(
+            fileName: 'ispend-backup-$date.ispendbackup',
+            bytes: Uint8List.fromList(utf8.encode(d)),
+          );
+      if (saved && mounted) {
         AppToast.show(context, 'Backup saved');
       }
     } on RecoveryPassphraseException {
@@ -64,11 +62,8 @@ class _BackupRestorePageState extends ConsumerState<BackupRestorePage> {
   }
 
   Future<void> restore() async {
-    final f = await FilePicker.pickFile(
-      type: FileType.custom,
-      allowedExtensions: ['ispendbackup'],
-    );
-    if (f == null) return;
+    final document = await ref.read(backupFileAccessProvider).pick();
+    if (document == null) return;
     final p = await pass('Restore backup');
     if (p == null) return;
     if (!mounted) return;
@@ -98,14 +93,16 @@ class _BackupRestorePageState extends ConsumerState<BackupRestorePage> {
           .read(manualBackupServiceProvider)
           .restore(
             database: ref.read(backupDatabaseProvider),
-            document: utf8.decode(await f.readAsBytes()),
+            document: utf8.decode(document),
             passphrase: p,
           );
-      final e = await const RecoveryKeyService().wrap(
-        databaseKey: ref.read(backupDatabaseKeyProvider),
-        passphrase: p,
-      );
-      await RecoveryEnvelopeStore().write(e);
+      final e = await ref
+          .read(recoveryKeyOperationsProvider)
+          .wrap(
+            databaseKey: ref.read(backupDatabaseKeyProvider),
+            passphrase: p,
+          );
+      await ref.read(recoveryEnvelopeAccessProvider).write(e);
       // Do not invalidate active NotifierProviders here. Their initial loads
       // run in microtasks, so invalidating them mid-restore can leave the
       // Expenses page watching a notifier that was disposed before it loaded.

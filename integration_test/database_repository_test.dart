@@ -212,6 +212,52 @@ void main() {
     await deleteDatabase(path);
   });
 
+  testWidgets('versions 5 through 8 upgrade to the current schema', (
+    tester,
+  ) async {
+    const password = 'integration-test-key-not-for-production';
+    for (final version in [5, 6, 7, 8]) {
+      final path =
+          '${await getDatabasesPath()}/ispend_schema_v${version}_test.db';
+      await deleteDatabase(path);
+      final legacy = await _openLegacyDatabase(
+        path: path,
+        password: password,
+        version: version,
+      );
+      await legacy.close();
+
+      final migrated = await ISpendDatabase.open(
+        databasePath: path,
+        databaseKey: password,
+      );
+      final expense = (await migrated.database.query('expenses')).single;
+      expect(expense['id'], 'legacy-expense');
+      expect(expense['is_tax_deductible'], 0);
+      expect(
+        (await migrated.database.rawQuery(
+          'PRAGMA table_info(expenses)',
+        )).map((column) => column['name']),
+        containsAll([
+          'recurring_rule_id',
+          'recurring_occurrence_millis',
+          'is_tax_deductible',
+        ]),
+      );
+
+      if (version >= 6) {
+        final schedule = (await migrated.database.query(
+          'recurring_expenses',
+        )).single;
+        expect(schedule['is_active'], 1);
+        expect(schedule['is_tax_deductible'], 0);
+        expect(schedule['anchor_day'], 31);
+      }
+      await migrated.database.close();
+      await deleteDatabase(path);
+    }
+  });
+
   testWidgets('manual backup restores atomically and rejects invalid data', (
     tester,
   ) async {
@@ -271,6 +317,134 @@ void main() {
     await db.close();
     await deleteDatabase(path);
   });
+
+  testWidgets('manual backup rejects a real AES-GCM-tampered document', (
+    tester,
+  ) async {
+    final path = '${await getDatabasesPath()}/ispend_backup_tamper_test.db';
+    await deleteDatabase(path);
+    final opened = await ISpendDatabase.open(
+      databasePath: path,
+      databaseKey: 'backup-tamper-test-key',
+    );
+    final db = opened.database;
+    const service = ManualBackupService();
+    const passphrase = 'correct backup passphrase';
+    await db.insert('expenses', {
+      'id': 'original',
+      'amount_cents': 1234,
+      'category': 'Food',
+      'occurred_at_millis': DateTime(2026, 1, 1).millisecondsSinceEpoch,
+      'created_at_millis': DateTime(2026, 1, 1).millisecondsSinceEpoch,
+    });
+    final document = await service.export(database: db, passphrase: passphrase);
+    final root = jsonDecode(document) as Map<String, dynamic>;
+    final encrypted = Map<String, dynamic>.from(
+      root['encrypted_payload'] as Map<String, dynamic>,
+    );
+    final ciphertext = base64Url.decode(encrypted['ciphertext'] as String);
+    ciphertext[ciphertext.length ~/ 2] ^= 1;
+    encrypted['ciphertext'] = base64UrlEncode(ciphertext);
+    root['encrypted_payload'] = encrypted;
+
+    await expectLater(
+      service.restore(
+        database: db,
+        document: jsonEncode(root),
+        passphrase: passphrase,
+      ),
+      throwsA(isA<RecoveryPassphraseException>()),
+    );
+    expect((await db.query('expenses')).single['id'], 'original');
+    await db.close();
+    await deleteDatabase(path);
+  });
+}
+
+Future<Database> _openLegacyDatabase({
+  required String path,
+  required String password,
+  required int version,
+}) {
+  return openDatabase(
+    path,
+    password: password,
+    version: version,
+    onCreate: (database, _) async {
+      final recurringColumns = version >= 7
+          ? ', is_active INTEGER NOT NULL DEFAULT 1'
+          : '';
+      final expenseRecurringColumns = version >= 7
+          ? ', recurring_rule_id TEXT, recurring_occurrence_millis INTEGER'
+          : '';
+      final taxColumn = version >= 8
+          ? ', is_tax_deductible INTEGER NOT NULL DEFAULT 0'
+          : '';
+      await database.execute('''
+        CREATE TABLE expenses (
+          id TEXT PRIMARY KEY,
+          amount_cents INTEGER NOT NULL,
+          category TEXT NOT NULL,
+          merchant_or_note TEXT,
+          payment_method TEXT,
+          occurred_at_millis INTEGER NOT NULL,
+          created_at_millis INTEGER NOT NULL$expenseRecurringColumns$taxColumn
+        )
+      ''');
+      await database.execute('''
+        CREATE TABLE app_settings (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL
+        )
+      ''');
+      await database.execute('''
+        CREATE TABLE categories (
+          name TEXT PRIMARY KEY,
+          icon_key TEXT NOT NULL,
+          created_at_millis INTEGER NOT NULL
+        )
+      ''');
+      await database.execute('''
+        CREATE TABLE payment_methods (
+          name TEXT PRIMARY KEY,
+          created_at_millis INTEGER NOT NULL
+        )
+      ''');
+      if (version >= 6) {
+        await database.execute('''
+          CREATE TABLE recurring_expenses (
+            id TEXT PRIMARY KEY,
+            amount_cents INTEGER NOT NULL,
+            category TEXT NOT NULL,
+            merchant_or_note TEXT,
+            payment_method TEXT,
+            next_occurrence_millis INTEGER NOT NULL,
+            created_at_millis INTEGER NOT NULL$recurringColumns
+          )
+        ''');
+      }
+      await database.insert('expenses', {
+        'id': 'legacy-expense',
+        'amount_cents': 1200,
+        'category': 'Bills',
+        'occurred_at_millis': DateTime(2026, 1, 31).millisecondsSinceEpoch,
+        'created_at_millis': DateTime(2026, 1, 31).millisecondsSinceEpoch,
+      });
+      if (version >= 6) {
+        await database.insert('recurring_expenses', {
+          'id': 'legacy-expense',
+          'amount_cents': 1200,
+          'category': 'Bills',
+          'next_occurrence_millis': DateTime(
+            2026,
+            2,
+            28,
+          ).millisecondsSinceEpoch,
+          'created_at_millis': DateTime(2026, 1, 31).millisecondsSinceEpoch,
+        });
+      }
+    },
+  );
 }
 
 class _FakeRecoveryKeyService implements RecoveryKeyOperations {
