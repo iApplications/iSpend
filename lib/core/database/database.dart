@@ -98,9 +98,13 @@ class ISpendDatabase {
           );
         }
         if (oldVersion < 9) {
-          await db.execute(
-            'ALTER TABLE recurring_expenses ADD COLUMN is_tax_deductible INTEGER NOT NULL DEFAULT 0',
-          );
+          // A pre-v6 upgrade creates this table at its current shape, so only
+          // an existing pre-v9 recurring table needs the extra column.
+          if (oldVersion >= 6) {
+            await db.execute(
+              'ALTER TABLE recurring_expenses ADD COLUMN is_tax_deductible INTEGER NOT NULL DEFAULT 0',
+            );
+          }
         }
       },
     );

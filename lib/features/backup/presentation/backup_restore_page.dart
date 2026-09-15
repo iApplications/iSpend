@@ -77,7 +77,7 @@ class _BackupRestorePageState extends ConsumerState<BackupRestorePage> {
       builder: (x) => AlertDialog(
         title: const Text('Replace current data?'),
         content: const Text(
-          'Restoring this backup will replace the expenses and settings currently on this device.',
+          'Restoring this backup will replace the expenses and settings currently on this device. The passphrase used to unlock this backup will become this device\'s recovery passphrase.',
         ),
         actions: [
           TextButton(

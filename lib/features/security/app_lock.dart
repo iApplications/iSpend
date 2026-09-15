@@ -81,7 +81,9 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused) {
+      if (_authenticating) return;
       setState(() {
         _unlocked = false;
         _promptedForCurrentLock = false;

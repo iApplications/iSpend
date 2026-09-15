@@ -46,6 +46,28 @@ then reinstall the same APK to trigger restoration.
 
 ## Publishing boundary
 
+## Phase 1.5 release verification
+
+- [ ] Export a manual encrypted backup; verify wrong-passphrase, malformed,
+  and corrupt-file errors leave local data unchanged.
+- [ ] Restore a valid backup and confirm full atomic replacement of expenses,
+  categories, payment methods, budgets, recurring schedules, tax tags, and
+  settings. Confirm the restore passphrase becomes the future recovery
+  passphrase.
+- [ ] Create, confirm, edit, stop, and reactivate a recurring expense; verify
+  duplicate occurrences/rules are prevented.
+- [ ] Verify recurring tax choices: only-this changes one occurrence; this-and-
+  future changes the schedule default and pending drafts; confirmed history is
+  unchanged.
+- [ ] Create, edit, and remove budget limits; verify Summary values in light
+  and dark themes.
+- [ ] Tag expenses as tax-deductible, verify Summary total and filtered list.
+- [ ] Verify App Lock on launch and after backgrounding, including device-
+  authentication cancellation.
+- [ ] Upgrade test: create realistic data with a Phase 1 schema-v5 build,
+  update in place to the latest build, then verify the app opens, preserves
+  existing data, and supports all Phase 1.5 features.
+
 - [ ] A private Android upload-signing key is configured and stored outside the
   repository before any public distribution.
 - [x] The final Phase 1 pull request is opened from `dev/Phase1_main` into
