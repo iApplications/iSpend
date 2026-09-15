@@ -1,6 +1,11 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:ispend/core/database/database.dart';
+import 'package:ispend/core/database/recovery_key.dart';
+import 'package:ispend/features/backup/data/manual_backup_service.dart';
 import 'package:ispend/features/categories/data/category_repository.dart';
 import 'package:ispend/features/expenses/data/expense_model.dart';
 import 'package:ispend/features/expenses/data/expense_repository.dart';
@@ -206,4 +211,93 @@ void main() {
     await migrated.database.close();
     await deleteDatabase(path);
   });
+
+  testWidgets('manual backup restores atomically and rejects invalid data', (
+    tester,
+  ) async {
+    final path = '${await getDatabasesPath()}/ispend_backup_test.db';
+    await deleteDatabase(path);
+    final opened = await ISpendDatabase.open(
+      databasePath: path,
+      databaseKey: 'backup-test-key',
+    );
+    final db = opened.database;
+    final fake = _FakeRecoveryKeyService();
+    final service = ManualBackupService(recoveryKeyService: fake);
+    await db.insert('expenses', {
+      'id': 'before',
+      'amount_cents': 1234,
+      'category': 'Food',
+      'occurred_at_millis': DateTime(2026, 1, 1).millisecondsSinceEpoch,
+      'created_at_millis': DateTime(2026, 1, 1).millisecondsSinceEpoch,
+    });
+    final backup = await service.export(database: db, passphrase: 'correct');
+    await db.delete('expenses');
+    await service.restore(
+      database: db,
+      document: backup,
+      passphrase: 'correct',
+    );
+    expect((await db.query('expenses')).single['id'], 'before');
+
+    await expectLater(
+      service.restore(database: db, document: backup, passphrase: 'wrong'),
+      throwsA(isA<RecoveryPassphraseException>()),
+    );
+    expect((await db.query('expenses')).single['id'], 'before');
+    await expectLater(
+      service.restore(database: db, document: '{bad', passphrase: 'correct'),
+      throwsA(isA<FormatException>()),
+    );
+
+    fake.payload = base64UrlEncode(
+      utf8.encode(
+        jsonEncode({
+          'expenses': [
+            {'id': 'bad'},
+          ],
+          'categories': [],
+          'payment_methods': [],
+          'app_settings': [],
+          'recurring_expenses': [],
+        }),
+      ),
+    );
+    await expectLater(
+      service.restore(database: db, document: backup, passphrase: 'correct'),
+      throwsA(anything),
+    );
+    expect((await db.query('expenses')).single['id'], 'before');
+    await db.close();
+    await deleteDatabase(path);
+  });
+}
+
+class _FakeRecoveryKeyService implements RecoveryKeyOperations {
+  String? payload;
+  final envelope = RecoveryKeyEnvelope(
+    salt: Uint8List(16),
+    nonce: Uint8List(12),
+    ciphertext: Uint8List.fromList([1]),
+  );
+
+  @override
+  Future<RecoveryKeyEnvelope> wrap({
+    required String databaseKey,
+    required String passphrase,
+  }) async {
+    payload = databaseKey;
+    return envelope;
+  }
+
+  @override
+  Future<String> unwrap({
+    required RecoveryKeyEnvelope envelope,
+    required String passphrase,
+  }) async {
+    if (passphrase != 'correct' || envelope.ciphertext.length != 1) {
+      throw const RecoveryPassphraseException();
+    }
+    return payload!;
+  }
 }
