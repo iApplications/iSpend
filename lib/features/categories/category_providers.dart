@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../expenses/data/expense_repository.dart';
 import '../expenses/expense_providers.dart';
+import '../budgets/budget_providers.dart';
 import 'data/category_repository.dart';
 
 final categoryRepositoryProvider = Provider<CategoryRepository>(
@@ -37,6 +38,11 @@ class CategoriesNotifier extends Notifier<List<String>> {
     ];
   }
 
+  /// Reloads the persisted categories after an external data operation, such
+  /// as restoring a backup, without disposing the provider currently watched
+  /// by the UI.
+  Future<void> refresh() => _load();
+
   Future<void> add(String name) async {
     await _repository.add(name);
     await _load();
@@ -49,6 +55,9 @@ class CategoriesNotifier extends Notifier<List<String>> {
       await _repository.rename(oldName, newName);
       await _expenseRepository.renameCategory(oldName, newName);
     }
+    await ref
+        .read(budgetLimitsProvider.notifier)
+        .renameCategory(oldName, newName);
     await _load();
     await ref.read(expensesProvider.notifier).refresh();
   }
@@ -58,6 +67,7 @@ class CategoriesNotifier extends Notifier<List<String>> {
 
   Future<void> delete(String name) async {
     await _repository.delete(name);
+    await ref.read(budgetLimitsProvider.notifier).clear(name);
     await _load();
   }
 

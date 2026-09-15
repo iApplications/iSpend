@@ -50,6 +50,9 @@ class TimeFormatPreferenceNotifier extends Notifier<TimeFormatPreference> {
     };
   }
 
+  /// Reloads the saved preference after a backup restore.
+  Future<void> refresh() => _load();
+
   Future<void> setPreference(TimeFormatPreference preference) async {
     state = preference;
     await _repository.write(_settingKey, preference.name);

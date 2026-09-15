@@ -5,6 +5,7 @@ import 'core/theme/app_theme.dart';
 import 'features/expenses/presentation/expense_list_page.dart';
 import 'features/settings/presentation/settings_page.dart';
 import 'features/settings/appearance_preference.dart';
+import 'features/security/app_lock.dart';
 import 'features/summary/presentation/summary_page.dart';
 
 class ISpendApp extends StatelessWidget {
@@ -34,7 +35,10 @@ class ISpendThemedApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final appearance = ref.watch(appearancePreferenceProvider);
-    return ISpendApp(themeMode: appearance.themeMode);
+    return ISpendApp(
+      themeMode: appearance.themeMode,
+      home: const AppLockGate(child: AppShell()),
+    );
   }
 }
 

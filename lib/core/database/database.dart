@@ -20,7 +20,7 @@ class ISpendDatabase {
     final database = await openDatabase(
       resolvedDatabasePath,
       password: resolvedDatabaseKey,
-      version: 5,
+      version: 10,
       onCreate: (db, _) async {
         await db.execute('''
           CREATE TABLE expenses (
@@ -30,12 +30,17 @@ class ISpendDatabase {
             merchant_or_note TEXT,
             payment_method TEXT,
             occurred_at_millis INTEGER NOT NULL,
-            created_at_millis INTEGER NOT NULL
+            created_at_millis INTEGER NOT NULL,
+            recurring_rule_id TEXT,
+            recurring_occurrence_millis INTEGER,
+            is_tax_deductible INTEGER NOT NULL DEFAULT 0
           )
         ''');
         await _createSettingsTable(db);
         await _createCategoriesTable(db);
         await _createPaymentMethodsTable(db);
+        await _createRecurringExpensesTable(db);
+        await _createRecurringExpenseIndexes(db);
       },
       onUpgrade: (db, oldVersion, _) async {
         if (oldVersion < 2) {
@@ -64,6 +69,67 @@ class ISpendDatabase {
           }
         }
         if (oldVersion < 5) await _createPaymentMethodsTable(db);
+        if (oldVersion < 6) await _createRecurringExpensesTable(db);
+        if (oldVersion < 7) {
+          await db.execute(
+            'ALTER TABLE expenses ADD COLUMN recurring_rule_id TEXT',
+          );
+          await db.execute(
+            'ALTER TABLE expenses ADD COLUMN recurring_occurrence_millis INTEGER',
+          );
+          if (oldVersion >= 6) {
+            await db.execute(
+              'ALTER TABLE recurring_expenses ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1',
+            );
+          }
+          await db.execute('''
+            UPDATE expenses
+            SET recurring_rule_id = id
+            WHERE id IN (SELECT id FROM recurring_expenses)
+          ''');
+          await _createRecurringExpenseIndexes(db);
+        }
+        if (oldVersion < 8) {
+          await db.execute(
+            'ALTER TABLE expenses ADD COLUMN is_tax_deductible INTEGER NOT NULL DEFAULT 0',
+          );
+          await db.execute(
+            'CREATE INDEX expenses_tax_deductible ON expenses(is_tax_deductible)',
+          );
+        }
+        if (oldVersion < 9) {
+          if (oldVersion >= 6) {
+            await db.execute(
+              'ALTER TABLE recurring_expenses ADD COLUMN is_tax_deductible INTEGER NOT NULL DEFAULT 0',
+            );
+          }
+        }
+        if (oldVersion < 10 && oldVersion >= 6) {
+          await db.execute(
+            'ALTER TABLE recurring_expenses ADD COLUMN anchor_day INTEGER NOT NULL DEFAULT 1',
+          );
+          final schedules = await db.query('recurring_expenses');
+          for (final schedule in schedules) {
+            final original = await db.query(
+              'expenses',
+              columns: ['occurred_at_millis'],
+              where: 'id = ?',
+              whereArgs: [schedule['id']],
+              limit: 1,
+            );
+            // Best-effort fallback: the original occurrence may have been
+            // deleted and next_occurrence may already reflect prior drift.
+            final millis = original.isEmpty
+                ? schedule['next_occurrence_millis']! as int
+                : original.single['occurred_at_millis']! as int;
+            await db.update(
+              'recurring_expenses',
+              {'anchor_day': DateTime.fromMillisecondsSinceEpoch(millis).day},
+              where: 'id = ?',
+              whereArgs: [schedule['id']],
+            );
+          }
+        }
       },
     );
     return ISpendDatabase._(database);
@@ -124,5 +190,39 @@ class ISpendDatabase {
         'created_at_millis': createdAt,
       });
     }
+  }
+
+  static Future<void> _createRecurringExpensesTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE recurring_expenses (
+        id TEXT PRIMARY KEY,
+        amount_cents INTEGER NOT NULL,
+        category TEXT NOT NULL,
+        merchant_or_note TEXT,
+        payment_method TEXT,
+        next_occurrence_millis INTEGER NOT NULL,
+        created_at_millis INTEGER NOT NULL,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        is_tax_deductible INTEGER NOT NULL DEFAULT 0,
+        anchor_day INTEGER NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE INDEX recurring_expenses_next_occurrence
+      ON recurring_expenses(next_occurrence_millis)
+    ''');
+  }
+
+  static Future<void> _createRecurringExpenseIndexes(Database db) async {
+    await db.execute('''
+      CREATE INDEX expenses_recurring_rule
+      ON expenses(recurring_rule_id)
+    ''');
+    await db.execute('''
+      CREATE UNIQUE INDEX expenses_recurring_occurrence
+      ON expenses(recurring_rule_id, recurring_occurrence_millis)
+      WHERE recurring_rule_id IS NOT NULL
+        AND recurring_occurrence_millis IS NOT NULL
+    ''');
   }
 }

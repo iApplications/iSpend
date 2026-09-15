@@ -53,6 +53,38 @@ Recovery passphrases must be at least 10 characters and can be changed in
 Settings for future backups. Backups made before a change still need the
 previous passphrase.
 
+## Phase 1.5
+
+Phase 1.5 adds manual encrypted backup/restore and basic monthly recurring
+expenses. A recurring schedule is stored separately from its generated expense
+occurrences. When a schedule is due, iSpend presents one pending draft for the
+scheduled date; it becomes a normal expense only after the user confirms or
+edits it. The saved occurrence retains its recurring-rule reference but cannot
+create another rule. Schedule amount, category, payment method, next date, and
+active state are managed from **Settings > Recurring expenses**.
+Description, category, and payment method are shared series metadata. Editing
+them from the original expense, a confirmed occurrence, or schedule management
+updates the schedule and all linked expenses; future drafts inherit the same
+values. Amounts and transaction dates remain specific to each occurrence.
+Stopping a schedule preserves its series history. It can be reactivated from
+**Settings > Recurring expenses** by choosing its next occurrence date; this
+resumes the same rule rather than creating a duplicate series.
+
+Monthly category budget limits are managed from **Settings > Budget limits**.
+Summary compares each configured category's spending in the selected reference
+month with its target, including a plain remaining or over-budget amount.
+Limits are encrypted app settings, included in manual backups, and follow a
+category when it is renamed.
+
+Expenses can optionally be marked tax-deductible for personal record-keeping.
+Summary shows the tagged-expense count and total for its selected period; this
+is a user label only and is not tax advice or a tax-relief calculation.
+
+App lock is optional and off by default. When enabled from **Settings > Privacy
+& Data**, iSpend uses the device's biometric or device-credential prompt when
+opening the app and after it returns from the background. Recovery onboarding
+and backup recovery remain available before the app shell is unlocked.
+
 ## Design principles
 
 - Simple, calm, and readable screens.
@@ -87,9 +119,9 @@ All changes follow this workflow:
    Phase 1 feature branch from it as `dev/Phase1_{feature}`, push that branch
    to GitHub before making changes, then open its pull request back into
    `dev/Phase1_main`.
-3. For work outside Phase 1, create a task branch from `main` named
-   `dev/{name}` (for example, `dev/expense-entry`), and push it before making
-   changes.
+3. For Phase 1.5, use `dev/phase1.5_main` as the integration branch and create
+   each feature branch from it. For later work, create `dev/{name}` from the
+   applicable integration branch. Push every new branch before making changes.
 4. Run the relevant tests or build checks, then commit only after they pass.
 5. Open a pull request for review and merge. Once Phase 1 is complete,
    `dev/Phase1_main` is the branch that opens the pull request into `main`.

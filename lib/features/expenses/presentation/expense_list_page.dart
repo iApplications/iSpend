@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../core/utils/amount_formatter.dart';
 import '../../../core/widgets/icon_registry.dart';
@@ -10,14 +12,41 @@ import '../../payment_methods/payment_method_providers.dart';
 import '../../settings/time_format_preference.dart';
 import '../../settings/currency_preference.dart';
 import '../data/expense_model.dart';
+import '../data/recurring_expense.dart';
 import '../expense_providers.dart';
 import 'expense_entry_sheet.dart';
+import 'recurring_expenses_page.dart';
 
-class ExpenseListPage extends ConsumerWidget {
+enum _TaxUpdateScope { onlyThis, thisAndFuture }
+
+String _monthName(int month) => const [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+][month - 1];
+
+class ExpenseListPage extends ConsumerStatefulWidget {
   const ExpenseListPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ExpenseListPage> createState() => _ExpenseListPageState();
+}
+
+class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
+  static const _expenseListBottomClearance = 104.0;
+  bool _showExtendedFab = true;
+
+  @override
+  Widget build(BuildContext context) {
     final expenses = ref.watch(expensesProvider);
     final categories = ref.watch(categoriesProvider);
     final categoryIconKeys =
@@ -25,28 +54,55 @@ class ExpenseListPage extends ConsumerWidget {
     final paymentMethods = ref.watch(paymentMethodsProvider);
     final currency = ref.watch(appCurrencyProvider);
     final timePreference = ref.watch(timeFormatPreferenceProvider);
+    final dueRecurringExpenses =
+        ref.watch(dueRecurringExpensesProvider).value ??
+        const <RecurringExpense>[];
     final use24HourFormat = timePreference.resolve(
       deviceUses24Hour: MediaQuery.of(context).alwaysUse24HourFormat,
     );
     final expensesByDay = _groupByDay(expenses);
+
+    Future<void> addExpense() async {
+      final expense = await showExpenseEntrySheet(
+        context,
+        use24HourFormat: use24HourFormat,
+        categories: categories,
+        paymentMethods: paymentMethods,
+        currency: currency,
+      );
+      if (expense != null) {
+        if (expense.repeatsMonthly) {
+          await ref
+              .read(recurringExpenseRepositoryProvider)
+              .enableForExpense(expense.expense);
+          await ref.read(expensesProvider.notifier).refresh();
+          ref.invalidate(dueRecurringExpensesProvider);
+          ref.invalidate(recurringExpensesProvider);
+        } else {
+          await ref.read(expensesProvider.notifier).add(expense.expense);
+        }
+        if (!context.mounted) return;
+        AppToast.show(context, 'Expense saved');
+      }
+    }
+
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final expense = await showExpenseEntrySheet(
-            context,
-            use24HourFormat: use24HourFormat,
-            categories: categories,
-            paymentMethods: paymentMethods,
-            currency: currency,
-          );
-          if (expense != null) {
-            await ref.read(expensesProvider.notifier).add(expense);
-            if (!context.mounted) return;
-            AppToast.show(context, 'Expense saved');
-          }
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Add'),
+      floatingActionButton: AnimatedSize(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        child: _showExtendedFab
+            ? FloatingActionButton.extended(
+                heroTag: 'expense-add',
+                onPressed: addExpense,
+                icon: const Icon(Icons.add),
+                label: const Text('Add'),
+              )
+            : FloatingActionButton(
+                heroTag: 'expense-add',
+                tooltip: 'Add expense',
+                onPressed: addExpense,
+                child: const Icon(Icons.add),
+              ),
       ),
       body: Padding(
         padding: AppSpacing.screen,
@@ -68,49 +124,71 @@ class ExpenseListPage extends ConsumerWidget {
             ),
             const SizedBox(height: AppSpacing.lg),
             _SpendingContextCard(expenses: expenses, currency: currency),
+            if (dueRecurringExpenses.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.lg),
+              _PendingRecurringSection(
+                items: dueRecurringExpenses,
+                currency: currency,
+                onConfirm: (item) => _confirmRecurring(context, ref, item),
+                onEdit: (item) => _editRecurring(
+                  context,
+                  ref,
+                  item,
+                  use24HourFormat,
+                  categories,
+                  paymentMethods,
+                  currency,
+                ),
+              ),
+            ],
             const SizedBox(height: AppSpacing.lg),
             Expanded(
               child: expenses.isEmpty
                   ? _EmptyExpenses()
-                  : ListView(
-                      children: [
-                        for (final entry in expensesByDay.entries) ...[
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
-                            child: Text(
-                              _dateLabel(entry.key),
-                              style: Theme.of(context).textTheme.titleSmall,
-                            ),
-                          ),
-                          for (final expense in entry.value)
+                  : NotificationListener<UserScrollNotification>(
+                      onNotification: _handleExpenseListScroll,
+                      child: ListView(
+                        padding: const EdgeInsets.only(
+                          bottom: _expenseListBottomClearance,
+                        ),
+                        children: [
+                          for (final entry in expensesByDay.entries) ...[
                             Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: Dismissible(
-                                key: Key('expense-${expense.id}'),
-                                direction: DismissDirection.endToStart,
-                                background: const _DeleteBackground(),
-                                confirmDismiss: (_) =>
-                                    _confirmDelete(context, ref, expense),
-                                onDismissed: (_) => ref
-                                    .read(expensesProvider.notifier)
-                                    .delete(expense.id),
-                                child: _ExpenseRow(
-                                  expense: expense,
-                                  currency: currency,
-                                  categoryIconKey:
-                                      categoryIconKeys[expense.category],
-                                  use24HourFormat: use24HourFormat,
-                                  onEdit: () => _editExpense(
-                                    context,
-                                    ref,
-                                    expense,
-                                    use24HourFormat,
+                              padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
+                              child: Text(
+                                _dateLabel(entry.key),
+                                style: Theme.of(context).textTheme.titleSmall,
+                              ),
+                            ),
+                            for (final expense in entry.value)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: Dismissible(
+                                  key: Key('expense-${expense.id}'),
+                                  direction: DismissDirection.endToStart,
+                                  background: const _DeleteBackground(),
+                                  confirmDismiss: (_) =>
+                                      _confirmDelete(context, ref, expense),
+                                  onDismissed: (_) =>
+                                      _deleteExpense(ref, expense),
+                                  child: _ExpenseRow(
+                                    expense: expense,
+                                    currency: currency,
+                                    categoryIconKey:
+                                        categoryIconKeys[expense.category],
+                                    use24HourFormat: use24HourFormat,
+                                    onEdit: () => _editExpense(
+                                      context,
+                                      ref,
+                                      expense,
+                                      use24HourFormat,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
             ),
           ],
@@ -119,12 +197,31 @@ class ExpenseListPage extends ConsumerWidget {
     );
   }
 
+  bool _handleExpenseListScroll(UserScrollNotification notification) {
+    final shouldExtend =
+        notification.metrics.pixels <= 24 ||
+        notification.direction == ScrollDirection.forward;
+    final shouldCollapse = notification.direction == ScrollDirection.reverse;
+
+    if (shouldExtend && !_showExtendedFab) {
+      setState(() => _showExtendedFab = true);
+    } else if (shouldCollapse && _showExtendedFab) {
+      setState(() => _showExtendedFab = false);
+    }
+    return false;
+  }
+
   Future<void> _editExpense(
     BuildContext context,
     WidgetRef ref,
     Expense expense,
     bool use24HourFormat,
   ) async {
+    final recurringRepository = ref.read(recurringExpenseRepositoryProvider);
+    final recurringSchedule = expense.recurringRuleId == null
+        ? null
+        : await recurringRepository.getById(expense.recurringRuleId!);
+    if (!context.mounted) return;
     final updatedExpense = await showExpenseEntrySheet(
       context,
       use24HourFormat: use24HourFormat,
@@ -132,11 +229,142 @@ class ExpenseListPage extends ConsumerWidget {
       paymentMethods: ref.read(paymentMethodsProvider),
       currency: ref.read(appCurrencyProvider),
       expense: expense,
+      showRecurringOption: recurringSchedule == null,
+      recurringSchedule: recurringSchedule,
+      onViewRecurringSchedule: recurringSchedule == null
+          ? null
+          : () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const RecurringExpensesPage(),
+              ),
+            ),
     );
     if (updatedExpense != null) {
-      await ref.read(expensesProvider.notifier).add(updatedExpense);
+      if (recurringSchedule != null) {
+        var updateTaxDefault = true;
+        if (updatedExpense.expense.isTaxDeductible != expense.isTaxDeductible) {
+          if (!context.mounted) return;
+          final scope = await _chooseTaxUpdateScope(
+            context,
+            expense.occurredAt,
+            updatedExpense.expense.isTaxDeductible,
+          );
+          if (scope == null) return;
+          updateTaxDefault = scope == _TaxUpdateScope.thisAndFuture;
+        }
+        await recurringRepository.saveLinkedExpense(
+          updatedExpense.expense,
+          updateTaxDefault: updateTaxDefault,
+        );
+        await ref.read(expensesProvider.notifier).refresh();
+      } else if (updatedExpense.repeatsMonthly) {
+        await recurringRepository.enableForExpense(updatedExpense.expense);
+        await ref.read(expensesProvider.notifier).refresh();
+      } else {
+        await ref.read(expensesProvider.notifier).add(updatedExpense.expense);
+      }
+      ref.invalidate(dueRecurringExpensesProvider);
+      ref.invalidate(recurringExpensesProvider);
       if (!context.mounted) return;
       AppToast.show(context, 'Expense updated');
+    }
+  }
+
+  Future<_TaxUpdateScope?> _chooseTaxUpdateScope(
+    BuildContext context,
+    DateTime occurredAt,
+    bool isTaxDeductible,
+  ) async => await showDialog<_TaxUpdateScope>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Apply tax-deductible setting'),
+      content: Text(
+        '${_monthName(occurredAt.month)} ${isTaxDeductible ? 'onward will be tax-deductible' : 'onward will not be tax-deductible'}. Past confirmed expenses will stay unchanged.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, _TaxUpdateScope.onlyThis),
+          child: Text('Only this expense (${_monthName(occurredAt.month)})'),
+        ),
+        FilledButton(
+          onPressed: () =>
+              Navigator.pop(context, _TaxUpdateScope.thisAndFuture),
+          child: const Text('This and future expenses'),
+        ),
+      ],
+    ),
+  );
+
+  Future<void> _deleteExpense(WidgetRef ref, Expense expense) async {
+    await ref.read(expensesProvider.notifier).delete(expense.id);
+    final recurringRepository = ref.read(recurringExpenseRepositoryProvider);
+    final ruleId = expense.recurringRuleId ?? expense.id;
+    if (await recurringRepository.getById(ruleId) != null) {
+      await recurringRepository.stop(ruleId);
+    }
+    ref.invalidate(dueRecurringExpensesProvider);
+    ref.invalidate(recurringExpensesProvider);
+  }
+
+  Future<void> _confirmRecurring(
+    BuildContext context,
+    WidgetRef ref,
+    RecurringExpense recurring, {
+    Expense? updatedExpense,
+  }) async {
+    final expense = updatedExpense ?? recurring.draftExpense();
+    final confirmed = await ref
+        .read(recurringExpenseRepositoryProvider)
+        .confirm(
+          recurring,
+          Expense(
+            id: const Uuid().v4(),
+            amountCents: expense.amountCents,
+            category: expense.category,
+            merchantOrNote: expense.merchantOrNote,
+            paymentMethod: expense.paymentMethod,
+            occurredAt: expense.occurredAt,
+            createdAt: DateTime.now(),
+            isTaxDeductible: expense.isTaxDeductible,
+          ),
+        );
+    if (!confirmed) return;
+    await ref.read(expensesProvider.notifier).refresh();
+    ref.invalidate(dueRecurringExpensesProvider);
+    ref.invalidate(recurringExpensesProvider);
+    if (context.mounted) AppToast.show(context, 'Recurring expense confirmed');
+  }
+
+  Future<void> _editRecurring(
+    BuildContext context,
+    WidgetRef ref,
+    RecurringExpense recurring,
+    bool use24HourFormat,
+    List<String> categories,
+    List<String> paymentMethods,
+    AppCurrency currency,
+  ) async {
+    final result = await showExpenseEntrySheet(
+      context,
+      use24HourFormat: use24HourFormat,
+      categories: categories,
+      paymentMethods: paymentMethods,
+      currency: currency,
+      expense: recurring.draftExpense(),
+      showRecurringOption: false,
+    );
+    if (result != null) {
+      if (!context.mounted) return;
+      await _confirmRecurring(
+        context,
+        ref,
+        recurring,
+        updatedExpense: result.expense,
+      );
     }
   }
 
@@ -198,6 +426,66 @@ class ExpenseListPage extends ConsumerWidget {
       'Dec',
     ];
     return '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+}
+
+class _PendingRecurringSection extends StatelessWidget {
+  const _PendingRecurringSection({
+    required this.items,
+    required this.currency,
+    required this.onConfirm,
+    required this.onEdit,
+  });
+
+  final List<RecurringExpense> items;
+  final AppCurrency currency;
+  final ValueChanged<RecurringExpense> onConfirm;
+  final ValueChanged<RecurringExpense> onEdit;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    color: Theme.of(context).colorScheme.tertiaryContainer,
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Needs confirmation',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          for (final item in items) ...[
+            Text(item.merchantOrNote ?? item.category),
+            Text(
+              'Monthly · due ${_dueLabel(item.nextOccurrence)} · ${formatCurrencyCents(item.amountCents, currency)}',
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                TextButton(
+                  onPressed: () => onEdit(item),
+                  child: const Text('Edit'),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(
+                  onPressed: () => onConfirm(item),
+                  child: const Text('Confirm'),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    ),
+  );
+
+  String _dueLabel(DateTime dueDate) {
+    final today = DateTime.now();
+    final dueDay = DateTime(dueDate.year, dueDate.month, dueDate.day);
+    final todayDay = DateTime(today.year, today.month, today.day);
+    if (dueDay == todayDay) return 'today';
+    return '${dueDate.day}/${dueDate.month}/${dueDate.year}';
   }
 }
 

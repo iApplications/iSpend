@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
+import 'features/backup/backup_providers.dart';
 import 'core/database/app_settings_repository.dart';
 import 'core/database/database.dart';
 import 'core/database/database_key_store.dart';
@@ -12,6 +13,7 @@ import 'core/utils/amount_formatter.dart';
 import 'features/categories/category_providers.dart';
 import 'features/categories/data/category_repository.dart';
 import 'features/expenses/data/expense_repository.dart';
+import 'features/expenses/data/recurring_expense_repository.dart';
 import 'features/expenses/expense_providers.dart';
 import 'features/onboarding/presentation/recovery_passphrase_page.dart';
 import 'features/payment_methods/data/payment_method_repository.dart';
@@ -153,6 +155,9 @@ class _ISpendBootstrapState extends State<_ISpendBootstrap> {
         expenseRepositoryProvider.overrideWithValue(
           SqlCipherExpenseRepository(database),
         ),
+        recurringExpenseRepositoryProvider.overrideWithValue(
+          SqlCipherRecurringExpenseRepository(database),
+        ),
         categoryRepositoryProvider.overrideWithValue(
           SqlCipherCategoryRepository(database),
         ),
@@ -163,6 +168,8 @@ class _ISpendBootstrapState extends State<_ISpendBootstrap> {
           SqlCipherAppSettingsRepository(database),
         ),
         startupAppCurrencyProvider.overrideWithValue(_lockedCurrency),
+        backupDatabaseProvider.overrideWithValue(database),
+        backupDatabaseKeyProvider.overrideWithValue(_databaseKey!),
       ],
       child: const ISpendThemedApp(),
     );

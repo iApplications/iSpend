@@ -6,16 +6,23 @@ import '../../../core/utils/amount_formatter.dart';
 import '../../../core/utils/amount_parser.dart';
 import '../../../core/widgets/icon_registry.dart';
 import '../data/expense_model.dart';
+import '../data/recurring_expense.dart';
 
-Future<Expense?> showExpenseEntrySheet(
+Future<ExpenseEntryResult?> showExpenseEntrySheet(
   BuildContext context, {
   required bool use24HourFormat,
   required List<String> categories,
   required List<String> paymentMethods,
   required AppCurrency currency,
   Expense? expense,
+  bool showRecurringOption = true,
+  bool initialRepeatsMonthly = false,
+  RecurringExpense? recurringSchedule,
+  VoidCallback? onViewRecurringSchedule,
+  String? title,
+  String? saveButtonLabel,
 }) {
-  return showModalBottomSheet<Expense>(
+  return showModalBottomSheet<ExpenseEntryResult>(
     context: context,
     isScrollControlled: true,
     builder: (_) => ExpenseEntrySheet(
@@ -24,6 +31,12 @@ Future<Expense?> showExpenseEntrySheet(
       paymentMethods: paymentMethods,
       currency: currency,
       expense: expense,
+      showRecurringOption: showRecurringOption,
+      initialRepeatsMonthly: initialRepeatsMonthly,
+      recurringSchedule: recurringSchedule,
+      onViewRecurringSchedule: onViewRecurringSchedule,
+      title: title,
+      saveButtonLabel: saveButtonLabel,
     ),
   );
 }
@@ -35,6 +48,12 @@ class ExpenseEntrySheet extends StatefulWidget {
     required this.paymentMethods,
     required this.currency,
     this.expense,
+    this.showRecurringOption = true,
+    this.initialRepeatsMonthly = false,
+    this.recurringSchedule,
+    this.onViewRecurringSchedule,
+    this.title,
+    this.saveButtonLabel,
     super.key,
   });
 
@@ -43,6 +62,12 @@ class ExpenseEntrySheet extends StatefulWidget {
   final List<String> paymentMethods;
   final AppCurrency currency;
   final Expense? expense;
+  final bool showRecurringOption;
+  final bool initialRepeatsMonthly;
+  final RecurringExpense? recurringSchedule;
+  final VoidCallback? onViewRecurringSchedule;
+  final String? title;
+  final String? saveButtonLabel;
 
   @override
   State<ExpenseEntrySheet> createState() => _ExpenseEntrySheetState();
@@ -56,6 +81,8 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
   DateTime _date = DateTime.now();
   TimeOfDay _time = TimeOfDay.now();
   String? _amountError;
+  bool _repeatsMonthly = false;
+  bool _isTaxDeductible = false;
 
   String get _saveLabel {
     final cents = parseAmountToCents(_amountController.text);
@@ -68,6 +95,7 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
   @override
   void initState() {
     super.initState();
+    _repeatsMonthly = widget.initialRepeatsMonthly;
     final expense = widget.expense;
     if (expense == null) return;
     _amountController.text = formatCents(expense.amountCents);
@@ -76,6 +104,7 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
     _paymentMethod = expense.paymentMethod;
     _date = expense.occurredAt;
     _time = TimeOfDay.fromDateTime(expense.occurredAt);
+    _isTaxDeductible = expense.isTaxDeductible;
   }
 
   @override
@@ -123,20 +152,26 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
     final merchant = _merchantController.text.trim();
     HapticFeedback.lightImpact();
     Navigator.of(context).pop(
-      Expense(
-        id: widget.expense?.id ?? const Uuid().v4(),
-        amountCents: amountCents,
-        category: _category,
-        occurredAt: DateTime(
-          _date.year,
-          _date.month,
-          _date.day,
-          _time.hour,
-          _time.minute,
+      ExpenseEntryResult(
+        expense: Expense(
+          id: widget.expense?.id ?? const Uuid().v4(),
+          amountCents: amountCents,
+          category: _category,
+          occurredAt: DateTime(
+            _date.year,
+            _date.month,
+            _date.day,
+            _time.hour,
+            _time.minute,
+          ),
+          createdAt: widget.expense?.createdAt ?? DateTime.now(),
+          merchantOrNote: merchant.isEmpty ? null : merchant,
+          paymentMethod: _paymentMethod,
+          recurringRuleId: widget.expense?.recurringRuleId,
+          recurringOccurrence: widget.expense?.recurringOccurrence,
+          isTaxDeductible: _isTaxDeductible,
         ),
-        createdAt: widget.expense?.createdAt ?? DateTime.now(),
-        merchantOrNote: merchant.isEmpty ? null : merchant,
-        paymentMethod: _paymentMethod,
+        repeatsMonthly: _repeatsMonthly,
       ),
     );
   }
@@ -178,7 +213,7 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                _isEditing ? 'Edit expense' : 'Add expense',
+                widget.title ?? (_isEditing ? 'Edit expense' : 'Add expense'),
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: 16),
@@ -247,6 +282,14 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
                 ),
               ),
               const SizedBox(height: 12),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Count as tax-deductible?'),
+                subtitle: const Text('For your own tracking — not tax advice'),
+                value: _isTaxDeductible,
+                onChanged: (value) => setState(() => _isTaxDeductible = value),
+              ),
+              const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
@@ -268,12 +311,63 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
                 ],
               ),
               const SizedBox(height: 12),
+              if (widget.recurringSchedule != null) ...[
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.repeat),
+                  title: const Text('Part of recurring expense'),
+                  subtitle: Text(
+                    widget.recurringSchedule!.isActive
+                        ? 'Monthly · next ${_formatDate(widget.recurringSchedule!.nextOccurrence)}'
+                        : 'Monthly · stopped',
+                  ),
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    onPressed: widget.onViewRecurringSchedule == null
+                        ? null
+                        : () {
+                            Navigator.of(context).pop();
+                            widget.onViewRecurringSchedule!();
+                          },
+                    child: const Text('View recurring schedule >'),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ] else if (widget.showRecurringOption) ...[
+                ExpansionTile(
+                  tilePadding: EdgeInsets.zero,
+                  title: const Text('More options'),
+                  children: [
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Repeats monthly'),
+                      value: _repeatsMonthly,
+                      onChanged: (value) =>
+                          setState(() => _repeatsMonthly = value),
+                    ),
+                    if (_repeatsMonthly)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Text(
+                          'A draft will be created next month for you to confirm.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+              ],
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
                   key: const Key('saveExpenseButton'),
                   onPressed: _save,
-                  child: Text(_isEditing ? 'Save changes' : _saveLabel),
+                  child: Text(
+                    widget.saveButtonLabel ??
+                        (_isEditing ? 'Save changes' : _saveLabel),
+                  ),
                 ),
               ),
             ],
@@ -293,6 +387,8 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
     final minute = time.minute.toString().padLeft(2, '0');
     return '$hour:$minute';
   }
+
+  String _formatDate(DateTime date) => '${date.day}/${date.month}/${date.year}';
 
   Future<void> _chooseMoreCategory(List<String> categories) async {
     final category = await showModalBottomSheet<String>(
@@ -316,6 +412,16 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
     );
     if (category != null) setState(() => _category = category);
   }
+}
+
+class ExpenseEntryResult {
+  const ExpenseEntryResult({
+    required this.expense,
+    required this.repeatsMonthly,
+  });
+
+  final Expense expense;
+  final bool repeatsMonthly;
 }
 
 class _AmountField extends StatelessWidget {
