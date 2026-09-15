@@ -82,6 +82,7 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
   TimeOfDay _time = TimeOfDay.now();
   String? _amountError;
   bool _repeatsMonthly = false;
+  bool _isTaxDeductible = false;
 
   String get _saveLabel {
     final cents = parseAmountToCents(_amountController.text);
@@ -103,6 +104,7 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
     _paymentMethod = expense.paymentMethod;
     _date = expense.occurredAt;
     _time = TimeOfDay.fromDateTime(expense.occurredAt);
+    _isTaxDeductible = expense.isTaxDeductible;
   }
 
   @override
@@ -167,6 +169,7 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
           paymentMethod: _paymentMethod,
           recurringRuleId: widget.expense?.recurringRuleId,
           recurringOccurrence: widget.expense?.recurringOccurrence,
+          isTaxDeductible: _isTaxDeductible,
         ),
         repeatsMonthly: _repeatsMonthly,
       ),
@@ -277,6 +280,14 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
                   labelText: 'Merchant or note',
                   hintText: 'Add an optional note',
                 ),
+              ),
+              const SizedBox(height: 12),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Count as tax-deductible?'),
+                subtitle: const Text('For your own tracking — not tax advice'),
+                value: _isTaxDeductible,
+                onChanged: (value) => setState(() => _isTaxDeductible = value),
               ),
               const SizedBox(height: 12),
               Row(

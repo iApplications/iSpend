@@ -11,6 +11,7 @@ import '../../budgets/presentation/budget_limits_page.dart';
 import '../../expenses/data/expense_model.dart';
 import '../../expenses/expense_providers.dart';
 import '../../settings/currency_preference.dart';
+import 'tax_deductible_expenses_page.dart';
 
 class SummaryPage extends ConsumerStatefulWidget {
   const SummaryPage({super.key});
@@ -92,6 +93,25 @@ class _SummaryPageState extends ConsumerState<SummaryPage> {
           ),
         ],
         const SizedBox(height: AppSpacing.xl),
+        _TaxDeductibleCard(
+          expenses: filteredExpenses
+              .where((expense) => expense.isTaxDeductible)
+              .toList(),
+          currency: currency,
+          periodLabel: periodLabel,
+          onView: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => TaxDeductibleExpensesPage(
+                expenses: filteredExpenses
+                    .where((expense) => expense.isTaxDeductible)
+                    .toList(),
+                currency: currency,
+                periodLabel: periodLabel,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xl),
         _Breakdown(
           title: 'Category breakdown',
           totals: _group(filteredExpenses, (expense) => expense.category),
@@ -133,6 +153,74 @@ class _SummaryPageState extends ConsumerState<SummaryPage> {
       lastDate: DateTime(2100),
     );
     if (selected != null) setState(() => _referenceDate = selected);
+  }
+}
+
+class _TaxDeductibleCard extends StatelessWidget {
+  const _TaxDeductibleCard({
+    required this.expenses,
+    required this.currency,
+    required this.periodLabel,
+    required this.onView,
+  });
+
+  final List<Expense> expenses;
+  final AppCurrency currency;
+  final String periodLabel;
+  final VoidCallback onView;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = expenses.fold<int>(
+      0,
+      (sum, expense) => sum + expense.amountCents,
+    );
+    return AppSurface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.receipt_long_outlined,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Tax-deductible expenses',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${expenses.length} tagged in $periodLabel',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                formatCurrencyCents(total, currency),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: onView,
+              child: const Text('View tagged expenses'),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

@@ -10,6 +10,7 @@ class RecurringExpense {
     this.merchantOrNote,
     this.paymentMethod,
     this.isActive = true,
+    this.isTaxDeductible = false,
   });
 
   final String id;
@@ -20,6 +21,7 @@ class RecurringExpense {
   final DateTime nextOccurrence;
   final DateTime createdAt;
   final bool isActive;
+  final bool isTaxDeductible;
 
   Expense draftExpense() => Expense(
     id: id,
@@ -31,6 +33,7 @@ class RecurringExpense {
     createdAt: createdAt,
     recurringRuleId: id,
     recurringOccurrence: nextOccurrence,
+    isTaxDeductible: isTaxDeductible,
   );
 
   RecurringExpense copyWith({
@@ -40,6 +43,7 @@ class RecurringExpense {
     String? paymentMethod,
     DateTime? nextOccurrence,
     bool? isActive,
+    bool? isTaxDeductible,
   }) => RecurringExpense(
     id: id,
     amountCents: amountCents ?? this.amountCents,
@@ -49,5 +53,6 @@ class RecurringExpense {
     nextOccurrence: nextOccurrence ?? this.nextOccurrence,
     createdAt: createdAt,
     isActive: isActive ?? this.isActive,
+    isTaxDeductible: isTaxDeductible ?? this.isTaxDeductible,
   );
 }

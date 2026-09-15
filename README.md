@@ -76,6 +76,10 @@ month with its target, including a plain remaining or over-budget amount.
 Limits are encrypted app settings, included in manual backups, and follow a
 category when it is renamed.
 
+Expenses can optionally be marked tax-deductible for personal record-keeping.
+Summary shows the tagged-expense count and total for its selected period; this
+is a user label only and is not tax advice or a tax-relief calculation.
+
 App lock is optional and off by default. When enabled from **Settings > Privacy
 & Data**, iSpend uses the device's biometric or device-credential prompt when
 opening the app and after it returns from the background. Recovery onboarding

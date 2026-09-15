@@ -17,6 +17,23 @@ import '../expense_providers.dart';
 import 'expense_entry_sheet.dart';
 import 'recurring_expenses_page.dart';
 
+enum _TaxUpdateScope { onlyThis, thisAndFuture }
+
+String _monthName(int month) => const [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+][month - 1];
+
 class ExpenseListPage extends ConsumerStatefulWidget {
   const ExpenseListPage({super.key});
 
@@ -224,7 +241,21 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
     );
     if (updatedExpense != null) {
       if (recurringSchedule != null) {
-        await recurringRepository.saveLinkedExpense(updatedExpense.expense);
+        var updateTaxDefault = true;
+        if (updatedExpense.expense.isTaxDeductible != expense.isTaxDeductible) {
+          if (!context.mounted) return;
+          final scope = await _chooseTaxUpdateScope(
+            context,
+            expense.occurredAt,
+            updatedExpense.expense.isTaxDeductible,
+          );
+          if (scope == null) return;
+          updateTaxDefault = scope == _TaxUpdateScope.thisAndFuture;
+        }
+        await recurringRepository.saveLinkedExpense(
+          updatedExpense.expense,
+          updateTaxDefault: updateTaxDefault,
+        );
         await ref.read(expensesProvider.notifier).refresh();
       } else if (updatedExpense.repeatsMonthly) {
         await recurringRepository.enableForExpense(updatedExpense.expense);
@@ -238,6 +269,35 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
       AppToast.show(context, 'Expense updated');
     }
   }
+
+  Future<_TaxUpdateScope?> _chooseTaxUpdateScope(
+    BuildContext context,
+    DateTime occurredAt,
+    bool isTaxDeductible,
+  ) async => await showDialog<_TaxUpdateScope>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Apply tax-deductible setting'),
+      content: Text(
+        '${_monthName(occurredAt.month)} ${isTaxDeductible ? 'onward will be tax-deductible' : 'onward will not be tax-deductible'}. Past confirmed expenses will stay unchanged.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, _TaxUpdateScope.onlyThis),
+          child: Text('Only this expense (${_monthName(occurredAt.month)})'),
+        ),
+        FilledButton(
+          onPressed: () =>
+              Navigator.pop(context, _TaxUpdateScope.thisAndFuture),
+          child: const Text('This and future expenses'),
+        ),
+      ],
+    ),
+  );
 
   Future<void> _deleteExpense(WidgetRef ref, Expense expense) async {
     await ref.read(expensesProvider.notifier).delete(expense.id);
@@ -269,6 +329,7 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
             paymentMethod: expense.paymentMethod,
             occurredAt: expense.occurredAt,
             createdAt: DateTime.now(),
+            isTaxDeductible: expense.isTaxDeductible,
           ),
         );
     if (!confirmed) return;

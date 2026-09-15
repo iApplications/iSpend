@@ -10,7 +10,10 @@ abstract interface class RecurringExpenseRepository {
   Future<List<RecurringExpense>> dueOnOrBefore(DateTime date);
   Future<Expense> enableForExpense(Expense expense);
   Future<void> updateSchedule(RecurringExpense recurring);
-  Future<void> saveLinkedExpense(Expense expense);
+  Future<void> saveLinkedExpense(
+    Expense expense, {
+    bool updateTaxDefault = true,
+  });
   Future<bool> confirm(RecurringExpense recurring, Expense occurrence);
   Future<void> stop(String id);
   Future<void> reactivate(String id, DateTime nextOccurrence);
@@ -59,14 +62,21 @@ class InMemoryRecurringExpenseRepository implements RecurringExpenseRepository {
   }
 
   @override
-  Future<void> saveLinkedExpense(Expense expense) async {
+  Future<void> saveLinkedExpense(
+    Expense expense, {
+    bool updateTaxDefault = true,
+  }) async {
     final ruleId = expense.recurringRuleId;
     if (ruleId == null) {
       throw StateError('The expense is not linked to a recurring rule.');
     }
     final index = _items.indexWhere((item) => item.id == ruleId);
     if (index < 0) throw StateError('The recurring rule no longer exists.');
-    _items[index] = _withRecurringSeriesFields(_items[index], expense);
+    _items[index] = _withRecurringSeriesFields(
+      _items[index],
+      expense,
+      updateTaxDefault: updateTaxDefault,
+    );
     await _expenses.save(expense);
     await _synchronizeSeriesFields(ruleId, _items[index]);
   }
@@ -205,19 +215,26 @@ class SqlCipherRecurringExpenseRepository
   }
 
   @override
-  Future<void> saveLinkedExpense(Expense expense) async {
+  Future<void> saveLinkedExpense(
+    Expense expense, {
+    bool updateTaxDefault = true,
+  }) async {
     final ruleId = expense.recurringRuleId;
     if (ruleId == null) {
       throw StateError('The expense is not linked to a recurring rule.');
     }
     await _database.transaction((transaction) async {
+      final scheduleValues = <String, Object?>{
+        'category': expense.category,
+        'merchant_or_note': expense.merchantOrNote,
+        'payment_method': expense.paymentMethod,
+      };
+      if (updateTaxDefault) {
+        scheduleValues['is_tax_deductible'] = expense.isTaxDeductible ? 1 : 0;
+      }
       final changed = await transaction.update(
         'recurring_expenses',
-        {
-          'category': expense.category,
-          'merchant_or_note': expense.merchantOrNote,
-          'payment_method': expense.paymentMethod,
-        },
+        scheduleValues,
         where: 'id = ?',
         whereArgs: [ruleId],
       );
@@ -306,6 +323,7 @@ class SqlCipherRecurringExpenseRepository
     'next_occurrence_millis': item.nextOccurrence.millisecondsSinceEpoch,
     'created_at_millis': item.createdAt.millisecondsSinceEpoch,
     'is_active': item.isActive ? 1 : 0,
+    'is_tax_deductible': item.isTaxDeductible ? 1 : 0,
   };
 
   RecurringExpense _fromRow(Map<String, Object?> row) => RecurringExpense(
@@ -321,6 +339,7 @@ class SqlCipherRecurringExpenseRepository
       row['created_at_millis']! as int,
     ),
     isActive: (row['is_active'] as int? ?? 1) == 1,
+    isTaxDeductible: (row['is_tax_deductible'] as int? ?? 0) == 1,
   );
 }
 
@@ -332,6 +351,7 @@ RecurringExpense _fromExpense(Expense expense) => RecurringExpense(
   paymentMethod: expense.paymentMethod,
   nextOccurrence: nextMonthlyOccurrence(expense.occurredAt),
   createdAt: expense.createdAt,
+  isTaxDeductible: expense.isTaxDeductible,
 );
 
 RecurringExpense _advancedSchedule(
@@ -346,6 +366,7 @@ RecurringExpense _advancedSchedule(
   nextOccurrence: nextMonthlyOccurrence(recurring.nextOccurrence),
   createdAt: recurring.createdAt,
   isActive: recurring.isActive,
+  isTaxDeductible: occurrence.isTaxDeductible,
 );
 
 Map<String, Object?> _expenseRow(Expense expense) => {
@@ -359,6 +380,7 @@ Map<String, Object?> _expenseRow(Expense expense) => {
   'recurring_rule_id': expense.recurringRuleId,
   'recurring_occurrence_millis':
       expense.recurringOccurrence?.millisecondsSinceEpoch,
+  'is_tax_deductible': expense.isTaxDeductible ? 1 : 0,
 };
 
 DateTime nextMonthlyOccurrence(DateTime date) {
@@ -391,12 +413,14 @@ Expense _withSeriesFields(Expense expense, RecurringExpense recurring) =>
       createdAt: expense.createdAt,
       recurringRuleId: expense.recurringRuleId,
       recurringOccurrence: expense.recurringOccurrence,
+      isTaxDeductible: expense.isTaxDeductible,
     );
 
 RecurringExpense _withRecurringSeriesFields(
   RecurringExpense recurring,
-  Expense expense,
-) => RecurringExpense(
+  Expense expense, {
+  required bool updateTaxDefault,
+}) => RecurringExpense(
   id: recurring.id,
   amountCents: recurring.amountCents,
   category: expense.category,
@@ -405,4 +429,7 @@ RecurringExpense _withRecurringSeriesFields(
   nextOccurrence: recurring.nextOccurrence,
   createdAt: recurring.createdAt,
   isActive: recurring.isActive,
+  isTaxDeductible: updateTaxDefault
+      ? expense.isTaxDeductible
+      : recurring.isTaxDeductible,
 );
