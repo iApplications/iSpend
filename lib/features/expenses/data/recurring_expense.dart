@@ -7,6 +7,7 @@ class RecurringExpense {
     required this.category,
     required this.nextOccurrence,
     required this.createdAt,
+    required this.anchorDay,
     this.merchantOrNote,
     this.paymentMethod,
     this.isActive = true,
@@ -20,6 +21,7 @@ class RecurringExpense {
   final String? paymentMethod;
   final DateTime nextOccurrence;
   final DateTime createdAt;
+  final int anchorDay;
   final bool isActive;
   final bool isTaxDeductible;
 
@@ -42,6 +44,7 @@ class RecurringExpense {
     String? merchantOrNote,
     String? paymentMethod,
     DateTime? nextOccurrence,
+    int? anchorDay,
     bool? isActive,
     bool? isTaxDeductible,
   }) => RecurringExpense(
@@ -52,6 +55,7 @@ class RecurringExpense {
     paymentMethod: paymentMethod ?? this.paymentMethod,
     nextOccurrence: nextOccurrence ?? this.nextOccurrence,
     createdAt: createdAt,
+    anchorDay: anchorDay ?? this.anchorDay,
     isActive: isActive ?? this.isActive,
     isTaxDeductible: isTaxDeductible ?? this.isTaxDeductible,
   );

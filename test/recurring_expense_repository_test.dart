@@ -160,6 +160,7 @@ void main() {
       final reactivated = (await recurring.getById(schedule.id))!;
       expect(reactivated.isActive, isTrue);
       expect(reactivated.nextOccurrence, nextDate);
+      expect(reactivated.anchorDay, 10);
       expect(await recurring.getAll(), hasLength(1));
       expect(
         await recurring.dueOnOrBefore(nextDate),
@@ -259,6 +260,37 @@ void main() {
       );
     },
   );
+
+  test('monthly occurrence retains its original anchor day', () {
+    expect(
+      nextMonthlyOccurrence(DateTime(2026, 1, 28), 28),
+      DateTime(2026, 2, 28),
+    );
+    expect(
+      nextMonthlyOccurrence(DateTime(2026, 1, 29), 29),
+      DateTime(2026, 2, 28),
+    );
+    expect(
+      nextMonthlyOccurrence(DateTime(2026, 1, 30), 30),
+      DateTime(2026, 2, 28),
+    );
+    expect(
+      nextMonthlyOccurrence(DateTime(2026, 1, 31), 31),
+      DateTime(2026, 2, 28),
+    );
+    expect(
+      nextMonthlyOccurrence(DateTime(2024, 1, 31), 31),
+      DateTime(2024, 2, 29),
+    );
+    expect(
+      nextMonthlyOccurrence(DateTime(2026, 2, 28), 31),
+      DateTime(2026, 3, 31),
+    );
+    expect(
+      nextMonthlyOccurrence(DateTime(2026, 12, 31), 31),
+      DateTime(2027, 1, 31),
+    );
+  });
 }
 
 Expense _expense(String id, DateTime occurredAt, {String? description}) =>

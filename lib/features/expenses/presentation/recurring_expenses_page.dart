@@ -111,6 +111,7 @@ class RecurringExpensesPage extends ConsumerWidget {
             isTaxDeductible: result.expense.isTaxDeductible,
             nextOccurrence: result.expense.occurredAt,
             createdAt: item.createdAt,
+            anchorDay: item.anchorDay,
             isActive: item.isActive,
           ),
         );

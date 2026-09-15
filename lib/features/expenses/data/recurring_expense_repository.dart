@@ -307,6 +307,7 @@ class SqlCipherRecurringExpenseRepository
       {
         'is_active': 1,
         'next_occurrence_millis': nextOccurrence.millisecondsSinceEpoch,
+        'anchor_day': nextOccurrence.day,
       },
       where: 'id = ?',
       whereArgs: [id],
@@ -324,6 +325,7 @@ class SqlCipherRecurringExpenseRepository
     'created_at_millis': item.createdAt.millisecondsSinceEpoch,
     'is_active': item.isActive ? 1 : 0,
     'is_tax_deductible': item.isTaxDeductible ? 1 : 0,
+    'anchor_day': item.anchorDay,
   };
 
   RecurringExpense _fromRow(Map<String, Object?> row) => RecurringExpense(
@@ -340,6 +342,7 @@ class SqlCipherRecurringExpenseRepository
     ),
     isActive: (row['is_active'] as int? ?? 1) == 1,
     isTaxDeductible: (row['is_tax_deductible'] as int? ?? 0) == 1,
+    anchorDay: row['anchor_day']! as int,
   );
 }
 
@@ -349,8 +352,12 @@ RecurringExpense _fromExpense(Expense expense) => RecurringExpense(
   category: expense.category,
   merchantOrNote: expense.merchantOrNote,
   paymentMethod: expense.paymentMethod,
-  nextOccurrence: nextMonthlyOccurrence(expense.occurredAt),
+  nextOccurrence: nextMonthlyOccurrence(
+    expense.occurredAt,
+    expense.occurredAt.day,
+  ),
   createdAt: expense.createdAt,
+  anchorDay: expense.occurredAt.day,
   isTaxDeductible: expense.isTaxDeductible,
 );
 
@@ -363,8 +370,12 @@ RecurringExpense _advancedSchedule(
   category: occurrence.category,
   merchantOrNote: occurrence.merchantOrNote,
   paymentMethod: occurrence.paymentMethod,
-  nextOccurrence: nextMonthlyOccurrence(recurring.nextOccurrence),
+  nextOccurrence: nextMonthlyOccurrence(
+    recurring.nextOccurrence,
+    recurring.anchorDay,
+  ),
   createdAt: recurring.createdAt,
+  anchorDay: recurring.anchorDay,
   isActive: recurring.isActive,
   isTaxDeductible: occurrence.isTaxDeductible,
 );
@@ -383,14 +394,14 @@ Map<String, Object?> _expenseRow(Expense expense) => {
   'is_tax_deductible': expense.isTaxDeductible ? 1 : 0,
 };
 
-DateTime nextMonthlyOccurrence(DateTime date) {
+DateTime nextMonthlyOccurrence(DateTime date, int anchorDay) {
   final month = date.month == 12 ? 1 : date.month + 1;
   final year = date.month == 12 ? date.year + 1 : date.year;
   final lastDay = DateTime(year, month + 1, 0).day;
   return DateTime(
     year,
     month,
-    date.day.clamp(1, lastDay),
+    anchorDay.clamp(1, lastDay),
     date.hour,
     date.minute,
   );
@@ -428,6 +439,7 @@ RecurringExpense _withRecurringSeriesFields(
   paymentMethod: expense.paymentMethod,
   nextOccurrence: recurring.nextOccurrence,
   createdAt: recurring.createdAt,
+  anchorDay: recurring.anchorDay,
   isActive: recurring.isActive,
   isTaxDeductible: updateTaxDefault
       ? expense.isTaxDeductible
