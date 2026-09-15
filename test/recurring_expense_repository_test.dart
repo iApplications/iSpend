@@ -167,6 +167,98 @@ void main() {
       );
     },
   );
+
+  test(
+    'tax setting can update only the current recurring occurrence',
+    () async {
+      final expenses = InMemoryExpenseRepository();
+      final recurring = InMemoryRecurringExpenseRepository(expenses);
+      await recurring.enableForExpense(_expense('june', DateTime(2026, 6, 10)));
+      final julySchedule = (await recurring.getAll()).single;
+      await recurring.confirm(
+        julySchedule,
+        _expense('july', DateTime(2026, 7, 10)),
+      );
+      final july = (await expenses.getAll()).singleWhere(
+        (item) => item.id == 'july',
+      );
+
+      await recurring.saveLinkedExpense(
+        july.copyWith(isTaxDeductible: true),
+        updateTaxDefault: false,
+      );
+
+      expect(
+        (await expenses.getAll())
+            .singleWhere((item) => item.id == 'june')
+            .isTaxDeductible,
+        isFalse,
+      );
+      expect(
+        (await expenses.getAll())
+            .singleWhere((item) => item.id == 'july')
+            .isTaxDeductible,
+        isTrue,
+      );
+      expect((await recurring.getAll()).single.isTaxDeductible, isFalse);
+      expect(
+        (await recurring.getAll()).single.draftExpense().isTaxDeductible,
+        isFalse,
+      );
+    },
+  );
+
+  test(
+    'tax setting updates future recurring default without changing past',
+    () async {
+      final expenses = InMemoryExpenseRepository();
+      final recurring = InMemoryRecurringExpenseRepository(expenses);
+      await recurring.enableForExpense(_expense('june', DateTime(2026, 6, 10)));
+      final julySchedule = (await recurring.getAll()).single;
+      await recurring.confirm(
+        julySchedule,
+        _expense('july', DateTime(2026, 7, 10)),
+      );
+      final july = (await expenses.getAll()).singleWhere(
+        (item) => item.id == 'july',
+      );
+
+      await recurring.saveLinkedExpense(july.copyWith(isTaxDeductible: true));
+      final augustSchedule = (await recurring.getAll()).single;
+      expect(
+        (await expenses.getAll())
+            .singleWhere((item) => item.id == 'june')
+            .isTaxDeductible,
+        isFalse,
+      );
+      expect(augustSchedule.draftExpense().isTaxDeductible, isTrue);
+
+      await recurring.confirm(
+        augustSchedule,
+        _expense(
+          'august',
+          augustSchedule.nextOccurrence,
+        ).copyWith(isTaxDeductible: augustSchedule.isTaxDeductible),
+      );
+      final august = (await expenses.getAll()).singleWhere(
+        (item) => item.recurringOccurrence == augustSchedule.nextOccurrence,
+      );
+      expect(august.isTaxDeductible, isTrue);
+      await recurring.saveLinkedExpense(
+        august.copyWith(isTaxDeductible: false),
+      );
+      expect(
+        (await recurring.getAll()).single.draftExpense().isTaxDeductible,
+        isFalse,
+      );
+      expect(
+        (await expenses.getAll())
+            .singleWhere((item) => item.id == 'july')
+            .isTaxDeductible,
+        isTrue,
+      );
+    },
+  );
 }
 
 Expense _expense(String id, DateTime occurredAt, {String? description}) =>

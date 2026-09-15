@@ -20,7 +20,7 @@ class ISpendDatabase {
     final database = await openDatabase(
       resolvedDatabasePath,
       password: resolvedDatabaseKey,
-      version: 7,
+      version: 9,
       onCreate: (db, _) async {
         await db.execute('''
           CREATE TABLE expenses (
@@ -32,7 +32,8 @@ class ISpendDatabase {
             occurred_at_millis INTEGER NOT NULL,
             created_at_millis INTEGER NOT NULL,
             recurring_rule_id TEXT,
-            recurring_occurrence_millis INTEGER
+            recurring_occurrence_millis INTEGER,
+            is_tax_deductible INTEGER NOT NULL DEFAULT 0
           )
         ''');
         await _createSettingsTable(db);
@@ -87,6 +88,19 @@ class ISpendDatabase {
             WHERE id IN (SELECT id FROM recurring_expenses)
           ''');
           await _createRecurringExpenseIndexes(db);
+        }
+        if (oldVersion < 8) {
+          await db.execute(
+            'ALTER TABLE expenses ADD COLUMN is_tax_deductible INTEGER NOT NULL DEFAULT 0',
+          );
+          await db.execute(
+            'CREATE INDEX expenses_tax_deductible ON expenses(is_tax_deductible)',
+          );
+        }
+        if (oldVersion < 9) {
+          await db.execute(
+            'ALTER TABLE recurring_expenses ADD COLUMN is_tax_deductible INTEGER NOT NULL DEFAULT 0',
+          );
         }
       },
     );
@@ -160,7 +174,8 @@ class ISpendDatabase {
         payment_method TEXT,
         next_occurrence_millis INTEGER NOT NULL,
         created_at_millis INTEGER NOT NULL,
-        is_active INTEGER NOT NULL DEFAULT 1
+        is_active INTEGER NOT NULL DEFAULT 1,
+        is_tax_deductible INTEGER NOT NULL DEFAULT 0
       )
     ''');
     await db.execute('''

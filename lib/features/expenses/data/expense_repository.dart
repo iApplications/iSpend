@@ -48,6 +48,7 @@ class InMemoryExpenseRepository implements ExpenseRepository {
           paymentMethod: expense.paymentMethod,
           recurringRuleId: expense.recurringRuleId,
           recurringOccurrence: expense.recurringOccurrence,
+          isTaxDeductible: expense.isTaxDeductible,
         );
       }
     }
@@ -73,6 +74,7 @@ class InMemoryExpenseRepository implements ExpenseRepository {
           paymentMethod: newName,
           recurringRuleId: expense.recurringRuleId,
           recurringOccurrence: expense.recurringOccurrence,
+          isTaxDeductible: expense.isTaxDeductible,
         );
       }
     }
@@ -159,6 +161,7 @@ class SqlCipherExpenseRepository implements ExpenseRepository {
       'recurring_rule_id': expense.recurringRuleId,
       'recurring_occurrence_millis':
           expense.recurringOccurrence?.millisecondsSinceEpoch,
+      'is_tax_deductible': expense.isTaxDeductible ? 1 : 0,
     };
   }
 
@@ -181,6 +184,7 @@ class SqlCipherExpenseRepository implements ExpenseRepository {
           : DateTime.fromMillisecondsSinceEpoch(
               row['recurring_occurrence_millis']! as int,
             ),
+      isTaxDeductible: (row['is_tax_deductible'] as int? ?? 0) == 1,
     );
   }
 }

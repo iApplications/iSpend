@@ -108,6 +108,7 @@ class RecurringExpensesPage extends ConsumerWidget {
             category: result.expense.category,
             merchantOrNote: result.expense.merchantOrNote,
             paymentMethod: result.expense.paymentMethod,
+            isTaxDeductible: result.expense.isTaxDeductible,
             nextOccurrence: result.expense.occurredAt,
             createdAt: item.createdAt,
             isActive: item.isActive,

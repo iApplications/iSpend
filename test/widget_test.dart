@@ -19,6 +19,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Spending'), findsOneWidget);
     expect(find.text('Category breakdown'), findsOneWidget);
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.pumpAndSettle();
     expect(find.text('Payment method breakdown'), findsOneWidget);
 
     await tester.tap(find.text('Settings').last);

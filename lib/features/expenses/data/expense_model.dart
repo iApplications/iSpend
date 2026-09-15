@@ -9,6 +9,7 @@ class Expense {
     this.paymentMethod,
     this.recurringRuleId,
     this.recurringOccurrence,
+    this.isTaxDeductible = false,
   });
 
   final String id;
@@ -20,6 +21,7 @@ class Expense {
   final String? paymentMethod;
   final String? recurringRuleId;
   final DateTime? recurringOccurrence;
+  final bool isTaxDeductible;
 
   Expense copyWith({
     int? amountCents,
@@ -29,6 +31,7 @@ class Expense {
     String? paymentMethod,
     String? recurringRuleId,
     DateTime? recurringOccurrence,
+    bool? isTaxDeductible,
   }) => Expense(
     id: id,
     amountCents: amountCents ?? this.amountCents,
@@ -39,5 +42,6 @@ class Expense {
     paymentMethod: paymentMethod ?? this.paymentMethod,
     recurringRuleId: recurringRuleId ?? this.recurringRuleId,
     recurringOccurrence: recurringOccurrence ?? this.recurringOccurrence,
+    isTaxDeductible: isTaxDeductible ?? this.isTaxDeductible,
   );
 }
