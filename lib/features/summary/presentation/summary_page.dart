@@ -9,6 +9,7 @@ import '../../budgets/budget_providers.dart';
 import '../../budgets/presentation/budget_limits_page.dart';
 import '../../expenses/data/expense_model.dart';
 import '../../expenses/expense_providers.dart';
+import '../../payment_methods/payment_method_providers.dart';
 import '../../settings/currency_preference.dart';
 import 'tax_deductible_expenses_page.dart';
 
@@ -30,6 +31,7 @@ class _SummaryPageState extends ConsumerState<SummaryPage> {
     final now = _referenceDate;
     final currency = ref.watch(appCurrencyProvider);
     final budgetLimits = ref.watch(budgetLimitsProvider);
+    final paymentMethodColours = ref.watch(paymentMethodColourKeysProvider);
     final categoryIconKeys =
         ref.watch(categoryIconKeysProvider).value ?? const <String, String>{};
     final filteredExpenses = expenses
@@ -127,6 +129,7 @@ class _SummaryPageState extends ConsumerState<SummaryPage> {
           ),
           currency: currency,
           type: _BreakdownType.paymentMethod,
+          paymentMethodColours: paymentMethodColours,
         ),
       ],
     );
@@ -446,12 +449,14 @@ class _Breakdown extends StatelessWidget {
     required this.currency,
     required this.type,
     this.categoryIconKeys = const {},
+    this.paymentMethodColours = const {},
   });
   final String title;
   final Map<String, int> totals;
   final AppCurrency currency;
   final _BreakdownType type;
   final Map<String, String> categoryIconKeys;
+  final Map<String, String> paymentMethodColours;
 
   @override
   Widget build(BuildContext context) {
@@ -476,6 +481,7 @@ class _Breakdown extends StatelessWidget {
             total: total,
             type: type,
             categoryIconKeys: categoryIconKeys,
+            paymentMethodColours: paymentMethodColours,
           ),
           for (final entry in sortedEntries)
             _BreakdownLegendRow(
@@ -485,6 +491,7 @@ class _Breakdown extends StatelessWidget {
               currency: currency,
               type: type,
               categoryIconKey: categoryIconKeys[entry.key],
+              paymentMethodColour: paymentMethodColours[entry.key],
             ),
         ],
       ],
@@ -498,12 +505,14 @@ class _StackedBreakdownBar extends StatelessWidget {
     required this.total,
     required this.type,
     required this.categoryIconKeys,
+    required this.paymentMethodColours,
   });
 
   final List<MapEntry<String, int>> entries;
   final int total;
   final _BreakdownType type;
   final Map<String, String> categoryIconKeys;
+  final Map<String, String> paymentMethodColours;
 
   @override
   Widget build(BuildContext context) => ClipRRect(
@@ -518,11 +527,13 @@ class _StackedBreakdownBar extends StatelessWidget {
                 width: constraints.maxWidth * entry.value / total,
                 height: constraints.maxHeight,
                 child: ColoredBox(
-                  color: _breakdownStyle(
+                  color: _breakdownColor(
+                    context,
                     label: entry.key,
                     type: type,
                     categoryIconKey: categoryIconKeys[entry.key],
-                  ).color,
+                    paymentMethodColour: paymentMethodColours[entry.key],
+                  ),
                 ),
               ),
           ],
@@ -540,6 +551,7 @@ class _BreakdownLegendRow extends StatelessWidget {
     required this.currency,
     required this.type,
     this.categoryIconKey,
+    this.paymentMethodColour,
   });
 
   final String label;
@@ -548,15 +560,18 @@ class _BreakdownLegendRow extends StatelessWidget {
   final AppCurrency currency;
   final _BreakdownType type;
   final String? categoryIconKey;
+  final String? paymentMethodColour;
 
   @override
   Widget build(BuildContext context) {
     final percentage = total == 0 ? 0.0 : amount / total;
     final percentLabel = '${(percentage * 100).round()}%';
-    final style = _breakdownStyle(
+    final color = _breakdownColor(
+      context,
       label: label,
       type: type,
       categoryIconKey: categoryIconKey,
+      paymentMethodColour: paymentMethodColour,
     );
 
     return Padding(
@@ -568,7 +583,7 @@ class _BreakdownLegendRow extends StatelessWidget {
             height: 9,
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: style.color,
+                color: color,
                 borderRadius: AppRadii.pillBorder,
               ),
             ),
@@ -607,15 +622,26 @@ class _BreakdownLegendRow extends StatelessWidget {
   }
 }
 
-CategoryIconStyle _breakdownStyle({
+Color _breakdownColor(
+  BuildContext context, {
   required String label,
   required _BreakdownType type,
   String? categoryIconKey,
-}) => type == _BreakdownType.category
-    ? categoryIconKey == null
-          ? categoryIconStyle(label)
-          : categoryIconStyleForKey(categoryIconKey)
-    : paymentMethodIconStyle(label);
+  String? paymentMethodColour,
+}) {
+  final style = type == _BreakdownType.category
+      ? categoryIconKey == null
+            ? categoryIconStyle(label)
+            : categoryIconStyleForKey(categoryIconKey)
+      : paymentMethodIconStyle(label);
+  return type == _BreakdownType.paymentMethod
+      ? paymentMethodBadgeColor(
+          paymentMethodColour ?? 'default',
+          Theme.of(context).brightness,
+          style.color,
+        )
+      : style.color;
+}
 
 int _total(List<Expense> expenses, bool Function(DateTime) includes) => expenses
     .where((expense) => includes(expense.occurredAt))

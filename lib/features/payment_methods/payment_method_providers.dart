@@ -13,6 +13,38 @@ final paymentMethodsProvider =
       PaymentMethodsNotifier.new,
     );
 
+final paymentMethodColourKeysProvider =
+    NotifierProvider<PaymentMethodColoursNotifier, Map<String, String>>(
+      PaymentMethodColoursNotifier.new,
+    );
+
+class PaymentMethodColoursNotifier extends Notifier<Map<String, String>> {
+  late final PaymentMethodRepository _repository;
+
+  @override
+  Map<String, String> build() {
+    _repository = ref.watch(paymentMethodRepositoryProvider);
+    Future.microtask(refresh);
+    return const {};
+  }
+
+  Future<void> refresh() async {
+    final ids = await _repository.getIdsByName();
+    final colours = await _repository.getColourKeysById();
+    state = {
+      for (final entry in ids.entries)
+        entry.key: colours[entry.value] ?? 'default',
+    };
+  }
+
+  Future<void> set(String name, String colourKey) async {
+    final id = (await _repository.getIdsByName())[name];
+    if (id == null) return;
+    await _repository.setColourKey(id, colourKey);
+    await refresh();
+  }
+}
+
 class PaymentMethodsNotifier extends Notifier<List<String>> {
   late final PaymentMethodRepository _repository;
   late final ExpenseRepository _expenses;
@@ -33,6 +65,7 @@ class PaymentMethodsNotifier extends Notifier<List<String>> {
   Future<void> add(String name) async {
     await _repository.add(name);
     await _load();
+    await ref.read(paymentMethodColourKeysProvider.notifier).refresh();
   }
 
   Future<void> rename(String oldName, String newName) async {
@@ -43,12 +76,14 @@ class PaymentMethodsNotifier extends Notifier<List<String>> {
       await _expenses.renamePaymentMethod(oldName, newName);
     }
     await _load();
+    await ref.read(paymentMethodColourKeysProvider.notifier).refresh();
     await ref.read(expensesProvider.notifier).refresh();
   }
 
   Future<void> delete(String name) async {
     await _repository.delete(name);
     await _load();
+    await ref.read(paymentMethodColourKeysProvider.notifier).refresh();
   }
 
   Future<int> expenseCount(String name) => _expenses.countByPaymentMethod(name);
