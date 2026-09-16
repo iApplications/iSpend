@@ -66,8 +66,8 @@ class CategoriesNotifier extends Notifier<List<String>> {
       _expenseRepository.countByCategory(name);
 
   Future<void> delete(String name) async {
-    await _repository.delete(name);
     await ref.read(budgetLimitsProvider.notifier).clear(name);
+    await _repository.delete(name);
     await _load();
   }
 

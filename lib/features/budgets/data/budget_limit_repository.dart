@@ -4,8 +4,8 @@ import '../../../core/database/app_settings_repository.dart';
 
 abstract interface class BudgetLimitRepository {
   Future<Map<String, int>> getAll();
-  Future<void> set(String category, int amountCents);
-  Future<void> clear(String category);
+  Future<void> set(String categoryId, int amountCents);
+  Future<void> clear(String categoryId);
   Future<void> renameCategory(String oldName, String newName);
 }
 
@@ -33,25 +33,28 @@ class SettingsBudgetLimitRepository implements BudgetLimitRepository {
   }
 
   @override
-  Future<void> set(String category, int amountCents) async {
+  Future<void> set(String categoryId, int amountCents) async {
     if (amountCents <= 0) throw ArgumentError.value(amountCents, 'amountCents');
     final values = await getAll();
-    await _write({...values, category: amountCents});
+    await _write({...values, categoryId: amountCents});
   }
 
   @override
-  Future<void> clear(String category) async {
+  Future<void> clear(String categoryId) async {
     final values = Map<String, int>.of(await getAll());
-    values.remove(category);
+    values.remove(categoryId);
     await _write(values);
   }
 
   @override
+  /// Migrated budgets use immutable category IDs and need no rewrite. Keep
+  /// this small compatibility path for a legacy name-keyed value encountered
+  /// before the v11 database migration has run.
   Future<void> renameCategory(String oldName, String newName) async {
     final values = Map<String, int>.of(await getAll());
     final amount = values.remove(oldName);
-    if (amount != null) values[newName] = amount;
-    await _write(values);
+    if (amount == null) return;
+    await _write({...values, newName: amount});
   }
 
   Future<void> _write(Map<String, int> values) =>

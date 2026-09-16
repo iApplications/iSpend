@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:path/path.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
+import 'package:uuid/uuid.dart';
 
 import 'database_key_store.dart';
 
@@ -20,15 +23,17 @@ class ISpendDatabase {
     final database = await openDatabase(
       resolvedDatabasePath,
       password: resolvedDatabaseKey,
-      version: 10,
+      version: 11,
       onCreate: (db, _) async {
         await db.execute('''
           CREATE TABLE expenses (
             id TEXT PRIMARY KEY,
             amount_cents INTEGER NOT NULL,
             category TEXT NOT NULL,
+            category_id TEXT NOT NULL,
             merchant_or_note TEXT,
             payment_method TEXT,
+            payment_method_id TEXT,
             occurred_at_millis INTEGER NOT NULL,
             created_at_millis INTEGER NOT NULL,
             recurring_rule_id TEXT,
@@ -130,6 +135,7 @@ class ISpendDatabase {
             );
           }
         }
+        if (oldVersion < 11) await _migrateStableReferenceIds(db);
       },
     );
     return ISpendDatabase._(database);
@@ -147,7 +153,8 @@ class ISpendDatabase {
   static Future<void> _createCategoriesTable(Database db) async {
     await db.execute('''
       CREATE TABLE categories (
-        name TEXT PRIMARY KEY,
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE COLLATE NOCASE,
         icon_key TEXT NOT NULL,
         created_at_millis INTEGER NOT NULL
       )
@@ -161,6 +168,7 @@ class ISpendDatabase {
       'Other',
     ]) {
       await db.insert('categories', {
+        'id': const Uuid().v4(),
         'name': name,
         'icon_key': _defaultCategoryIconKey(name),
         'created_at_millis': createdAt,
@@ -179,13 +187,15 @@ class ISpendDatabase {
   static Future<void> _createPaymentMethodsTable(Database db) async {
     await db.execute('''
       CREATE TABLE payment_methods (
-        name TEXT PRIMARY KEY,
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE COLLATE NOCASE,
         created_at_millis INTEGER NOT NULL
       )
     ''');
     final createdAt = DateTime.now().millisecondsSinceEpoch;
     for (final name in const ['Cash', 'Credit Card', 'Debit Card']) {
       await db.insert('payment_methods', {
+        'id': const Uuid().v4(),
         'name': name,
         'created_at_millis': createdAt,
       });
@@ -198,8 +208,10 @@ class ISpendDatabase {
         id TEXT PRIMARY KEY,
         amount_cents INTEGER NOT NULL,
         category TEXT NOT NULL,
+        category_id TEXT NOT NULL,
         merchant_or_note TEXT,
         payment_method TEXT,
+        payment_method_id TEXT,
         next_occurrence_millis INTEGER NOT NULL,
         created_at_millis INTEGER NOT NULL,
         is_active INTEGER NOT NULL DEFAULT 1,
@@ -225,4 +237,138 @@ class ISpendDatabase {
         AND recurring_occurrence_millis IS NOT NULL
     ''');
   }
+
+  /// Gives existing records immutable identities while retaining name columns
+  /// as display caches for the current UI and historic backup compatibility.
+  static Future<void> _migrateStableReferenceIds(Database db) async {
+    await _rebuildCategoriesTable(db);
+    await _rebuildPaymentMethodsTable(db);
+
+    await db.execute('ALTER TABLE expenses ADD COLUMN category_id TEXT');
+    await db.execute('ALTER TABLE expenses ADD COLUMN payment_method_id TEXT');
+    await db.execute(
+      'ALTER TABLE recurring_expenses ADD COLUMN category_id TEXT',
+    );
+    await db.execute(
+      'ALTER TABLE recurring_expenses ADD COLUMN payment_method_id TEXT',
+    );
+
+    await db.execute('''
+      UPDATE expenses
+      SET category_id = (
+        SELECT id FROM categories WHERE categories.name = expenses.category
+      )
+    ''');
+    await db.execute('''
+      UPDATE expenses
+      SET payment_method_id = (
+        SELECT id FROM payment_methods
+        WHERE payment_methods.name = expenses.payment_method
+      )
+      WHERE payment_method IS NOT NULL
+    ''');
+    await db.execute('''
+      UPDATE recurring_expenses
+      SET category_id = (
+        SELECT id FROM categories
+        WHERE categories.name = recurring_expenses.category
+      )
+    ''');
+    await db.execute('''
+      UPDATE recurring_expenses
+      SET payment_method_id = (
+        SELECT id FROM payment_methods
+        WHERE payment_methods.name = recurring_expenses.payment_method
+      )
+      WHERE payment_method IS NOT NULL
+    ''');
+    await _migrateBudgetCategoryKeys(db);
+  }
+
+  static Future<void> _rebuildCategoriesTable(Database db) async {
+    await db.execute('ALTER TABLE categories RENAME TO categories_legacy');
+    await _createEmptyCategoriesTable(db);
+    final rows = await db.query('categories_legacy');
+    for (final row in rows) {
+      await db.insert('categories', {
+        'id': const Uuid().v4(),
+        'name': row['name'],
+        'icon_key': row['icon_key'] ?? 'other',
+        'created_at_millis': row['created_at_millis'],
+      });
+    }
+    await db.execute('DROP TABLE categories_legacy');
+  }
+
+  static Future<void> _rebuildPaymentMethodsTable(Database db) async {
+    await db.execute(
+      'ALTER TABLE payment_methods RENAME TO payment_methods_legacy',
+    );
+    await _createEmptyPaymentMethodsTable(db);
+    final rows = await db.query('payment_methods_legacy');
+    for (final row in rows) {
+      await db.insert('payment_methods', {
+        'id': const Uuid().v4(),
+        'name': row['name'],
+        'created_at_millis': row['created_at_millis'],
+      });
+    }
+    await db.execute('DROP TABLE payment_methods_legacy');
+  }
+
+  static Future<void> _migrateBudgetCategoryKeys(Database db) async {
+    const key = 'monthly_category_budget_limits_v1';
+    final rows = await db.query(
+      'app_settings',
+      where: 'key = ?',
+      whereArgs: [key],
+      limit: 1,
+    );
+    if (rows.isEmpty) return;
+
+    final encoded = rows.single['value'] as String;
+    final values = <String, Object?>{};
+    try {
+      final decoded = jsonDecode(encoded);
+      if (decoded is! Map<String, dynamic>) return;
+      for (final entry in decoded.entries) {
+        final category = await db.query(
+          'categories',
+          columns: ['id'],
+          where: 'name = ?',
+          whereArgs: [entry.key],
+          limit: 1,
+        );
+        if (category.isNotEmpty && entry.value is int && entry.value > 0) {
+          values[category.single['id']! as String] = entry.value;
+        }
+      }
+    } on FormatException {
+      return;
+    }
+    await db.update(
+      'app_settings',
+      {'value': jsonEncode(values)},
+      where: 'key = ?',
+      whereArgs: [key],
+    );
+  }
+
+  static Future<void> _createEmptyCategoriesTable(Database db) => db.execute('''
+      CREATE TABLE categories (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+        icon_key TEXT NOT NULL,
+        created_at_millis INTEGER NOT NULL
+      )
+    ''');
+
+  static Future<void> _createEmptyPaymentMethodsTable(Database db) =>
+      db.execute('''
+      CREATE TABLE payment_methods (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+        created_at_millis INTEGER NOT NULL
+      )
+    ''');
 }

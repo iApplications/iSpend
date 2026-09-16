@@ -173,6 +173,11 @@ class SqlCipherRecurringExpenseRepository
     }
     final linked = expense.copyWith(recurringRuleId: expense.id);
     await _database.transaction((transaction) async {
+      final references = await resolveReferenceIds(
+        transaction,
+        category: linked.category,
+        paymentMethod: linked.paymentMethod,
+      );
       final existing = Sqflite.firstIntValue(
         await transaction.rawQuery(
           'SELECT COUNT(*) FROM recurring_expenses WHERE id = ?',
@@ -184,12 +189,12 @@ class SqlCipherRecurringExpenseRepository
       }
       await transaction.insert(
         'recurring_expenses',
-        _toRow(_fromExpense(linked)),
+        _toRow(_fromExpense(linked), references),
         conflictAlgorithm: ConflictAlgorithm.abort,
       );
       await transaction.insert(
         'expenses',
-        _expenseRow(linked),
+        _expenseRow(linked, references),
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
     });
@@ -199,15 +204,20 @@ class SqlCipherRecurringExpenseRepository
   @override
   Future<void> updateSchedule(RecurringExpense recurring) async {
     await _database.transaction((transaction) async {
+      final references = await resolveReferenceIds(
+        transaction,
+        category: recurring.category,
+        paymentMethod: recurring.paymentMethod,
+      );
       await transaction.update(
         'recurring_expenses',
-        _toRow(recurring),
+        _toRow(recurring, references),
         where: 'id = ?',
         whereArgs: [recurring.id],
       );
       await transaction.update(
         'expenses',
-        _seriesFields(recurring),
+        _seriesFields(recurring, references),
         where: 'recurring_rule_id = ?',
         whereArgs: [recurring.id],
       );
@@ -224,10 +234,17 @@ class SqlCipherRecurringExpenseRepository
       throw StateError('The expense is not linked to a recurring rule.');
     }
     await _database.transaction((transaction) async {
+      final references = await resolveReferenceIds(
+        transaction,
+        category: expense.category,
+        paymentMethod: expense.paymentMethod,
+      );
       final scheduleValues = <String, Object?>{
         'category': expense.category,
+        'category_id': references.categoryId,
         'merchant_or_note': expense.merchantOrNote,
         'payment_method': expense.paymentMethod,
+        'payment_method_id': references.paymentMethodId,
       };
       if (updateTaxDefault) {
         scheduleValues['is_tax_deductible'] = expense.isTaxDeductible ? 1 : 0;
@@ -243,15 +260,17 @@ class SqlCipherRecurringExpenseRepository
       }
       await transaction.insert(
         'expenses',
-        _expenseRow(expense),
+        _expenseRow(expense, references),
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
       await transaction.update(
         'expenses',
         {
           'category': expense.category,
+          'category_id': references.categoryId,
           'merchant_or_note': expense.merchantOrNote,
           'payment_method': expense.paymentMethod,
+          'payment_method_id': references.paymentMethodId,
         },
         where: 'recurring_rule_id = ?',
         whereArgs: [ruleId],
@@ -267,9 +286,14 @@ class SqlCipherRecurringExpenseRepository
         recurringOccurrence: recurring.nextOccurrence,
       );
       final updated = _advancedSchedule(recurring, occurrence);
+      final references = await resolveReferenceIds(
+        transaction,
+        category: updated.category,
+        paymentMethod: updated.paymentMethod,
+      );
       final changed = await transaction.update(
         'recurring_expenses',
-        _toRow(updated),
+        _toRow(updated, references),
         where: 'id = ? AND is_active = 1 AND next_occurrence_millis = ?',
         whereArgs: [
           recurring.id,
@@ -279,12 +303,12 @@ class SqlCipherRecurringExpenseRepository
       if (changed != 1) return false;
       await transaction.insert(
         'expenses',
-        _expenseRow(linkedOccurrence),
+        _expenseRow(linkedOccurrence, references),
         conflictAlgorithm: ConflictAlgorithm.abort,
       );
       await transaction.update(
         'expenses',
-        _seriesFields(updated),
+        _seriesFields(updated, references),
         where: 'recurring_rule_id = ?',
         whereArgs: [recurring.id],
       );
@@ -315,18 +339,21 @@ class SqlCipherRecurringExpenseRepository
     if (changed != 1) throw StateError('The recurring rule no longer exists.');
   }
 
-  Map<String, Object?> _toRow(RecurringExpense item) => {
-    'id': item.id,
-    'amount_cents': item.amountCents,
-    'category': item.category,
-    'merchant_or_note': item.merchantOrNote,
-    'payment_method': item.paymentMethod,
-    'next_occurrence_millis': item.nextOccurrence.millisecondsSinceEpoch,
-    'created_at_millis': item.createdAt.millisecondsSinceEpoch,
-    'is_active': item.isActive ? 1 : 0,
-    'is_tax_deductible': item.isTaxDeductible ? 1 : 0,
-    'anchor_day': item.anchorDay,
-  };
+  Map<String, Object?> _toRow(RecurringExpense item, ReferenceIds references) =>
+      {
+        'id': item.id,
+        'amount_cents': item.amountCents,
+        'category': item.category,
+        'category_id': references.categoryId,
+        'merchant_or_note': item.merchantOrNote,
+        'payment_method': item.paymentMethod,
+        'payment_method_id': references.paymentMethodId,
+        'next_occurrence_millis': item.nextOccurrence.millisecondsSinceEpoch,
+        'created_at_millis': item.createdAt.millisecondsSinceEpoch,
+        'is_active': item.isActive ? 1 : 0,
+        'is_tax_deductible': item.isTaxDeductible ? 1 : 0,
+        'anchor_day': item.anchorDay,
+      };
 
   RecurringExpense _fromRow(Map<String, Object?> row) => RecurringExpense(
     id: row['id']! as String,
@@ -380,12 +407,14 @@ RecurringExpense _advancedSchedule(
   isTaxDeductible: occurrence.isTaxDeductible,
 );
 
-Map<String, Object?> _expenseRow(Expense expense) => {
+Map<String, Object?> _expenseRow(Expense expense, ReferenceIds references) => {
   'id': expense.id,
   'amount_cents': expense.amountCents,
   'category': expense.category,
+  'category_id': references.categoryId,
   'merchant_or_note': expense.merchantOrNote,
   'payment_method': expense.paymentMethod,
+  'payment_method_id': references.paymentMethodId,
   'occurred_at_millis': expense.occurredAt.millisecondsSinceEpoch,
   'created_at_millis': expense.createdAt.millisecondsSinceEpoch,
   'recurring_rule_id': expense.recurringRuleId,
@@ -407,10 +436,15 @@ DateTime nextMonthlyOccurrence(DateTime date, int anchorDay) {
   );
 }
 
-Map<String, Object?> _seriesFields(RecurringExpense recurring) => {
+Map<String, Object?> _seriesFields(
+  RecurringExpense recurring,
+  ReferenceIds references,
+) => {
   'category': recurring.category,
+  'category_id': references.categoryId,
   'merchant_or_note': recurring.merchantOrNote,
   'payment_method': recurring.paymentMethod,
+  'payment_method_id': references.paymentMethodId,
 };
 
 Expense _withSeriesFields(Expense expense, RecurringExpense recurring) =>
