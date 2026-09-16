@@ -89,4 +89,33 @@ void main() {
       expect(find.textContaining('Use at least 10 characters'), findsWidgets);
     },
   );
+
+  testWidgets('restore offers a confirmed start-fresh escape path', (
+    tester,
+  ) async {
+    var startedFresh = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RecoveryPassphrasePage(
+          isRestore: true,
+          onSubmit: (_) async => 'That passphrase did not open this backup.',
+          onStartFresh: () async {
+            startedFresh = true;
+            return null;
+          },
+        ),
+      ),
+    );
+
+    expect(find.text('Use another backup'), findsOneWidget);
+    expect(find.text('Start fresh instead'), findsOneWidget);
+    await tester.tap(find.text('Start fresh instead'));
+    await tester.pumpAndSettle();
+    expect(find.text('Start fresh instead?'), findsOneWidget);
+    expect(find.textContaining('will not be deleted'), findsOneWidget);
+
+    await tester.tap(find.text('Start fresh'));
+    await tester.pumpAndSettle();
+    expect(startedFresh, isTrue);
+  });
 }

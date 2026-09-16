@@ -40,6 +40,7 @@ class _ISpendBootstrapState extends State<_ISpendBootstrap> {
     keyStore: _keyStore,
     envelopeStore: _envelopeStore,
     recoveryKeyService: _recoveryKeyService,
+    localDatabaseDeleter: ISpendDatabase.deleteLocalDatabase,
   );
 
   ISpendDatabase? _database;
@@ -121,6 +122,29 @@ class _ISpendBootstrapState extends State<_ISpendBootstrap> {
     }
   }
 
+  Future<String?> _startFresh() async {
+    try {
+      final recoveryState = await _recoveryBootstrap.startFresh();
+      final databaseKey = recoveryState.databaseKey!;
+      final database = await ISpendDatabase.open(databaseKey: databaseKey);
+      final settingsRepository = SqlCipherAppSettingsRepository(
+        database.database,
+      );
+      final lockedCurrency = await loadLockedAppCurrency(settingsRepository);
+      if (!mounted) return null;
+      setState(() {
+        _databaseKey = databaseKey;
+        _database = database;
+        _envelope = null;
+        _restoring = false;
+        _lockedCurrency = lockedCurrency;
+      });
+      return null;
+    } catch (_) {
+      return 'iSpend could not start fresh. Please try again.';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_startupError != null) {
@@ -132,7 +156,11 @@ class _ISpendBootstrapState extends State<_ISpendBootstrap> {
     }
     if (_restoring) {
       return ISpendApp(
-        home: RecoveryPassphrasePage(isRestore: true, onSubmit: _restore),
+        home: RecoveryPassphrasePage(
+          isRestore: true,
+          onSubmit: _restore,
+          onStartFresh: _startFresh,
+        ),
       );
     }
     if (_database == null) {

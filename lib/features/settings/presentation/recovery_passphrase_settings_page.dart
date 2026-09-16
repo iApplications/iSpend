@@ -1,43 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/database/recovery_envelope_store.dart';
-import '../../../core/database/recovery_key.dart';
 import '../../../core/widgets/app_toast.dart';
+import '../../backup/backup_providers.dart';
 
-class RecoveryPassphraseSettingsPage extends StatefulWidget {
+class RecoveryPassphraseSettingsPage extends ConsumerStatefulWidget {
   const RecoveryPassphraseSettingsPage({super.key});
 
   @override
-  State<RecoveryPassphraseSettingsPage> createState() =>
+  ConsumerState<RecoveryPassphraseSettingsPage> createState() =>
       _RecoveryPassphraseSettingsPageState();
 }
 
 class _RecoveryPassphraseSettingsPageState
-    extends State<RecoveryPassphraseSettingsPage> {
+    extends ConsumerState<RecoveryPassphraseSettingsPage> {
   static const _minimumPassphraseLength = 10;
-  final _currentController = TextEditingController();
   final _newController = TextEditingController();
   final _confirmController = TextEditingController();
-  final _envelopeStore = RecoveryEnvelopeStore();
-  final RecoveryKeyOperations _recoveryKeyService = const RecoveryKeyService();
   bool _submitting = false;
   String? _error;
 
   @override
   void dispose() {
-    _currentController.dispose();
     _newController.dispose();
     _confirmController.dispose();
     super.dispose();
   }
 
   Future<void> _changePassphrase() async {
-    final current = _currentController.text;
     final next = _newController.text;
-    if (current.isEmpty) {
-      setState(() => _error = 'Enter your current recovery passphrase.');
-      return;
-    }
     if (next.length < _minimumPassphraseLength) {
       setState(
         () => _error =
@@ -55,30 +46,18 @@ class _RecoveryPassphraseSettingsPageState
       _error = null;
     });
     try {
-      final envelope = await _envelopeStore.read();
-      if (envelope == null) throw const RecoveryPassphraseException();
-      final databaseKey = await _recoveryKeyService.unwrap(
-        envelope: envelope,
-        passphrase: current,
-      );
-      final replacement = await _recoveryKeyService.wrap(
-        databaseKey: databaseKey,
-        passphrase: next,
-      );
-      await _envelopeStore.write(replacement);
+      final replacement = await ref
+          .read(recoveryKeyOperationsProvider)
+          .wrap(
+            databaseKey: ref.read(backupDatabaseKeyProvider),
+            passphrase: next,
+          );
+      await ref.read(recoveryEnvelopeAccessProvider).write(replacement);
       if (!mounted) return;
       setState(() => _submitting = false);
       AppToast.show(context, 'Recovery passphrase updated');
-      _currentController.clear();
       _newController.clear();
       _confirmController.clear();
-    } on RecoveryPassphraseException {
-      if (mounted) {
-        setState(() {
-          _submitting = false;
-          _error = 'Your current recovery passphrase is incorrect.';
-        });
-      }
     } catch (_) {
       if (mounted) {
         setState(() {
@@ -100,18 +79,13 @@ class _RecoveryPassphraseSettingsPageState
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Text(
-                'This protects the database key included with future automatic backups. '
+                'Your current device can protect future backups with a new passphrase. '
                 'Backups created before this change still require the old passphrase.',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
             ),
           ),
           const SizedBox(height: 24),
-          _PassphraseField(
-            controller: _currentController,
-            label: 'Current recovery passphrase',
-          ),
-          const SizedBox(height: 16),
           _PassphraseField(
             controller: _newController,
             label: 'New recovery passphrase',
@@ -137,7 +111,7 @@ class _RecoveryPassphraseSettingsPageState
                     dimension: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text('Change recovery passphrase'),
+                : const Text('Set new recovery passphrase'),
           ),
         ],
       ),

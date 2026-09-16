@@ -155,4 +155,9 @@ class _FakeEnvelopeStore implements RecoveryEnvelopeAccess {
   Future<void> write(RecoveryKeyEnvelope value) async {
     envelope = value;
   }
+
+  @override
+  Future<void> delete() async {
+    envelope = null;
+  }
 }

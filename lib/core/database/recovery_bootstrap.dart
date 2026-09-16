@@ -24,13 +24,16 @@ class RecoveryBootstrap {
     required DatabaseKeyAccess keyStore,
     required RecoveryEnvelopeAccess envelopeStore,
     required RecoveryKeyOperations recoveryKeyService,
+    required Future<void> Function() localDatabaseDeleter,
   }) : _keyStore = keyStore,
        _envelopeStore = envelopeStore,
-       _recoveryKeyService = recoveryKeyService;
+       _recoveryKeyService = recoveryKeyService,
+       _localDatabaseDeleter = localDatabaseDeleter;
 
   final DatabaseKeyAccess _keyStore;
   final RecoveryEnvelopeAccess _envelopeStore;
   final RecoveryKeyOperations _recoveryKeyService;
+  final Future<void> Function() _localDatabaseDeleter;
 
   Future<RecoveryBootstrapState> initialise() async {
     final envelope = await _envelopeStore.read();
@@ -78,5 +81,14 @@ class RecoveryBootstrap {
   /// Call only after SQLCipher has successfully opened the recovered database.
   Future<void> persistRecoveredKey(String databaseKey) async {
     await _keyStore.writeKey(databaseKey);
+  }
+
+  /// Discards only inaccessible local restored state on this device.
+  /// This never reaches a user-selected manual backup file in external storage.
+  Future<RecoveryBootstrapState> startFresh() async {
+    await _localDatabaseDeleter();
+    await _keyStore.deleteKey();
+    await _envelopeStore.delete();
+    return initialise();
   }
 }

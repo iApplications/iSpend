@@ -6,6 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 abstract interface class DatabaseKeyAccess {
   Future<String?> readKey();
   Future<void> writeKey(String key);
+  Future<void> deleteKey();
   Future<String> readOrCreateKey();
 }
 
@@ -29,6 +30,9 @@ class DatabaseKeyStore implements DatabaseKeyAccess {
   @override
   Future<void> writeKey(String key) =>
       _storage.write(key: _databaseKeyName, value: key);
+
+  @override
+  Future<void> deleteKey() => _storage.delete(key: _databaseKeyName);
 
   @override
   Future<String> readOrCreateKey() async {
