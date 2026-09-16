@@ -49,9 +49,13 @@ Recovery passphrases are protected with Argon2id using fixed parameters:
 `t=3`, `m=65536` (64 MiB), and `p=4`, plus a unique random salt for each
 passphrase.
 
-Recovery passphrases must be at least 10 characters and can be changed in
-Settings for future backups. Backups made before a change still need the
-previous passphrase.
+Recovery passphrases must be at least 10 characters. If the original device
+can still open its local database, Settings can set a new passphrase for
+future backups without knowing a forgotten old one. Backups made before that
+change still need the previous passphrase. On a new device, an unrecoverable
+backup offers Try again, Use another backup, or Start fresh instead; starting
+fresh deletes only inaccessible local iSpend state on that device, never an
+external backup file.
 
 ## Phase 1.5
 
@@ -119,9 +123,9 @@ All changes follow this workflow:
    Phase 1 feature branch from it as `dev/Phase1_{feature}`, push that branch
    to GitHub before making changes, then open its pull request back into
    `dev/Phase1_main`.
-3. For Phase 1.5, use `dev/phase1.5_main` as the integration branch and create
-   each feature branch from it. For later work, create `dev/{name}` from the
-   applicable integration branch. Push every new branch before making changes.
+3. For Phase 1.5, use `dev/phase1.5_main` as the integration branch. For
+   Phase 2b, use `dev/phase2b_main`. Create each feature branch from its
+   applicable integration branch, and push it before making changes.
 4. Run the relevant tests or build checks, then commit only after they pass.
 5. Open a pull request for review and merge. Once Phase 1 is complete,
    `dev/Phase1_main` is the branch that opens the pull request into `main`.

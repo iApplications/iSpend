@@ -14,6 +14,7 @@ void main() {
       keyStore: keyStore,
       envelopeStore: envelopeStore,
       recoveryKeyService: _FakeRecoveryKeyService(),
+      localDatabaseDeleter: () async {},
     );
 
     final state = await bootstrap.initialise();
@@ -32,6 +33,7 @@ void main() {
         keyStore: keyStore,
         envelopeStore: envelopeStore,
         recoveryKeyService: _FakeRecoveryKeyService(),
+        localDatabaseDeleter: () async {},
       );
 
       final state = await bootstrap.initialise();
@@ -52,6 +54,34 @@ void main() {
       expect(keyStore.key, isNull);
       await bootstrap.persistRecoveredKey(restoredKey);
       expect(keyStore.key, 'restored-database-key');
+    },
+  );
+
+  test(
+    'start fresh clears only local recovery state then requires setup',
+    () async {
+      final keyStore = _FakeKeyStore();
+      final envelopeStore = _FakeEnvelopeStore(envelope: _testEnvelope);
+      var localDatabaseWasDeleted = false;
+      final bootstrap = RecoveryBootstrap(
+        keyStore: keyStore,
+        envelopeStore: envelopeStore,
+        recoveryKeyService: _FakeRecoveryKeyService(),
+        localDatabaseDeleter: () async => localDatabaseWasDeleted = true,
+      );
+
+      expect(
+        (await bootstrap.initialise()).path,
+        RecoveryBootstrapPath.restore,
+      );
+
+      final fresh = await bootstrap.startFresh();
+
+      expect(localDatabaseWasDeleted, isTrue);
+      expect(envelopeStore.envelope, isNull);
+      expect(keyStore.key, 'fresh-database-key');
+      expect(fresh.path, RecoveryBootstrapPath.setup);
+      expect((await bootstrap.initialise()).path, RecoveryBootstrapPath.setup);
     },
   );
 }
@@ -79,6 +109,11 @@ class _FakeKeyStore implements DatabaseKeyAccess {
   Future<void> writeKey(String value) async {
     key = value;
   }
+
+  @override
+  Future<void> deleteKey() async {
+    key = null;
+  }
 }
 
 class _FakeEnvelopeStore implements RecoveryEnvelopeAccess {
@@ -92,6 +127,11 @@ class _FakeEnvelopeStore implements RecoveryEnvelopeAccess {
   @override
   Future<void> write(RecoveryKeyEnvelope value) async {
     envelope = value;
+  }
+
+  @override
+  Future<void> delete() async {
+    envelope = null;
   }
 }
 

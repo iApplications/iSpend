@@ -11,6 +11,13 @@ class ISpendDatabase {
 
   final Database database;
 
+  /// Deletes only this device's local database and its SQLite sidecar files.
+  /// External manual backup files are never stored at this path.
+  static Future<void> deleteLocalDatabase() async {
+    final databasePath = join(await getDatabasesPath(), 'ispend.db');
+    await deleteDatabase(databasePath);
+  }
+
   static Future<ISpendDatabase> open({
     DatabaseKeyStore? keyStore,
     String? databasePath,

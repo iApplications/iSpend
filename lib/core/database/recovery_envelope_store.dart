@@ -9,6 +9,7 @@ import 'recovery_key.dart';
 abstract interface class RecoveryEnvelopeAccess {
   Future<RecoveryKeyEnvelope?> read();
   Future<void> write(RecoveryKeyEnvelope envelope);
+  Future<void> delete();
 }
 
 class RecoveryEnvelopeStore implements RecoveryEnvelopeAccess {
@@ -40,5 +41,11 @@ class RecoveryEnvelopeStore implements RecoveryEnvelopeAccess {
     final temporary = File('${file.path}.tmp');
     await temporary.writeAsString(jsonEncode(envelope.toJson()), flush: true);
     await temporary.rename(file.path);
+  }
+
+  @override
+  Future<void> delete() async {
+    final file = await _file();
+    if (await file.exists()) await file.delete();
   }
 }
