@@ -258,6 +258,115 @@ void main() {
     }
   });
 
+  testWidgets('version 10 migration assigns stable IDs to every reference', (
+    tester,
+  ) async {
+    const password = 'integration-test-key-not-for-production';
+    final path = '${await getDatabasesPath()}/ispend_schema_v10_test.db';
+    await deleteDatabase(path);
+    final legacy = await openDatabase(
+      path,
+      password: password,
+      version: 10,
+      onCreate: (database, _) async {
+        await database.execute('''
+          CREATE TABLE expenses (
+            id TEXT PRIMARY KEY, amount_cents INTEGER NOT NULL,
+            category TEXT NOT NULL, merchant_or_note TEXT,
+            payment_method TEXT, occurred_at_millis INTEGER NOT NULL,
+            created_at_millis INTEGER NOT NULL, recurring_rule_id TEXT,
+            recurring_occurrence_millis INTEGER,
+            is_tax_deductible INTEGER NOT NULL DEFAULT 0
+          )
+        ''');
+        await database.execute('''
+          CREATE TABLE categories (
+            name TEXT PRIMARY KEY, icon_key TEXT NOT NULL,
+            created_at_millis INTEGER NOT NULL
+          )
+        ''');
+        await database.execute('''
+          CREATE TABLE payment_methods (
+            name TEXT PRIMARY KEY, created_at_millis INTEGER NOT NULL
+          )
+        ''');
+        await database.execute('''
+          CREATE TABLE recurring_expenses (
+            id TEXT PRIMARY KEY, amount_cents INTEGER NOT NULL,
+            category TEXT NOT NULL, merchant_or_note TEXT,
+            payment_method TEXT, next_occurrence_millis INTEGER NOT NULL,
+            created_at_millis INTEGER NOT NULL, is_active INTEGER NOT NULL,
+            is_tax_deductible INTEGER NOT NULL, anchor_day INTEGER NOT NULL
+          )
+        ''');
+        await database.execute(
+          'CREATE TABLE app_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)',
+        );
+        const createdAt = 1700000000000;
+        await database.insert('categories', {
+          'name': 'Food',
+          'icon_key': 'food',
+          'created_at_millis': createdAt,
+        });
+        await database.insert('payment_methods', {
+          'name': 'Cash',
+          'created_at_millis': createdAt,
+        });
+        await database.insert('expenses', {
+          'id': 'expense-1',
+          'amount_cents': 1200,
+          'category': 'Food',
+          'payment_method': 'Cash',
+          'occurred_at_millis': createdAt,
+          'created_at_millis': createdAt,
+        });
+        await database.insert('recurring_expenses', {
+          'id': 'rule-1',
+          'amount_cents': 1200,
+          'category': 'Food',
+          'payment_method': 'Cash',
+          'next_occurrence_millis': createdAt,
+          'created_at_millis': createdAt,
+          'is_active': 1,
+          'is_tax_deductible': 0,
+          'anchor_day': 1,
+        });
+        await database.insert('app_settings', {
+          'key': 'monthly_category_budget_limits_v1',
+          'value': jsonEncode({'Food': 5000}),
+        });
+      },
+    );
+    await legacy.close();
+
+    final migrated = await ISpendDatabase.open(
+      databasePath: path,
+      databaseKey: password,
+    );
+    final category = (await migrated.database.query('categories')).single;
+    final method = (await migrated.database.query('payment_methods')).single;
+    final expense = (await migrated.database.query('expenses')).single;
+    final schedule = (await migrated.database.query(
+      'recurring_expenses',
+    )).single;
+    final budget = (await migrated.database.query(
+      'app_settings',
+      where: 'key = ?',
+      whereArgs: ['monthly_category_budget_limits_v1'],
+    )).single;
+
+    expect(category['id'], isNotEmpty);
+    expect(method['id'], isNotEmpty);
+    expect(expense['category_id'], category['id']);
+    expect(expense['payment_method_id'], method['id']);
+    expect(schedule['category_id'], category['id']);
+    expect(schedule['payment_method_id'], method['id']);
+    expect(jsonDecode(budget['value']! as String), {category['id']: 5000});
+
+    await migrated.database.close();
+    await deleteDatabase(path);
+  });
+
   testWidgets('manual backup restores atomically and rejects invalid data', (
     tester,
   ) async {
@@ -270,10 +379,17 @@ void main() {
     final db = opened.database;
     final fake = _FakeRecoveryKeyService();
     final service = ManualBackupService(recoveryKeyService: fake);
+    final foodId = (await db.query(
+      'categories',
+      columns: ['id'],
+      where: 'name = ?',
+      whereArgs: ['Food'],
+    )).single['id'];
     await db.insert('expenses', {
       'id': 'before',
       'amount_cents': 1234,
       'category': 'Food',
+      'category_id': foodId,
       'occurred_at_millis': DateTime(2026, 1, 1).millisecondsSinceEpoch,
       'created_at_millis': DateTime(2026, 1, 1).millisecondsSinceEpoch,
     });
@@ -286,11 +402,55 @@ void main() {
     );
     expect((await db.query('expenses')).single['id'], 'before');
 
+    fake.payload = base64UrlEncode(
+      utf8.encode(
+        jsonEncode({
+          'expenses': [
+            {
+              'id': 'legacy-expense',
+              'amount_cents': 500,
+              'category': 'Food',
+              'payment_method': 'Cash',
+              'occurred_at_millis': 1700000000000,
+              'created_at_millis': 1700000000000,
+              'is_tax_deductible': 0,
+            },
+          ],
+          'categories': [
+            {
+              'name': 'Food',
+              'icon_key': 'food',
+              'created_at_millis': 1700000000000,
+            },
+          ],
+          'payment_methods': [
+            {'name': 'Cash', 'created_at_millis': 1700000000000},
+          ],
+          'app_settings': [
+            {
+              'key': 'monthly_category_budget_limits_v1',
+              'value': jsonEncode({'Food': 900}),
+            },
+          ],
+          'recurring_expenses': [],
+        }),
+      ),
+    );
+    await service.restore(
+      database: db,
+      document: backup,
+      passphrase: 'correct',
+    );
+    final restoredCategory = (await db.query('categories')).single;
+    final restoredExpense = (await db.query('expenses')).single;
+    expect(restoredExpense['category_id'], restoredCategory['id']);
+    expect(restoredExpense['payment_method_id'], isNotNull);
+
     await expectLater(
       service.restore(database: db, document: backup, passphrase: 'wrong'),
       throwsA(isA<RecoveryPassphraseException>()),
     );
-    expect((await db.query('expenses')).single['id'], 'before');
+    expect((await db.query('expenses')).single['id'], 'legacy-expense');
     await expectLater(
       service.restore(database: db, document: '{bad', passphrase: 'correct'),
       throwsA(isA<FormatException>()),
@@ -313,7 +473,7 @@ void main() {
       service.restore(database: db, document: backup, passphrase: 'correct'),
       throwsA(anything),
     );
-    expect((await db.query('expenses')).single['id'], 'before');
+    expect((await db.query('expenses')).single['id'], 'legacy-expense');
     await db.close();
     await deleteDatabase(path);
   });
@@ -330,10 +490,17 @@ void main() {
     final db = opened.database;
     const service = ManualBackupService();
     const passphrase = 'correct backup passphrase';
+    final foodId = (await db.query(
+      'categories',
+      columns: ['id'],
+      where: 'name = ?',
+      whereArgs: ['Food'],
+    )).single['id'];
     await db.insert('expenses', {
       'id': 'original',
       'amount_cents': 1234,
       'category': 'Food',
+      'category_id': foodId,
       'occurred_at_millis': DateTime(2026, 1, 1).millisecondsSinceEpoch,
       'created_at_millis': DateTime(2026, 1, 1).millisecondsSinceEpoch,
     });

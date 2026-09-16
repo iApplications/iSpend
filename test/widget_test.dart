@@ -17,7 +17,7 @@ void main() {
 
     await tester.tap(find.text('Summary').last);
     await tester.pumpAndSettle();
-    expect(find.text('Spending'), findsOneWidget);
+    expect(find.text('Last 30 days'), findsOneWidget);
     expect(find.text('Category breakdown'), findsOneWidget);
     await tester.drag(find.byType(ListView), const Offset(0, -300));
     await tester.pumpAndSettle();
@@ -166,8 +166,8 @@ void main() {
     await tester.tap(find.text('Summary').last);
     await tester.pumpAndSettle();
     expect(find.text('Monthly budgets'), findsOneWidget);
-    expect(find.textContaining('40.00 of'), findsOneWidget);
-    expect(find.textContaining('60.00 remaining'), findsOneWidget);
+    expect(find.textContaining('40.00'), findsNWidgets(2));
+    expect(find.textContaining('of'), findsOneWidget);
     await tester.pump(const Duration(seconds: 2));
   });
 

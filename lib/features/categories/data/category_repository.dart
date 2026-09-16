@@ -1,4 +1,5 @@
 import 'package:sqflite_sqlcipher/sqflite.dart';
+import 'package:uuid/uuid.dart';
 
 const defaultCategoryNames = [
   'Food',
@@ -11,6 +12,7 @@ const defaultCategoryNames = [
 abstract interface class CategoryRepository {
   Future<List<String>> getAll();
   Future<Map<String, String>> getIconKeys();
+  Future<Map<String, String>> getIdsByName();
   Future<void> add(String name);
   Future<void> rename(String oldName, String newName);
   Future<void> delete(String name);
@@ -22,12 +24,21 @@ class InMemoryCategoryRepository implements CategoryRepository {
   final Map<String, String> _iconKeys = {
     for (final name in defaultCategoryNames) name: _defaultIconKey(name),
   };
+  final Map<String, String> _ids = {
+    for (final name in defaultCategoryNames) name: const Uuid().v4(),
+  };
 
   @override
-  Future<void> add(String name) async => _categories.add(name);
+  Future<void> add(String name) async {
+    _categories.add(name);
+    _ids[name] = const Uuid().v4();
+  }
 
   @override
-  Future<void> delete(String name) async => _categories.remove(name);
+  Future<void> delete(String name) async {
+    _categories.remove(name);
+    _ids.remove(name);
+  }
 
   @override
   Future<List<String>> getAll() async => List.unmodifiable(_categories);
@@ -37,12 +48,16 @@ class InMemoryCategoryRepository implements CategoryRepository {
       Map.unmodifiable(_iconKeys);
 
   @override
+  Future<Map<String, String>> getIdsByName() async => Map.unmodifiable(_ids);
+
+  @override
   Future<void> rename(String oldName, String newName) async {
     final index = _categories.indexOf(oldName);
     if (index >= 0) {
       _categories[index] = newName;
       _iconKeys[newName] =
           _iconKeys.remove(oldName) ?? _defaultIconKey(newName);
+      _ids[newName] = _ids.remove(oldName) ?? const Uuid().v4();
     }
   }
 
@@ -58,6 +73,7 @@ class SqlCipherCategoryRepository implements CategoryRepository {
 
   @override
   Future<void> add(String name) => _database.insert('categories', {
+    'id': const Uuid().v4(),
     'name': name,
     'icon_key': 'other',
     'created_at_millis': DateTime.now().millisecondsSinceEpoch,
@@ -90,6 +106,14 @@ class SqlCipherCategoryRepository implements CategoryRepository {
   }
 
   @override
+  Future<Map<String, String>> getIdsByName() async {
+    final rows = await _database.query('categories', columns: ['id', 'name']);
+    return {
+      for (final row in rows) row['name']! as String: row['id']! as String,
+    };
+  }
+
+  @override
   Future<void> rename(String oldName, String newName) => _database.update(
     'categories',
     {'name': newName},
@@ -107,6 +131,15 @@ class SqlCipherCategoryRepository implements CategoryRepository {
 
   Future<void> renameAndUpdateExpenses(String oldName, String newName) {
     return _database.transaction((transaction) async {
+      final rows = await transaction.query(
+        'categories',
+        columns: ['id'],
+        where: 'name = ?',
+        whereArgs: [oldName],
+        limit: 1,
+      );
+      if (rows.isEmpty) return;
+      final id = rows.single['id']! as String;
       await transaction.update(
         'categories',
         {'name': newName},
@@ -116,14 +149,14 @@ class SqlCipherCategoryRepository implements CategoryRepository {
       await transaction.update(
         'expenses',
         {'category': newName},
-        where: 'category = ?',
-        whereArgs: [oldName],
+        where: 'category_id = ?',
+        whereArgs: [id],
       );
       await transaction.update(
         'recurring_expenses',
         {'category': newName},
-        where: 'category = ?',
-        whereArgs: [oldName],
+        where: 'category_id = ?',
+        whereArgs: [id],
       );
     });
   }
