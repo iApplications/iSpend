@@ -170,15 +170,19 @@ class PaymentMethodManagementPage extends ConsumerWidget {
     final count = await ref
         .read(paymentMethodsProvider.notifier)
         .expenseCount(name);
+    final templateCount = await ref
+        .read(paymentMethodsProvider.notifier)
+        .templateCount(name);
     if (!context.mounted) return;
-    if (count > 0) {
+    if (count > 0 || templateCount > 0) {
+      final message = templateCount == 0
+          ? '$count ${count == 1 ? 'expense uses' : 'expenses use'} this payment method. Reassign them before deleting it.'
+          : '${[if (count > 0) '$count ${count == 1 ? 'expense' : 'expenses'}', '$templateCount Quick Entry ${templateCount == 1 ? 'template' : 'templates'}'].join(' and ')} use this payment method. Reassign them before deleting it.';
       await showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: const Text('Payment method in use'),
-          content: Text(
-            '$count ${count == 1 ? 'expense uses' : 'expenses use'} this payment method. Reassign them before deleting it.',
-          ),
+          content: Text(message),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),

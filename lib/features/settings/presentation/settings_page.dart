@@ -7,6 +7,7 @@ import '../../backup/presentation/backup_restore_page.dart';
 import '../../budgets/presentation/budget_limits_page.dart';
 import '../../expenses/presentation/recurring_expenses_page.dart';
 import '../../payment_methods/presentation/payment_method_management_page.dart';
+import '../../quick_entry/presentation/quick_entry_templates_page.dart';
 import '../appearance_preference.dart';
 import '../currency_preference.dart';
 import '../time_format_preference.dart';
@@ -117,6 +118,19 @@ class SettingsPage extends ConsumerWidget {
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => const PaymentMethodManagementPage(),
+              ),
+            ),
+          ),
+        ),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.bolt_outlined),
+            title: const Text('Quick Entry'),
+            subtitle: const Text('Manage reusable expense templates'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const QuickEntryTemplatesPage(),
               ),
             ),
           ),

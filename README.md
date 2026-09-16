@@ -201,6 +201,13 @@ Template changes apply only to future entries and never modify previously saved 
 
 Quick-entry templates and recurring-expense schedules are separate features.
 
+The Phase 2b foundation is managed in **Settings > Quick Entry**. Templates
+use immutable category and payment-method IDs, so renamed labels remain linked.
+They can be created, edited, favourited, reordered, and deleted; removing a
+category or payment method is blocked while any template still references it.
+Full encrypted backups preserve templates, their order, favourite state, and
+their optional payment-method defaults.
+
 ### Android Home Screen widget
 
 The Home Screen widget acts as a fast launcher rather than trying to provide unrestricted editable form fields directly inside the widget.
