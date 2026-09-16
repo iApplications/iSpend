@@ -89,6 +89,13 @@ App lock is optional and off by default. When enabled from **Settings > Privacy
 opening the app and after it returns from the background. Recovery onboarding
 and backup recovery remain available before the app shell is unlocked.
 
+## Phase 2b
+
+Payment methods can use a user-selected badge colour from a fixed, accessible
+palette. The selection is stored by the payment method's stable ID, so it
+survives renaming and full encrypted backup/restore. **Use default** preserves
+the existing provider colour; free-form RGB or hex colours are not supported.
+
 ## Design principles
 
 - Simple, calm, and readable screens.

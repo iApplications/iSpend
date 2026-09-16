@@ -8,6 +8,7 @@ class PaymentMethodManagementPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final methods = ref.watch(paymentMethodsProvider);
+    final colourKeys = ref.watch(paymentMethodColourKeysProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Payment methods')),
       floatingActionButton: FloatingActionButton.extended(
@@ -22,11 +23,16 @@ class PaymentMethodManagementPage extends ConsumerWidget {
         itemBuilder: (context, index) {
           final method = methods[index];
           final style = paymentMethodIconStyle(method);
+          final colourKey = colourKeys[method] ?? 'default';
           return Card(
             child: ListTile(
               leading: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: style.color.withValues(alpha: 0.15),
+                  color: paymentMethodBadgeColor(
+                    colourKey,
+                    Theme.of(context).brightness,
+                    style.color,
+                  ),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Padding(
@@ -36,15 +42,69 @@ class PaymentMethodManagementPage extends ConsumerWidget {
               ),
               title: Text(method),
               onTap: () => _edit(context, ref, method),
-              trailing: IconButton(
-                icon: const Icon(Icons.delete_outline),
-                onPressed: () => _delete(context, ref, method),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: 'Badge colour',
+                    icon: const Icon(Icons.palette_outlined),
+                    onPressed: () =>
+                        _chooseColour(context, ref, method, colourKey),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: () => _delete(context, ref, method),
+                  ),
+                ],
               ),
             ),
           );
         },
       ),
     );
+  }
+
+  Future<void> _chooseColour(
+    BuildContext context,
+    WidgetRef ref,
+    String method,
+    String selected,
+  ) async {
+    final colour = await showModalBottomSheet<String>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: RadioGroup<String>(
+          groupValue: selected,
+          onChanged: (value) => Navigator.pop(sheetContext, value),
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              for (final key in paymentMethodColourKeys)
+                RadioListTile<String>(
+                  value: key,
+                  title: Text(paymentMethodColourLabel(key)),
+                  secondary: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: paymentMethodBadgeColor(
+                        key,
+                        Theme.of(sheetContext).brightness,
+                        paymentMethodIconStyle(method).color,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const SizedBox(width: 28, height: 28),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (colour != null) {
+      await ref
+          .read(paymentMethodColourKeysProvider.notifier)
+          .set(method, colour);
+    }
   }
 
   Future<void> _edit(
