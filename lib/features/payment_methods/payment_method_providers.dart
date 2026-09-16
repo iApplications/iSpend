@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'data/payment_method_repository.dart';
 import '../expenses/data/expense_repository.dart';
 import '../expenses/expense_providers.dart';
+import '../quick_entry/quick_entry_template_providers.dart';
 
 final paymentMethodRepositoryProvider = Provider<PaymentMethodRepository>(
   (_) => InMemoryPaymentMethodRepository(),
@@ -66,6 +67,7 @@ class PaymentMethodsNotifier extends Notifier<List<String>> {
     await _repository.add(name);
     await _load();
     await ref.read(paymentMethodColourKeysProvider.notifier).refresh();
+    ref.invalidate(quickEntryTemplateReferencesProvider);
   }
 
   Future<void> rename(String oldName, String newName) async {
@@ -78,13 +80,23 @@ class PaymentMethodsNotifier extends Notifier<List<String>> {
     await _load();
     await ref.read(paymentMethodColourKeysProvider.notifier).refresh();
     await ref.read(expensesProvider.notifier).refresh();
+    ref.invalidate(quickEntryTemplateReferencesProvider);
   }
 
   Future<void> delete(String name) async {
     await _repository.delete(name);
     await _load();
     await ref.read(paymentMethodColourKeysProvider.notifier).refresh();
+    ref.invalidate(quickEntryTemplateReferencesProvider);
   }
 
   Future<int> expenseCount(String name) => _expenses.countByPaymentMethod(name);
+
+  Future<int> templateCount(String name) async {
+    final id = (await _repository.getIdsByName())[name];
+    if (id == null) return 0;
+    return ref
+        .read(quickEntryTemplateRepositoryProvider)
+        .countByPaymentMethodId(id);
+  }
 }

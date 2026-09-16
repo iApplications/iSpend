@@ -30,7 +30,7 @@ class ISpendDatabase {
     final database = await openDatabase(
       resolvedDatabasePath,
       password: resolvedDatabaseKey,
-      version: 11,
+      version: 12,
       onCreate: (db, _) async {
         await db.execute('''
           CREATE TABLE expenses (
@@ -53,6 +53,7 @@ class ISpendDatabase {
         await _createPaymentMethodsTable(db);
         await _createRecurringExpensesTable(db);
         await _createRecurringExpenseIndexes(db);
+        await _createQuickEntryTemplatesTable(db);
       },
       onUpgrade: (db, oldVersion, _) async {
         if (oldVersion < 2) {
@@ -143,6 +144,7 @@ class ISpendDatabase {
           }
         }
         if (oldVersion < 11) await _migrateStableReferenceIds(db);
+        if (oldVersion < 12) await _createQuickEntryTemplatesTable(db);
       },
     );
     return ISpendDatabase._(database);
@@ -242,6 +244,31 @@ class ISpendDatabase {
       ON expenses(recurring_rule_id, recurring_occurrence_millis)
       WHERE recurring_rule_id IS NOT NULL
         AND recurring_occurrence_millis IS NOT NULL
+    ''');
+  }
+
+  /// Templates deliberately retain only stable foreign IDs. Names are resolved
+  /// live in the UI, so a category or payment-method rename cannot stale them.
+  static Future<void> _createQuickEntryTemplatesTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE quick_entry_templates (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        category_id TEXT NOT NULL,
+        payment_method_id TEXT,
+        merchant_or_note TEXT,
+        sort_order INTEGER NOT NULL,
+        is_favorite INTEGER NOT NULL DEFAULT 0,
+        created_at_millis INTEGER NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE INDEX quick_entry_templates_category
+      ON quick_entry_templates(category_id)
+    ''');
+    await db.execute('''
+      CREATE INDEX quick_entry_templates_payment_method
+      ON quick_entry_templates(payment_method_id)
     ''');
   }
 

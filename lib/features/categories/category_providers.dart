@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../expenses/data/expense_repository.dart';
 import '../expenses/expense_providers.dart';
 import '../budgets/budget_providers.dart';
+import '../quick_entry/quick_entry_template_providers.dart';
 import 'data/category_repository.dart';
 
 final categoryRepositoryProvider = Provider<CategoryRepository>(
@@ -46,6 +47,7 @@ class CategoriesNotifier extends Notifier<List<String>> {
   Future<void> add(String name) async {
     await _repository.add(name);
     await _load();
+    ref.invalidate(quickEntryTemplateReferencesProvider);
   }
 
   Future<void> rename(String oldName, String newName) async {
@@ -60,15 +62,23 @@ class CategoriesNotifier extends Notifier<List<String>> {
         .renameCategory(oldName, newName);
     await _load();
     await ref.read(expensesProvider.notifier).refresh();
+    ref.invalidate(quickEntryTemplateReferencesProvider);
   }
 
   Future<int> expenseCount(String name) =>
       _expenseRepository.countByCategory(name);
 
+  Future<int> templateCount(String name) async {
+    final id = (await _repository.getIdsByName())[name];
+    if (id == null) return 0;
+    return ref.read(quickEntryTemplateRepositoryProvider).countByCategoryId(id);
+  }
+
   Future<void> delete(String name) async {
     await ref.read(budgetLimitsProvider.notifier).clear(name);
     await _repository.delete(name);
     await _load();
+    ref.invalidate(quickEntryTemplateReferencesProvider);
   }
 
   Future<void> updateIconKey(String name, String iconKey) async {

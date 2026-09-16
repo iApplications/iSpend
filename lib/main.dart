@@ -18,6 +18,8 @@ import 'features/expenses/expense_providers.dart';
 import 'features/onboarding/presentation/recovery_passphrase_page.dart';
 import 'features/payment_methods/data/payment_method_repository.dart';
 import 'features/payment_methods/payment_method_providers.dart';
+import 'features/quick_entry/data/quick_entry_template_repository.dart';
+import 'features/quick_entry/quick_entry_template_providers.dart';
 import 'features/settings/currency_preference.dart';
 
 void main() {
@@ -191,6 +193,9 @@ class _ISpendBootstrapState extends State<_ISpendBootstrap> {
         ),
         paymentMethodRepositoryProvider.overrideWithValue(
           SqlCipherPaymentMethodRepository(database),
+        ),
+        quickEntryTemplateRepositoryProvider.overrideWithValue(
+          SqlCipherQuickEntryTemplateRepository(database),
         ),
         appSettingsRepositoryProvider.overrideWithValue(
           SqlCipherAppSettingsRepository(database),

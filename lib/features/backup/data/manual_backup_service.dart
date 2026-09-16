@@ -40,6 +40,7 @@ class ManualBackupService implements ManualBackupOperations {
       'payment_methods': await database.query('payment_methods'),
       'app_settings': await database.query('app_settings'),
       'recurring_expenses': await database.query('recurring_expenses'),
+      'quick_entry_templates': await database.query('quick_entry_templates'),
     };
     final encodedPayload = base64UrlEncode(utf8.encode(jsonEncode(payload)));
     final encryptedPayload = await _recoveryKeyService.wrap(
@@ -87,6 +88,9 @@ class ManualBackupService implements ManualBackupOperations {
       paymentMethods: _rows(decodedPayload['payment_methods']),
       settings: _rows(decodedPayload['app_settings']),
       recurringExpenses: _optionalRows(decodedPayload['recurring_expenses']),
+      quickEntryTemplates: _optionalRows(
+        decodedPayload['quick_entry_templates'],
+      ),
     );
 
     await database.transaction((transaction) async {
@@ -96,6 +100,7 @@ class ManualBackupService implements ManualBackupOperations {
         'payment_methods',
         'app_settings',
         'recurring_expenses',
+        'quick_entry_templates',
       ]) {
         await transaction.delete(table);
       }
@@ -111,6 +116,11 @@ class ManualBackupService implements ManualBackupOperations {
         transaction,
         'recurring_expenses',
         normalized.recurringExpenses,
+      );
+      await _insertAll(
+        transaction,
+        'quick_entry_templates',
+        normalized.quickEntryTemplates,
       );
     });
   }
@@ -148,11 +158,17 @@ class ManualBackupService implements ManualBackupOperations {
     required List<Map<String, Object?>> paymentMethods,
     required List<Map<String, Object?>> settings,
     required List<Map<String, Object?>> recurringExpenses,
+    required List<Map<String, Object?>> quickEntryTemplates,
   }) {
     final categoryIds = _assignIds(categories);
     final paymentMethodIds = _assignIds(paymentMethods);
     _applyReferences(expenses, categoryIds, paymentMethodIds);
     _applyReferences(recurringExpenses, categoryIds, paymentMethodIds);
+    _applyTemplateReferences(
+      quickEntryTemplates,
+      categoryIds,
+      paymentMethodIds,
+    );
     _migrateBudgetKeys(settings, categoryIds);
     return _NormalizedBackup(
       expenses: expenses,
@@ -160,6 +176,7 @@ class ManualBackupService implements ManualBackupOperations {
       paymentMethods: paymentMethods,
       settings: settings,
       recurringExpenses: recurringExpenses,
+      quickEntryTemplates: quickEntryTemplates,
     );
   }
 
@@ -196,6 +213,25 @@ class ManualBackupService implements ManualBackupOperations {
           paymentMethodIds[paymentMethod] != null) {
         row['payment_method_id'] = paymentMethodIds[paymentMethod]!;
       } else {
+        throw const FormatException('The backup data is invalid.');
+      }
+    }
+  }
+
+  static void _applyTemplateReferences(
+    List<Map<String, Object?>> rows,
+    Map<String, String> categoryIds,
+    Map<String, String> paymentMethodIds,
+  ) {
+    for (final row in rows) {
+      final categoryId = row['category_id'];
+      if (categoryId is! String || !categoryIds.containsValue(categoryId)) {
+        throw const FormatException('The backup data is invalid.');
+      }
+      final paymentMethodId = row['payment_method_id'];
+      if (paymentMethodId != null &&
+          (paymentMethodId is! String ||
+              !paymentMethodIds.containsValue(paymentMethodId))) {
         throw const FormatException('The backup data is invalid.');
       }
     }
@@ -238,6 +274,7 @@ class _NormalizedBackup {
     required this.paymentMethods,
     required this.settings,
     required this.recurringExpenses,
+    required this.quickEntryTemplates,
   });
 
   final List<Map<String, Object?>> expenses;
@@ -245,4 +282,5 @@ class _NormalizedBackup {
   final List<Map<String, Object?>> paymentMethods;
   final List<Map<String, Object?>> settings;
   final List<Map<String, Object?>> recurringExpenses;
+  final List<Map<String, Object?>> quickEntryTemplates;
 }

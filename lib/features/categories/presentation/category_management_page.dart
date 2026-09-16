@@ -94,15 +94,19 @@ class CategoryManagementPage extends ConsumerWidget {
     final affectedExpenseCount = await ref
         .read(categoriesProvider.notifier)
         .expenseCount(category);
+    final affectedTemplateCount = await ref
+        .read(categoriesProvider.notifier)
+        .templateCount(category);
     if (!context.mounted) return;
-    if (affectedExpenseCount > 0) {
+    if (affectedExpenseCount > 0 || affectedTemplateCount > 0) {
+      final message = affectedTemplateCount == 0
+          ? '$affectedExpenseCount ${affectedExpenseCount == 1 ? 'expense uses' : 'expenses use'} this category. Reassign them before deleting it.'
+          : '${[if (affectedExpenseCount > 0) '$affectedExpenseCount ${affectedExpenseCount == 1 ? 'expense' : 'expenses'}', '$affectedTemplateCount Quick Entry ${affectedTemplateCount == 1 ? 'template' : 'templates'}'].join(' and ')} use this category. Reassign them before deleting it.';
       await showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: const Text('Category in use'),
-          content: Text(
-            '$affectedExpenseCount ${affectedExpenseCount == 1 ? 'expense uses' : 'expenses use'} this category. Reassign them before deleting it.',
-          ),
+          content: Text(message),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
