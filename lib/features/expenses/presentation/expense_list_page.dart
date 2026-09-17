@@ -9,6 +9,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../categories/category_providers.dart';
 import '../../payment_methods/payment_method_providers.dart';
+import '../../quick_entry/presentation/quick_entry_sheet.dart';
 import '../../settings/time_format_preference.dart';
 import '../../settings/currency_preference.dart';
 import '../data/expense_model.dart';
@@ -63,26 +64,27 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
     final expensesByDay = _groupByDay(expenses);
 
     Future<void> addExpense() async {
-      final expense = await showExpenseEntrySheet(
+      final expense = await showQuickEntrySheet(
         context,
-        use24HourFormat: use24HourFormat,
         categories: categories,
         paymentMethods: paymentMethods,
+        history: expenses,
         currency: currency,
+        categoryNamesById: {
+          for (final category in categories) category: category,
+        },
+        paymentMethodNamesById: {
+          for (final method in paymentMethods) method: method,
+        },
       );
       if (expense != null) {
-        if (expense.repeatsMonthly) {
-          await ref
-              .read(recurringExpenseRepositoryProvider)
-              .enableForExpense(expense.expense);
-          await ref.read(expensesProvider.notifier).refresh();
-          ref.invalidate(dueRecurringExpensesProvider);
-          ref.invalidate(recurringExpensesProvider);
-        } else {
-          await ref.read(expensesProvider.notifier).add(expense.expense);
-        }
+        await ref.read(expensesProvider.notifier).add(expense);
         if (!context.mounted) return;
-        AppToast.show(context, 'Expense saved');
+        AppToast.showUndo(
+          context,
+          message: 'Expense saved',
+          onUndo: () => ref.read(expensesProvider.notifier).delete(expense.id),
+        );
       }
     }
 

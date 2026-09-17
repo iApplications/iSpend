@@ -208,6 +208,15 @@ category or payment method is blocked while any template still references it.
 Full encrypted backups preserve templates, their order, favourite state, and
 their optional payment-method defaults.
 
+### Smart Quick Entry
+
+The Expenses **+ Add** action opens a compact local Smart Quick Entry flow.
+It accepts a plain amount or short text such as `hokkien mee 8.20` and always
+shows its amount, merchant, category, and payment-method interpretation for
+editing before it saves. Category suggestions use explicit text first, then
+matching local history, safe on-device keywords, and finally the normal Food
+default. It does not use a cloud service or silently commit an uncertain guess.
+
 ### Android Home Screen widget
 
 The Home Screen widget acts as a fast launcher rather than trying to provide unrestricted editable form fields directly inside the widget.
