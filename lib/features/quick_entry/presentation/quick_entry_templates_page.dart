@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/widgets/app_toast.dart';
+import '../../categories/category_providers.dart';
+import '../../expenses/expense_providers.dart';
+import '../../payment_methods/payment_method_providers.dart';
+import '../../settings/currency_preference.dart';
 import '../data/quick_entry_template.dart';
 import '../data/quick_entry_template_repository.dart';
 import '../quick_entry_template_providers.dart';
+import 'quick_entry_sheet.dart';
 
 class QuickEntryTemplatesPage extends ConsumerWidget {
   const QuickEntryTemplatesPage({super.key});
@@ -71,6 +76,8 @@ class QuickEntryTemplatesPage extends ConsumerWidget {
                   trailing: PopupMenuButton<_TemplateAction>(
                     onSelected: (action) {
                       switch (action) {
+                        case _TemplateAction.use:
+                          _useTemplate(context, ref, references, template);
                         case _TemplateAction.edit:
                           _editTemplate(context, ref, references, template);
                         case _TemplateAction.favorite:
@@ -86,6 +93,10 @@ class QuickEntryTemplatesPage extends ConsumerWidget {
                       }
                     },
                     itemBuilder: (_) => [
+                      const PopupMenuItem(
+                        value: _TemplateAction.use,
+                        child: Text('Use template'),
+                      ),
                       const PopupMenuItem(
                         value: _TemplateAction.edit,
                         child: Text('Edit'),
@@ -110,6 +121,36 @@ class QuickEntryTemplatesPage extends ConsumerWidget {
           );
         },
       ),
+    );
+  }
+
+  Future<void> _useTemplate(
+    BuildContext context,
+    WidgetRef ref,
+    QuickEntryTemplateReferences references,
+    QuickEntryTemplate template,
+  ) async {
+    final expense = await showQuickEntrySheet(
+      context,
+      categories: ref.read(categoriesProvider),
+      paymentMethods: ref.read(paymentMethodsProvider),
+      history: ref.read(expensesProvider),
+      currency: ref.read(appCurrencyProvider),
+      template: template,
+      categoryNamesById: references.categoryNamesById,
+      paymentMethodNamesById: references.paymentMethodNamesById,
+    );
+    if (expense == null || !context.mounted) return;
+    await ref.read(expensesProvider.notifier).add(expense);
+    if (!context.mounted) return;
+    _showUndo(context, ref, expense.id);
+  }
+
+  void _showUndo(BuildContext context, WidgetRef ref, String expenseId) {
+    AppToast.showUndo(
+      context,
+      message: 'Expense saved',
+      onUndo: () => ref.read(expensesProvider.notifier).delete(expenseId),
     );
   }
 
@@ -364,4 +405,4 @@ class _TemplateDraft {
   final String? merchantOrNote;
 }
 
-enum _TemplateAction { edit, favorite, delete }
+enum _TemplateAction { use, edit, favorite, delete }
