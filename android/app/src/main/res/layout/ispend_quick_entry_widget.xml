@@ -1,0 +1,13 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@drawable/widget_background">
+    <TextView android:id="@+id/widget_title" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="iSpend" android:textStyle="bold" android:textSize="18sp" android:textColor="#FFFFFF" />
+    <Button android:id="@+id/widget_favorite_1" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:visibility="gone" />
+    <Button android:id="@+id/widget_favorite_2" android:layout_width="match_parent" android:layout_height="wrap_content" android:visibility="gone" />
+    <Button android:id="@+id/widget_favorite_3" android:layout_width="match_parent" android:layout_height="wrap_content" android:visibility="gone" />
+    <TextView android:id="@+id/widget_empty" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:layout_marginTop="8dp" android:text="Add a favourite Quick Entry template in iSpend." android:textColor="#E6FFFFFF" />
+    <Button android:id="@+id/widget_add" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="+ Add Expense" />
+</LinearLayout>

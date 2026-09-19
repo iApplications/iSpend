@@ -208,6 +208,9 @@ category or payment method is blocked while any template still references it.
 Full encrypted backups preserve templates, their order, favourite state, and
 their optional payment-method defaults.
 
+When a template has no separate default merchant/note, its template name is
+used as the editable merchant/note fallback during quick entry.
+
 ### Smart Quick Entry
 
 The Expenses **+ Add** action opens a compact local Smart Quick Entry flow.

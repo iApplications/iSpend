@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'android_home_widget.dart';
+
 import '../categories/category_providers.dart';
 import '../payment_methods/payment_method_providers.dart';
 import 'data/quick_entry_template.dart';
@@ -53,7 +55,10 @@ class QuickEntryTemplatesNotifier extends Notifier<List<QuickEntryTemplate>> {
     return const [];
   }
 
-  Future<void> refresh() async => state = await _repository.getAll();
+  Future<void> refresh() async {
+    state = await _repository.getAll();
+    await AndroidHomeWidget.refresh(state);
+  }
 
   Future<void> save(QuickEntryTemplate template) async {
     await _repository.save(template);
