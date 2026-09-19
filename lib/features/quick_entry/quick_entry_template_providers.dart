@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'android_home_widget.dart';
+import 'android_app_shortcuts.dart';
 
 import '../categories/category_providers.dart';
 import '../payment_methods/payment_method_providers.dart';
@@ -58,6 +59,7 @@ class QuickEntryTemplatesNotifier extends Notifier<List<QuickEntryTemplate>> {
   Future<void> refresh() async {
     state = await _repository.getAll();
     await AndroidHomeWidget.refresh(state);
+    await AndroidAppShortcuts.refresh(state);
   }
 
   Future<void> save(QuickEntryTemplate template) async {
@@ -79,6 +81,8 @@ class QuickEntryTemplatesNotifier extends Notifier<List<QuickEntryTemplate>> {
         reordered[index].copyWith(sortOrder: index),
     ];
     await _repository.reorder(state.map((item) => item.id).toList());
+    await AndroidHomeWidget.refresh(state);
+    await AndroidAppShortcuts.refresh(state);
   }
 
   Future<int> countByCategoryId(String id) => _repository.countByCategoryId(id);

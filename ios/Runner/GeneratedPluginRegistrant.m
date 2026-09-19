@@ -36,6 +36,12 @@
 @import local_auth_darwin;
 #endif
 
+#if __has_include(<quick_actions_ios/QuickActionsPlugin.h>)
+#import <quick_actions_ios/QuickActionsPlugin.h>
+#else
+@import quick_actions_ios;
+#endif
+
 #if __has_include(<sqflite_sqlcipher/SqfliteSqlCipherPlugin.h>)
 #import <sqflite_sqlcipher/SqfliteSqlCipherPlugin.h>
 #else
@@ -50,6 +56,7 @@
   [HomeWidgetPlugin registerWithRegistrar:[registry registrarForPlugin:@"HomeWidgetPlugin"]];
   [IntegrationTestPlugin registerWithRegistrar:[registry registrarForPlugin:@"IntegrationTestPlugin"]];
   [LocalAuthPlugin registerWithRegistrar:[registry registrarForPlugin:@"LocalAuthPlugin"]];
+  [QuickActionsPlugin registerWithRegistrar:[registry registrarForPlugin:@"QuickActionsPlugin"]];
   [SqfliteSqlCipherPlugin registerWithRegistrar:[registry registrarForPlugin:@"SqfliteSqlCipherPlugin"]];
 }
 
