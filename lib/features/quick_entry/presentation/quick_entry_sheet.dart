@@ -77,7 +77,7 @@ class _QuickEntrySheetState extends State<_QuickEntrySheet> {
               (widget.paymentMethods.contains(storedPayment)
                   ? storedPayment
                   : null);
-    _merchant.text = t?.merchantOrNote ?? '';
+    _merchant.text = t == null ? '' : (t.merchantOrNote ?? t.name);
     _occurredAt = DateTime.now();
   }
 
