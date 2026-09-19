@@ -239,6 +239,10 @@ Long-pressing the Android app icon provides:
 * Favourite quick-entry templates, up to the number supported by the device
 
 Shortcuts use the same quick-entry flow as the Home Screen widget.
+The app asks Android for the launcher-supported shortcut limit, reserves one
+slot for **Add Expense**, and uses only the remaining slots for favourite
+templates. Shortcut actions contain immutable template IDs, so a renamed
+template remains the same shortcut target.
 
 ### Quick-entry safety
 

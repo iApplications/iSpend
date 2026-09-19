@@ -13,6 +13,7 @@ import 'features/summary/presentation/summary_page.dart';
 import 'features/categories/category_providers.dart';
 import 'features/expenses/expense_providers.dart';
 import 'features/quick_entry/presentation/quick_entry_sheet.dart';
+import 'features/quick_entry/android_app_shortcuts.dart';
 import 'features/quick_entry/quick_entry_template_providers.dart';
 import 'features/payment_methods/payment_method_providers.dart';
 import 'features/settings/currency_preference.dart';
@@ -80,6 +81,8 @@ class _AppShellState extends ConsumerState<AppShell> {
     HomeWidget.initiallyLaunchedFromHomeWidget().then((uri) {
       if (mounted && uri?.host == 'quick-entry') _openQuickEntry(uri);
     });
+    unawaited(AndroidAppShortcuts.initialize(_handleAppShortcut));
+    unawaited(_refreshAppShortcuts());
   }
 
   @override
@@ -93,7 +96,9 @@ class _AppShellState extends ConsumerState<AppShell> {
     final methods = ref.read(paymentMethodsProvider);
     final templateId = uri?.queryParameters['template_id'];
     final templateName = uri?.queryParameters['template_name'];
-    final templates = await ref.read(quickEntryTemplateRepositoryProvider).getAll();
+    final templates = await ref
+        .read(quickEntryTemplateRepositoryProvider)
+        .getAll();
     final template = templateId == null
         ? null
         : templates.where((item) => item.id == templateId).firstOrNull ??
@@ -121,6 +126,28 @@ class _AppShellState extends ConsumerState<AppShell> {
         onUndo: () => ref.read(expensesProvider.notifier).delete(expense.id),
       );
     }
+  }
+
+  Future<void> _handleAppShortcut(String action) {
+    if (action == AndroidAppShortcuts.addExpenseAction) {
+      return _openQuickEntry();
+    }
+    final templateId = AndroidAppShortcuts.templateIdFromAction(action);
+    if (templateId == null) return Future.value();
+    return _openQuickEntry(
+      Uri(
+        scheme: 'ispend',
+        host: 'quick-entry',
+        queryParameters: {'template_id': templateId},
+      ),
+    );
+  }
+
+  Future<void> _refreshAppShortcuts() async {
+    final templates = await ref
+        .read(quickEntryTemplateRepositoryProvider)
+        .getAll();
+    if (mounted) await AndroidAppShortcuts.refresh(templates);
   }
 
   @override
