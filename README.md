@@ -226,10 +226,15 @@ The Home Screen widget acts as a fast launcher rather than trying to provide unr
 
 It can show:
 
-* Favourite quick-entry templates
-* **+ Add Expense**
+* Today’s total and the latest expense, when app lock is off
+* One optional favourite-template quick-add action
+* A prominent **+ Add Expense** action
 
-Selecting a template opens the shared minimal quick-entry flow.
+This keeps the compact widget to two tap targets. When app lock is enabled,
+financial details are replaced with a privacy-safe prompt. Both actions open
+the shared minimal quick-entry flow.
+The widget uses one fixed compact Android size: it shows up to two favourite
+quick-add chips and a **More ›** action for any additional favourites.
 
 ### App Shortcuts
 
