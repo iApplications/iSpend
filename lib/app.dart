@@ -12,8 +12,11 @@ import 'features/security/app_lock.dart';
 import 'features/summary/presentation/summary_page.dart';
 import 'features/categories/category_providers.dart';
 import 'features/expenses/expense_providers.dart';
+import 'features/expenses/data/expense_model.dart';
 import 'features/quick_entry/presentation/quick_entry_sheet.dart';
 import 'features/quick_entry/android_app_shortcuts.dart';
+import 'features/quick_entry/android_home_widget.dart';
+import 'features/quick_entry/presentation/quick_entry_templates_page.dart';
 import 'features/quick_entry/quick_entry_template_providers.dart';
 import 'features/payment_methods/payment_method_providers.dart';
 import 'features/settings/currency_preference.dart';
@@ -63,6 +66,7 @@ class AppShell extends ConsumerStatefulWidget {
 class _AppShellState extends ConsumerState<AppShell> {
   int _selectedIndex = 0;
   StreamSubscription<Uri?>? _widgetClicks;
+  late final ProviderSubscription<List<Expense>> _expenseWidgetRefresh;
 
   static const _pages = <Widget>[
     ExpenseListPage(),
@@ -75,19 +79,29 @@ class _AppShellState extends ConsumerState<AppShell> {
     super.initState();
     _widgetClicks = HomeWidget.widgetClicked.listen((uri) {
       if (uri?.host == 'quick-entry') {
-        _openQuickEntry(uri);
+        uri?.queryParameters['more'] == 'true'
+            ? _openQuickEntryTemplates()
+            : _openQuickEntry(uri);
       }
     });
     HomeWidget.initiallyLaunchedFromHomeWidget().then((uri) {
-      if (mounted && uri?.host == 'quick-entry') _openQuickEntry(uri);
+      if (mounted && uri?.host == 'quick-entry') {
+        uri?.queryParameters['more'] == 'true'
+            ? _openQuickEntryTemplates()
+            : _openQuickEntry(uri);
+      }
     });
     unawaited(AndroidAppShortcuts.initialize(_handleAppShortcut));
     unawaited(_refreshAppShortcuts());
+    _expenseWidgetRefresh = ref.listenManual(expensesProvider, (_, expenses) {
+      unawaited(_refreshHomeWidget(expenses));
+    }, fireImmediately: true);
   }
 
   @override
   void dispose() {
     _widgetClicks?.cancel();
+    _expenseWidgetRefresh.close();
     super.dispose();
   }
 
@@ -128,6 +142,10 @@ class _AppShellState extends ConsumerState<AppShell> {
     }
   }
 
+  Future<void> _openQuickEntryTemplates() => Navigator.of(
+    context,
+  ).push(MaterialPageRoute(builder: (_) => const QuickEntryTemplatesPage()));
+
   Future<void> _handleAppShortcut(String action) {
     if (action == AndroidAppShortcuts.addExpenseAction) {
       return _openQuickEntry();
@@ -148,6 +166,19 @@ class _AppShellState extends ConsumerState<AppShell> {
         .read(quickEntryTemplateRepositoryProvider)
         .getAll();
     if (mounted) await AndroidAppShortcuts.refresh(templates);
+  }
+
+  Future<void> _refreshHomeWidget(List<Expense> expenses) async {
+    final templates = await ref
+        .read(quickEntryTemplateRepositoryProvider)
+        .getAll();
+    if (!mounted) return;
+    await AndroidHomeWidget.refresh(
+      templates,
+      expenses: expenses,
+      currency: ref.read(appCurrencyProvider),
+      hideFinancialDetails: ref.read(appLockEnabledProvider) ?? false,
+    );
   }
 
   @override

@@ -60,6 +60,7 @@ class _QuickEntrySheetState extends State<_QuickEntrySheet> {
   int? _amount;
   String? _error;
   late DateTime _occurredAt;
+  bool _saving = false;
   bool get _templateMode => widget.template != null;
   @override
   void initState() {
@@ -118,10 +119,12 @@ class _QuickEntrySheetState extends State<_QuickEntrySheet> {
   }
 
   void _save() {
+    if (_saving) return;
     if (_amount == null || _amount! <= 0) {
       setState(() => _error = 'Enter a valid amount.');
       return;
     }
+    setState(() => _saving = true);
     HapticFeedback.lightImpact();
     Navigator.pop(
       context,
@@ -274,8 +277,8 @@ class _QuickEntrySheetState extends State<_QuickEntrySheet> {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: _save,
-                  child: const Text('Save expense'),
+                  onPressed: _saving ? null : _save,
+                  child: Text(_saving ? 'Saving...' : 'Save expense'),
                 ),
               ),
             ],

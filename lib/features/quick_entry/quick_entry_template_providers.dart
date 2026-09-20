@@ -4,7 +4,10 @@ import 'android_home_widget.dart';
 import 'android_app_shortcuts.dart';
 
 import '../categories/category_providers.dart';
+import '../expenses/expense_providers.dart';
 import '../payment_methods/payment_method_providers.dart';
+import '../security/app_lock.dart';
+import '../settings/currency_preference.dart';
 import 'data/quick_entry_template.dart';
 import 'data/quick_entry_template_repository.dart';
 
@@ -58,7 +61,7 @@ class QuickEntryTemplatesNotifier extends Notifier<List<QuickEntryTemplate>> {
 
   Future<void> refresh() async {
     state = await _repository.getAll();
-    await AndroidHomeWidget.refresh(state);
+    await _refreshWidget();
     await AndroidAppShortcuts.refresh(state);
   }
 
@@ -81,11 +84,18 @@ class QuickEntryTemplatesNotifier extends Notifier<List<QuickEntryTemplate>> {
         reordered[index].copyWith(sortOrder: index),
     ];
     await _repository.reorder(state.map((item) => item.id).toList());
-    await AndroidHomeWidget.refresh(state);
+    await _refreshWidget();
     await AndroidAppShortcuts.refresh(state);
   }
 
   Future<int> countByCategoryId(String id) => _repository.countByCategoryId(id);
   Future<int> countByPaymentMethodId(String id) =>
       _repository.countByPaymentMethodId(id);
+
+  Future<void> _refreshWidget() => AndroidHomeWidget.refresh(
+    state,
+    expenses: ref.read(expensesProvider),
+    currency: ref.read(appCurrencyProvider),
+    hideFinancialDetails: ref.read(appLockEnabledProvider) ?? false,
+  );
 }
