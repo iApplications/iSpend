@@ -180,6 +180,51 @@ class _QuickEntrySheetState extends State<_QuickEntrySheet> {
     }
   }
 
+  List<String> get _recentPaymentMethods {
+    final recent = <String>[];
+    final orderedHistory = [...widget.history]
+      ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    for (final expense in orderedHistory) {
+      final method = expense.paymentMethod;
+      if (method != null && widget.paymentMethods.contains(method)) {
+        if (!recent.contains(method)) recent.add(method);
+        if (recent.length == 3) break;
+      }
+    }
+    if (_payment != null && !recent.contains(_payment)) {
+      recent.insert(0, _payment!);
+    }
+    if (recent.isEmpty) recent.addAll(widget.paymentMethods.take(3));
+    return recent.take(3).toList();
+  }
+
+  Future<void> _choosePaymentMethod() async {
+    final choice = await showModalBottomSheet<String?>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            const ListTile(title: Text('Payment method')),
+            ListTile(
+              leading: const Icon(Icons.remove_circle_outline),
+              title: const Text('None'),
+              trailing: _payment == null ? const Icon(Icons.check) : null,
+              onTap: () => Navigator.pop(context),
+            ),
+            for (final method in widget.paymentMethods)
+              ListTile(
+                title: Text(method),
+                trailing: _payment == method ? const Icon(Icons.check) : null,
+                onTap: () => Navigator.pop(context, method),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (choice != _payment) setState(() => _payment = choice);
+  }
+
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
@@ -230,19 +275,27 @@ class _QuickEntrySheetState extends State<_QuickEntrySheet> {
                 onChanged: (v) => setState(() => _category = v!),
               ),
               const SizedBox(height: 16),
-              DropdownButtonFormField<String?>(
-                initialValue: _payment,
-                decoration: const InputDecoration(labelText: 'Payment method'),
-                items: [
-                  const DropdownMenuItem<String?>(
-                    value: null,
-                    child: Text('None'),
-                  ),
-                  ...widget.paymentMethods.map(
-                    (v) => DropdownMenuItem<String?>(value: v, child: Text(v)),
+              Text(
+                'Payment method',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final method in _recentPaymentMethods)
+                    ChoiceChip(
+                      label: Text(method),
+                      selected: _payment == method,
+                      onSelected: (_) => setState(() => _payment = method),
+                    ),
+                  ActionChip(
+                    avatar: const Icon(Icons.more_horiz, size: 18),
+                    label: const Text('More…'),
+                    onPressed: _choosePaymentMethod,
                   ),
                 ],
-                onChanged: (v) => setState(() => _payment = v),
               ),
               ExpansionTile(
                 tilePadding: EdgeInsets.zero,
