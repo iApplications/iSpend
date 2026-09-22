@@ -24,6 +24,9 @@ class SettingsPage extends ConsumerWidget {
     final currency = ref.watch(appCurrencyProvider);
     final appearance = ref.watch(appearancePreferenceProvider);
     final appLockEnabled = ref.watch(appLockEnabledProvider);
+    final quickLoggingWithoutUnlock = ref.watch(
+      quickLoggingWithoutUnlockProvider,
+    );
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
       children: [
@@ -148,6 +151,22 @@ class SettingsPage extends ConsumerWidget {
             onChanged: appLockEnabled == null
                 ? null
                 : (enabled) => _setAppLock(context, ref, enabled),
+          ),
+        ),
+        Card(
+          child: SwitchListTile(
+            secondary: const Icon(Icons.bolt_outlined),
+            title: const Text('Allow quick logging without app unlock'),
+            subtitle: const Text(
+              'Widget and shortcut entry can open only the quick-entry form.',
+            ),
+            value: quickLoggingWithoutUnlock ?? false,
+            onChanged:
+                appLockEnabled != true || quickLoggingWithoutUnlock == null
+                ? null
+                : (enabled) => ref
+                      .read(quickLoggingWithoutUnlockProvider.notifier)
+                      .setEnabled(enabled),
           ),
         ),
         Card(

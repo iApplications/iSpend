@@ -270,13 +270,18 @@ Quick-entry actions also include duplicate-action protection so one interaction 
 
 External quick-entry surfaces respect the normal app lock by default.
 
-A future setting may allow:
-
 **Allow quick logging without app unlock**
 
 This option is disabled by default.
 
 When enabled, quick entry must expose only the minimum information required to create an expense and must not reveal spending history.
+
+The setting is off by default and is available under Settings > Privacy & Data
+when App lock is enabled. With it enabled, a widget or App Shortcut opens only
+the minimal Quick Entry surface; the normal Expenses, Summary, Settings, and
+history screens remain behind device authentication.
+The widget's **More** action is treated as a full-app navigation and still
+requires the normal unlock.
 
 ### Backup and restore
 

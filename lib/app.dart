@@ -49,15 +49,40 @@ class ISpendThemedApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final appearance = ref.watch(appearancePreferenceProvider);
+    final quickLoggingWithoutUnlock = ref.watch(
+      quickLoggingWithoutUnlockProvider,
+    );
     return ISpendApp(
       themeMode: appearance.themeMode,
-      home: const AppLockGate(child: AppShell()),
+      home: AppLockGate(
+        child: const AppShell(handleExternalEntries: false),
+        externalChildBuilder: (uri, onComplete, requestId) => AppShell(
+          handleExternalEntries: false,
+          externalOnly: quickLoggingWithoutUnlock == true,
+          externalQuickEntryUri: uri,
+          onExternalEntryComplete: onComplete,
+          externalRequestId: requestId,
+        ),
+      ),
     );
   }
 }
 
 class AppShell extends ConsumerStatefulWidget {
-  const AppShell({super.key});
+  const AppShell({
+    super.key,
+    this.externalQuickEntryUri,
+    this.externalOnly = false,
+    this.handleExternalEntries = true,
+    this.onExternalEntryComplete,
+    this.externalRequestId,
+  });
+
+  final Uri? externalQuickEntryUri;
+  final bool externalOnly;
+  final bool handleExternalEntries;
+  final VoidCallback? onExternalEntryComplete;
+  final int? externalRequestId;
 
   @override
   ConsumerState<AppShell> createState() => _AppShellState();
@@ -66,7 +91,8 @@ class AppShell extends ConsumerStatefulWidget {
 class _AppShellState extends ConsumerState<AppShell> {
   int _selectedIndex = 0;
   StreamSubscription<Uri?>? _widgetClicks;
-  late final ProviderSubscription<List<Expense>> _expenseWidgetRefresh;
+  ProviderSubscription<List<Expense>>? _expenseWidgetRefresh;
+  String? _externalEntryStatus;
 
   static const _pages = <Widget>[
     ExpenseListPage(),
@@ -77,21 +103,24 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   void initState() {
     super.initState();
-    _widgetClicks = HomeWidget.widgetClicked.listen((uri) {
-      if (uri?.host == 'quick-entry') {
-        uri?.queryParameters['more'] == 'true'
-            ? _openQuickEntryTemplates()
-            : _openQuickEntry(uri);
-      }
-    });
-    HomeWidget.initiallyLaunchedFromHomeWidget().then((uri) {
-      if (mounted && uri?.host == 'quick-entry') {
-        uri?.queryParameters['more'] == 'true'
-            ? _openQuickEntryTemplates()
-            : _openQuickEntry(uri);
-      }
-    });
-    unawaited(AndroidAppShortcuts.initialize(_handleAppShortcut));
+    if (widget.externalQuickEntryUri != null) {
+      _launchExternalEntry(widget.externalQuickEntryUri!);
+    } else if (widget.handleExternalEntries) {
+      _widgetClicks = HomeWidget.widgetClicked.listen((uri) {
+        if (uri?.host == 'quick-entry') {
+          uri?.queryParameters['more'] == 'true'
+              ? _openQuickEntryTemplates()
+              : _openQuickEntry(uri);
+        }
+      });
+      HomeWidget.initiallyLaunchedFromHomeWidget().then((uri) {
+        if (mounted && uri?.host == 'quick-entry') {
+          uri?.queryParameters['more'] == 'true'
+              ? _openQuickEntryTemplates()
+              : _openQuickEntry(uri);
+        }
+      });
+    }
     unawaited(_refreshAppShortcuts());
     _expenseWidgetRefresh = ref.listenManual(expensesProvider, (_, expenses) {
       unawaited(_refreshHomeWidget(expenses));
@@ -99,9 +128,41 @@ class _AppShellState extends ConsumerState<AppShell> {
   }
 
   @override
+  void didUpdateWidget(covariant AppShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final uri = widget.externalQuickEntryUri;
+    if (uri == null ||
+        widget.externalRequestId == oldWidget.externalRequestId) {
+      return;
+    }
+    _externalEntryStatus = null;
+    _launchExternalEntry(uri);
+  }
+
+  void _launchExternalEntry(Uri uri) {
+    final requestId = widget.externalRequestId;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          widget.externalQuickEntryUri != uri ||
+          widget.externalRequestId != requestId) {
+        return;
+      }
+      if (uri.queryParameters['more'] == 'true') {
+        unawaited(
+          _openQuickEntryTemplates().whenComplete(
+            widget.onExternalEntryComplete ?? () {},
+          ),
+        );
+      } else {
+        unawaited(_openQuickEntry(uri));
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _widgetClicks?.cancel();
-    _expenseWidgetRefresh.close();
+    _expenseWidgetRefresh?.close();
     super.dispose();
   }
 
@@ -131,7 +192,14 @@ class _AppShellState extends ConsumerState<AppShell> {
       categoryNamesById: references.categoryNamesById,
       paymentMethodNamesById: references.paymentMethodNamesById,
     );
-    if (expense == null || !mounted) return;
+    if (expense == null || !mounted) {
+      if (widget.externalOnly && mounted) {
+        setState(() => _externalEntryStatus = 'Quick entry cancelled');
+      } else {
+        widget.onExternalEntryComplete?.call();
+      }
+      return;
+    }
     await ref.read(expensesProvider.notifier).add(expense);
     if (mounted) {
       AppToast.showUndo(
@@ -139,27 +207,15 @@ class _AppShellState extends ConsumerState<AppShell> {
         message: 'Expense saved',
         onUndo: () => ref.read(expensesProvider.notifier).delete(expense.id),
       );
+      // A successful restricted quick entry moves into the normal protected
+      // app. AppLockGate immediately asks for device authentication there.
+      widget.onExternalEntryComplete?.call();
     }
   }
 
   Future<void> _openQuickEntryTemplates() => Navigator.of(
     context,
   ).push(MaterialPageRoute(builder: (_) => const QuickEntryTemplatesPage()));
-
-  Future<void> _handleAppShortcut(String action) {
-    if (action == AndroidAppShortcuts.addExpenseAction) {
-      return _openQuickEntry();
-    }
-    final templateId = AndroidAppShortcuts.templateIdFromAction(action);
-    if (templateId == null) return Future.value();
-    return _openQuickEntry(
-      Uri(
-        scheme: 'ispend',
-        host: 'quick-entry',
-        queryParameters: {'template_id': templateId},
-      ),
-    );
-  }
 
   Future<void> _refreshAppShortcuts() async {
     final templates = await ref
@@ -183,6 +239,17 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.externalOnly) {
+      return Scaffold(
+        body: SafeArea(
+          child: Center(
+            child: _externalEntryStatus == null
+                ? const CircularProgressIndicator()
+                : Text(_externalEntryStatus!),
+          ),
+        ),
+      );
+    }
     return Scaffold(
       body: SafeArea(child: _pages[_selectedIndex]),
       bottomNavigationBar: NavigationBar(
