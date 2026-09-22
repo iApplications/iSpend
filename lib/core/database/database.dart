@@ -278,13 +278,13 @@ class ISpendDatabase {
     await _rebuildCategoriesTable(db);
     await _rebuildPaymentMethodsTable(db);
 
-    await db.execute('ALTER TABLE expenses ADD COLUMN category_id TEXT');
-    await db.execute('ALTER TABLE expenses ADD COLUMN payment_method_id TEXT');
-    await db.execute(
-      'ALTER TABLE recurring_expenses ADD COLUMN category_id TEXT',
-    );
-    await db.execute(
-      'ALTER TABLE recurring_expenses ADD COLUMN payment_method_id TEXT',
+    await _addColumnIfMissing(db, 'expenses', 'category_id TEXT');
+    await _addColumnIfMissing(db, 'expenses', 'payment_method_id TEXT');
+    await _addColumnIfMissing(db, 'recurring_expenses', 'category_id TEXT');
+    await _addColumnIfMissing(
+      db,
+      'recurring_expenses',
+      'payment_method_id TEXT',
     );
 
     await db.execute('''
@@ -332,6 +332,20 @@ class ISpendDatabase {
       });
     }
     await db.execute('DROP TABLE categories_legacy');
+  }
+
+  /// Version 5 upgrades create the then-current recurring table before the
+  /// later stable-reference migration runs. The table can therefore already
+  /// contain these columns even though the database version is still below 11.
+  static Future<void> _addColumnIfMissing(
+    Database db,
+    String table,
+    String columnDefinition,
+  ) async {
+    final columnName = columnDefinition.split(' ').first;
+    final columns = await db.rawQuery('PRAGMA table_info($table)');
+    if (columns.any((column) => column['name'] == columnName)) return;
+    await db.execute('ALTER TABLE $table ADD COLUMN $columnDefinition');
   }
 
   static Future<void> _rebuildPaymentMethodsTable(Database db) async {
