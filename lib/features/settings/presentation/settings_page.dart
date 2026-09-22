@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,6 +10,7 @@ import '../../budgets/presentation/budget_limits_page.dart';
 import '../../expenses/presentation/recurring_expenses_page.dart';
 import '../../payment_methods/presentation/payment_method_management_page.dart';
 import '../../quick_entry/presentation/quick_entry_templates_page.dart';
+import '../../quick_entry/android_quick_settings_tile.dart';
 import '../appearance_preference.dart';
 import '../currency_preference.dart';
 import '../time_format_preference.dart';
@@ -138,6 +141,16 @@ class SettingsPage extends ConsumerWidget {
             ),
           ),
         ),
+        if (Platform.isAndroid)
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.dashboard_customize_outlined),
+              title: const Text('Quick Settings tile'),
+              subtitle: const Text('Add a fast Add Expense tile to Android'),
+              trailing: const Icon(Icons.add_circle_outline),
+              onTap: () => _addQuickSettingsTile(context),
+            ),
+          ),
         const SizedBox(height: 16),
         const _SettingsSectionLabel('PRIVACY & DATA'),
         Card(
@@ -217,6 +230,24 @@ class SettingsPage extends ConsumerWidget {
       }
     }
     await ref.read(appLockEnabledProvider.notifier).setEnabled(enabled);
+  }
+
+  Future<void> _addQuickSettingsTile(BuildContext context) async {
+    final result = await AndroidQuickSettingsTile.requestAdd();
+    if (!context.mounted) return;
+    switch (result) {
+      case QuickSettingsTileAddResult.added:
+        AppToast.show(context, 'Quick Settings tile added');
+      case QuickSettingsTileAddResult.alreadyAdded:
+        AppToast.show(context, 'Quick Settings tile is already added');
+      case QuickSettingsTileAddResult.notAdded:
+        AppToast.show(context, 'Quick Settings tile was not added');
+      case QuickSettingsTileAddResult.manualSetup:
+        AppToast.show(
+          context,
+          'Open Android Quick Settings, then Edit tiles to add iSpend.',
+        );
+    }
   }
 
   void _showTimeFormatPicker(BuildContext context, WidgetRef ref) {

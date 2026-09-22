@@ -324,7 +324,16 @@ The wallet and plus must remain inside Android launcher safe areas so different 
 
 ### Optional stretch feature
 
-A custom Android **Quick Settings Tile** may be explored after the Home Screen widget and App Shortcuts are stable.
+The optional Android **Quick Settings tile** is a simple **Add expense** fast
+launcher. It opens the same minimal Quick Entry flow as the widget and App
+Shortcuts; it never accepts an amount or exposes financial details inside
+Quick Settings itself.
+
+On Android 13 and later, users can add it from **Settings > Quick Settings
+tile** using Android's system placement prompt. On earlier Android versions,
+the same declared tile can be added from the system's Quick Settings edit
+screen. App-lock and the explicit quick-log bypass setting apply to it exactly
+as they do to the other external quick-entry surfaces.
 
 ### Not included in Phase 2b
 
