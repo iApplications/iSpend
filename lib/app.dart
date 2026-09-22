@@ -16,6 +16,7 @@ import 'features/expenses/data/expense_model.dart';
 import 'features/quick_entry/presentation/quick_entry_sheet.dart';
 import 'features/quick_entry/android_app_shortcuts.dart';
 import 'features/quick_entry/android_home_widget.dart';
+import 'features/quick_entry/quick_entry_interaction_guard.dart';
 import 'features/quick_entry/presentation/quick_entry_templates_page.dart';
 import 'features/quick_entry/quick_entry_template_providers.dart';
 import 'features/payment_methods/payment_method_providers.dart';
@@ -93,6 +94,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   StreamSubscription<Uri?>? _widgetClicks;
   ProviderSubscription<List<Expense>>? _expenseWidgetRefresh;
   String? _externalEntryStatus;
+  final _quickEntryInteraction = QuickEntryInteractionGuard();
 
   static const _pages = <Widget>[
     ExpenseListPage(),
@@ -167,49 +169,56 @@ class _AppShellState extends ConsumerState<AppShell> {
   }
 
   Future<void> _openQuickEntry([Uri? uri]) async {
-    final categories = ref.read(categoriesProvider);
-    final methods = ref.read(paymentMethodsProvider);
-    final templateId = uri?.queryParameters['template_id'];
-    final templateName = uri?.queryParameters['template_name'];
-    final templates = await ref
-        .read(quickEntryTemplateRepositoryProvider)
-        .getAll();
-    final template = templateId == null
-        ? null
-        : templates.where((item) => item.id == templateId).firstOrNull ??
-              templates.where((item) => item.name == templateName).firstOrNull;
-    final references = await ref.read(
-      quickEntryTemplateReferencesProvider.future,
-    );
-    if (!mounted) return;
-    final expense = await showQuickEntrySheet(
-      context,
-      categories: categories,
-      paymentMethods: methods,
-      history: ref.read(expensesProvider),
-      currency: ref.read(appCurrencyProvider),
-      template: template,
-      categoryNamesById: references.categoryNamesById,
-      paymentMethodNamesById: references.paymentMethodNamesById,
-    );
-    if (expense == null || !mounted) {
-      if (widget.externalOnly && mounted) {
-        setState(() => _externalEntryStatus = 'Quick entry cancelled');
-      } else {
+    if (!_quickEntryInteraction.tryStart()) return;
+    try {
+      final categories = ref.read(categoriesProvider);
+      final methods = ref.read(paymentMethodsProvider);
+      final templateId = uri?.queryParameters['template_id'];
+      final templateName = uri?.queryParameters['template_name'];
+      final templates = await ref
+          .read(quickEntryTemplateRepositoryProvider)
+          .getAll();
+      final template = templateId == null
+          ? null
+          : templates.where((item) => item.id == templateId).firstOrNull ??
+                templates
+                    .where((item) => item.name == templateName)
+                    .firstOrNull;
+      final references = await ref.read(
+        quickEntryTemplateReferencesProvider.future,
+      );
+      if (!mounted) return;
+      final expense = await showQuickEntrySheet(
+        context,
+        categories: categories,
+        paymentMethods: methods,
+        history: ref.read(expensesProvider),
+        currency: ref.read(appCurrencyProvider),
+        template: template,
+        categoryNamesById: references.categoryNamesById,
+        paymentMethodNamesById: references.paymentMethodNamesById,
+      );
+      if (expense == null || !mounted) {
+        if (widget.externalOnly && mounted) {
+          setState(() => _externalEntryStatus = 'Quick entry cancelled');
+        } else {
+          widget.onExternalEntryComplete?.call();
+        }
+        return;
+      }
+      await ref.read(expensesProvider.notifier).add(expense);
+      if (mounted) {
+        AppToast.showUndo(
+          context,
+          message: 'Expense saved',
+          onUndo: () => ref.read(expensesProvider.notifier).delete(expense.id),
+        );
+        // A successful restricted quick entry moves into the normal protected
+        // app. AppLockGate immediately asks for device authentication there.
         widget.onExternalEntryComplete?.call();
       }
-      return;
-    }
-    await ref.read(expensesProvider.notifier).add(expense);
-    if (mounted) {
-      AppToast.showUndo(
-        context,
-        message: 'Expense saved',
-        onUndo: () => ref.read(expensesProvider.notifier).delete(expense.id),
-      );
-      // A successful restricted quick entry moves into the normal protected
-      // app. AppLockGate immediately asks for device authentication there.
-      widget.onExternalEntryComplete?.call();
+    } finally {
+      _quickEntryInteraction.finish();
     }
   }
 
