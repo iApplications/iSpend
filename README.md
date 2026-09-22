@@ -264,7 +264,12 @@ This keeps:
 
 consistent across entry methods.
 
-Quick-entry actions also include duplicate-action protection so one interaction cannot accidentally create the same expense twice because of event re-delivery or rapid repeated processing.
+Quick-entry actions include request-scoped duplicate-action protection: while a
+widget, App Shortcut, or Quick Settings Tile entry sheet is already opening or
+active, re-delivered external actions are ignored. Once that sheet is saved or
+cancelled, the next intentional action can start a new entry. This prevents one
+interaction from creating duplicate expenses without rejecting separate,
+legitimate expenses that happen to have the same values.
 
 ### App-lock behaviour
 
