@@ -8,6 +8,7 @@ import 'package:home_widget/home_widget.dart';
 import '../../core/database/app_settings_repository.dart';
 import '../../core/widgets/app_toast.dart';
 import '../quick_entry/android_app_shortcuts.dart';
+import '../quick_entry/android_quick_settings_tile.dart';
 
 abstract interface class AppLockAuthenticator {
   Future<bool> authenticate();
@@ -136,6 +137,11 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
         ),
       );
     });
+    final quickSettingsTileFuture = AndroidQuickSettingsTile.initialize(
+      () async {
+      _acceptExternalUri(Uri(scheme: 'ispend', host: 'quick-entry'));
+      },
+    );
 
     Uri? initialUri;
     try {
@@ -148,6 +154,11 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
       await shortcutsFuture;
     } catch (_) {
       // Shortcut support is optional; the normal app lock must still work.
+    }
+    try {
+      await quickSettingsTileFuture;
+    } catch (_) {
+      // Quick Settings tiles are optional Android functionality.
     }
     _acceptExternalUri(initialUri);
     if (mounted) setState(() => _externalSourcesReady = true);
