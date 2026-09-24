@@ -170,6 +170,13 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   Future<void> _openQuickEntry([Uri? uri]) async {
     if (!_quickEntryInteraction.tryStart()) return;
+    // The widget/shortcut can be opened while the app is already alive on
+    // another tab. Keep the normal app underneath Quick Entry on Expenses so
+    // dismissing the sheet (or returning after saving) lands on the expected
+    // screen instead of the previously selected tab.
+    if (mounted && _selectedIndex != 0) {
+      setState(() => _selectedIndex = 0);
+    }
     try {
       // A widget can cold-launch the app before the asynchronous UI providers
       // have loaded their stored values. Read the repositories here so Quick
