@@ -99,19 +99,25 @@ class AppLockGate extends ConsumerStatefulWidget {
 
 class _AppLockGateState extends ConsumerState<AppLockGate>
     with WidgetsBindingObserver {
+  // MaterialApp/provider rebuilds can replace the gate while an Android
+  // widget launch is still being delivered through the initial-intent path.
+  // Keep this short duplicate window shared so the replacement gate cannot
+  // open the same external request a second time.
+  static Uri? _lastAcceptedExternalUri;
+  static DateTime? _lastAcceptedExternalAt;
+  static Future<Uri?>? _initialWidgetLaunchUri;
+
   bool _unlocked = false;
   bool _authenticating = false;
   bool _promptedForCurrentLock = false;
   bool _authenticationLifecycleTransition = false;
   bool _externalSourcesReady = false;
   Uri? _externalUri;
-  Uri? _lastAcceptedExternalUri;
-  DateTime? _lastAcceptedExternalAt;
+  Uri? _pendingExternalUri;
   int _externalRequestId = 0;
   Timer? _unlockDelay;
   bool _unlockScheduled = false;
   bool _returningToFullApp = false;
-  StreamSubscription<Uri?>? _widgetClicks;
 
   @override
   void initState() {
@@ -121,12 +127,12 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
       _externalSourcesReady = true;
       return;
     }
-    _widgetClicks = HomeWidget.widgetClicked.listen(_acceptExternalUri);
     unawaited(_prepareExternalSources());
   }
 
   Future<void> _prepareExternalSources() async {
-    final initialUriFuture = HomeWidget.initiallyLaunchedFromHomeWidget();
+    final initialUriFuture = _initialWidgetLaunchUri ??=
+        HomeWidget.initiallyLaunchedFromHomeWidget();
     final shortcutsFuture = AndroidAppShortcuts.initialize((action) async {
       final templateId = AndroidAppShortcuts.templateIdFromAction(action);
       _acceptExternalUri(
@@ -138,9 +144,10 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
       );
     });
     final quickSettingsTileFuture = AndroidQuickSettingsTile.initialize(
-      () async {
-      _acceptExternalUri(Uri(scheme: 'ispend', host: 'quick-entry'));
+      onTap: () async {
+        _acceptExternalUri(Uri(scheme: 'ispend', host: 'quick-entry'));
       },
+      onWidgetTap: (uri) async => _acceptExternalUri(uri),
     );
 
     Uri? initialUri;
@@ -160,12 +167,22 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
     } catch (_) {
       // Quick Settings tiles are optional Android functionality.
     }
-    _acceptExternalUri(initialUri);
-    if (mounted) setState(() => _externalSourcesReady = true);
+    if (!mounted) return;
+    // Reconcile initial intents and native events before exposing external
+    // entry. This prevents one Android launch from being handled by both paths.
+    final launchUri = _pendingExternalUri ?? initialUri;
+    _pendingExternalUri = null;
+    setState(() => _externalSourcesReady = true);
+    _acceptExternalUri(launchUri);
   }
 
   void _acceptExternalUri(Uri? uri) {
     if (!mounted || uri?.host != 'quick-entry') return;
+    if (!_externalSourcesReady) {
+      _pendingExternalUri ??= uri;
+      return;
+    }
+    if (_externalUri == uri) return;
     _unlockDelay?.cancel();
     _unlockDelay = null;
     _unlockScheduled = false;
@@ -188,7 +205,6 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
   @override
   void dispose() {
     _unlockDelay?.cancel();
-    _widgetClicks?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
