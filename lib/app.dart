@@ -171,8 +171,12 @@ class _AppShellState extends ConsumerState<AppShell> {
   Future<void> _openQuickEntry([Uri? uri]) async {
     if (!_quickEntryInteraction.tryStart()) return;
     try {
-      final categories = ref.read(categoriesProvider);
-      final methods = ref.read(paymentMethodsProvider);
+      // A widget can cold-launch the app before the asynchronous UI providers
+      // have loaded their stored values. Read the repositories here so Quick
+      // Entry never briefly falls back to the built-in category or payment
+      // method defaults.
+      final categories = await ref.read(categoryRepositoryProvider).getAll();
+      final methods = await ref.read(paymentMethodRepositoryProvider).getAll();
       final templateId = uri?.queryParameters['template_id'];
       final templateName = uri?.queryParameters['template_name'];
       final templates = await ref

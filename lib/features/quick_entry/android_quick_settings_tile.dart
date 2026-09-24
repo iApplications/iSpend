@@ -12,10 +12,17 @@ enum QuickSettingsTileAddResult { added, alreadyAdded, notAdded, manualSetup }
 abstract final class AndroidQuickSettingsTile {
   static const _channel = MethodChannel('com.apps.ispend/quick_settings_tile');
 
-  static Future<void> initialize(Future<void> Function() onTap) async {
+  static Future<void> initialize({
+    required Future<void> Function() onTap,
+    required Future<void> Function(Uri uri) onWidgetTap,
+  }) async {
     if (!Platform.isAndroid) return;
     _channel.setMethodCallHandler((call) async {
       if (call.method == 'quickEntryTileTapped') await onTap();
+      if (call.method == 'quickEntryWidgetTapped') {
+        final uri = Uri.tryParse(call.arguments as String? ?? '');
+        if (uri != null) await onWidgetTap(uri);
+      }
     });
     final launchedFromTile =
         await _channel.invokeMethod<bool>('consumeInitialQuickEntryTileTap') ??

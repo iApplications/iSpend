@@ -18,6 +18,8 @@ class MainActivity : FlutterFragmentActivity() {
 
   companion object {
     const val quickEntryTileExtra = "com.apps.ispend.v1.QUICK_ENTRY_TILE"
+    private const val homeWidgetLaunchAction =
+      "es.antonborri.home_widget.action.LAUNCH"
   }
 
   override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -54,6 +56,14 @@ class MainActivity : FlutterFragmentActivity() {
   override fun onNewIntent(intent: Intent) {
     setIntent(intent)
     super.onNewIntent(intent)
+    if (intent.action == homeWidgetLaunchAction &&
+      intent.data?.host == "quick-entry"
+    ) {
+      quickSettingsChannel?.invokeMethod(
+        "quickEntryWidgetTapped",
+        intent.dataString,
+      )
+    }
     if (intent.getBooleanExtra(quickEntryTileExtra, false)) {
       intent.removeExtra(quickEntryTileExtra)
       quickSettingsChannel?.invokeMethod("quickEntryTileTapped", null)
