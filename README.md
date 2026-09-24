@@ -143,7 +143,7 @@ The rest of the Flutter roadmap does not depend on Phase 2 being completed first
 
 ## Phase 2b — Android Fast Entry
 
-Phase 2b is the current development focus.
+Phase 2b is complete and merged into `main`.
 
 Its goal is to make expense entry significantly faster on Android while keeping all transactions local and user-confirmed.
 
@@ -376,10 +376,10 @@ There is no iSpend backend server and no bank-account integration.
 **Phase 1:** Complete
 **Phase 1.5:** Complete
 **Phase 2:** On hold pending Mac access
-**Phase 2b:** In development
+**Phase 2b:** Complete
 **Phase 3:** Not started
 
-Current Phase 2b work focuses on:
+Phase 2b delivered:
 
 * Stable category/payment-method IDs
 * Payment-method colour customisation
