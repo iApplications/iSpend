@@ -138,3 +138,43 @@ CategoryIconStyle paymentMethodIconStyle(String paymentMethod) {
     color: Color(0xFF475569),
   );
 }
+
+const paymentMethodColourKeys = [
+  'default',
+  'coral',
+  'orange',
+  'amber',
+  'green',
+  'teal',
+  'blue',
+  'indigo',
+  'purple',
+  'pink',
+  'slate',
+];
+
+String paymentMethodColourLabel(String key) => key == 'default'
+    ? 'Use default'
+    : '${key[0].toUpperCase()}${key.substring(1)}';
+
+Color paymentMethodBadgeColor(
+  String key,
+  Brightness brightness,
+  Color fallback,
+) {
+  if (key == 'default') return fallback.withValues(alpha: 0.15);
+  final dark = brightness == Brightness.dark;
+  return switch (key) {
+    'coral' => Color(dark ? 0xFF70413D : 0xFFF6D2CC),
+    'orange' => Color(dark ? 0xFF704B2D : 0xFFF5D8B8),
+    'amber' => Color(dark ? 0xFF68572B : 0xFFF1DFAC),
+    'green' => Color(dark ? 0xFF355B3D : 0xFFCBE4CF),
+    'teal' => Color(dark ? 0xFF315955 : 0xFFC5E2DE),
+    'blue' => Color(dark ? 0xFF365573 : 0xFFCADDF2),
+    'indigo' => Color(dark ? 0xFF454D73 : 0xFFD3D7F0),
+    'purple' => Color(dark ? 0xFF58456B : 0xFFDDD1EB),
+    'pink' => Color(dark ? 0xFF684454 : 0xFFEBCFDD),
+    'slate' => Color(dark ? 0xFF494F55 : 0xFFD6DADE),
+    _ => fallback.withValues(alpha: 0.15),
+  };
+}

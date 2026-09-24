@@ -96,10 +96,15 @@ class SqlCipherExpenseRepository implements ExpenseRepository {
   }
 
   @override
-  Future<void> save(Expense expense) {
-    return _database.insert(
+  Future<void> save(Expense expense) async {
+    final references = await resolveReferenceIds(
+      _database,
+      category: expense.category,
+      paymentMethod: expense.paymentMethod,
+    );
+    await _database.insert(
       'expenses',
-      _toRow(expense),
+      _toRow(expense, references),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
@@ -113,7 +118,12 @@ class SqlCipherExpenseRepository implements ExpenseRepository {
   Future<int> countByCategory(String category) async {
     return Sqflite.firstIntValue(
           await _database.rawQuery(
-            'SELECT COUNT(*) FROM expenses WHERE category = ?',
+            '''
+            SELECT COUNT(*) FROM expenses
+            WHERE category_id = (
+              SELECT id FROM categories WHERE name = ?
+            )
+            ''',
             [category],
           ),
         ) ??
@@ -125,8 +135,8 @@ class SqlCipherExpenseRepository implements ExpenseRepository {
     return _database.update(
       'expenses',
       {'category': newName},
-      where: 'category = ?',
-      whereArgs: [oldName],
+      where: 'category_id = (SELECT id FROM categories WHERE name = ?)',
+      whereArgs: [newName],
     );
   }
 
@@ -134,28 +144,38 @@ class SqlCipherExpenseRepository implements ExpenseRepository {
   Future<int> countByPaymentMethod(String paymentMethod) async =>
       Sqflite.firstIntValue(
         await _database.rawQuery(
-          'SELECT COUNT(*) FROM expenses WHERE payment_method = ?',
+          '''
+          SELECT COUNT(*) FROM expenses
+          WHERE payment_method_id = (
+            SELECT id FROM payment_methods WHERE name = ?
+          )
+          ''',
           [paymentMethod],
         ),
       ) ??
       0;
 
   @override
-  Future<void> renamePaymentMethod(String oldName, String newName) =>
-      _database.update(
-        'expenses',
-        {'payment_method': newName},
-        where: 'payment_method = ?',
-        whereArgs: [oldName],
-      );
+  Future<void> renamePaymentMethod(
+    String oldName,
+    String newName,
+  ) => _database.update(
+    'expenses',
+    {'payment_method': newName},
+    where:
+        'payment_method_id = (SELECT id FROM payment_methods WHERE name = ?)',
+    whereArgs: [newName],
+  );
 
-  Map<String, Object?> _toRow(Expense expense) {
+  Map<String, Object?> _toRow(Expense expense, ReferenceIds references) {
     return {
       'id': expense.id,
       'amount_cents': expense.amountCents,
       'category': expense.category,
+      'category_id': references.categoryId,
       'merchant_or_note': expense.merchantOrNote,
       'payment_method': expense.paymentMethod,
+      'payment_method_id': references.paymentMethodId,
       'occurred_at_millis': expense.occurredAt.millisecondsSinceEpoch,
       'created_at_millis': expense.createdAt.millisecondsSinceEpoch,
       'recurring_rule_id': expense.recurringRuleId,
@@ -187,4 +207,47 @@ class SqlCipherExpenseRepository implements ExpenseRepository {
       isTaxDeductible: (row['is_tax_deductible'] as int? ?? 0) == 1,
     );
   }
+}
+
+class ReferenceIds {
+  const ReferenceIds({required this.categoryId, this.paymentMethodId});
+
+  final String categoryId;
+  final String? paymentMethodId;
+}
+
+Future<ReferenceIds> resolveReferenceIds(
+  DatabaseExecutor database, {
+  required String category,
+  required String? paymentMethod,
+}) async {
+  final categoryRows = await database.query(
+    'categories',
+    columns: ['id'],
+    where: 'name = ?',
+    whereArgs: [category],
+    limit: 1,
+  );
+  if (categoryRows.isEmpty) {
+    throw StateError('The selected category no longer exists.');
+  }
+
+  String? paymentMethodId;
+  if (paymentMethod != null) {
+    final paymentRows = await database.query(
+      'payment_methods',
+      columns: ['id'],
+      where: 'name = ?',
+      whereArgs: [paymentMethod],
+      limit: 1,
+    );
+    if (paymentRows.isEmpty) {
+      throw StateError('The selected payment method no longer exists.');
+    }
+    paymentMethodId = paymentRows.single['id']! as String;
+  }
+  return ReferenceIds(
+    categoryId: categoryRows.single['id']! as String,
+    paymentMethodId: paymentMethodId,
+  );
 }

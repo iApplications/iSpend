@@ -13,7 +13,8 @@
 - [x] Confirm category and payment-method add, rename, duplicate prevention, and in-use deletion protection.
 - [x] Confirm currency remains fixed after restarting the app.
 - [x] Confirm appearance and time-format preferences remain after restarting the app.
-- [x] Confirm the recovery-passphrase change screen rejects a wrong current passphrase and shows a toast after a successful update.
+- [x] Confirm the recovery-passphrase screen can create a new passphrase for
+  future backups on an already-open original device, and shows a success toast.
 
 ## Android backup and recovery check
 

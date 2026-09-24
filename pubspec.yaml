@@ -20,6 +20,8 @@ dependencies:
   sqflite_sqlcipher: ^3.4.1
   uuid: ^4.5.3
   local_auth: ^3.0.2
+  home_widget: ^0.10.0
+  quick_actions: ^1.1.1
 
 dev_dependencies:
   flutter_test:
