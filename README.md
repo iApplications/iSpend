@@ -377,7 +377,7 @@ There is no iSpend backend server and no bank-account integration.
 **Phase 1.5:** Complete
 **Phase 2:** On hold pending Mac access
 **Phase 2b:** Complete
-**Phase 3:** Not started
+**Phase 3:** In progress — OCR capture and reviewed CSV import
 
 Phase 2b delivered:
 
@@ -389,6 +389,62 @@ Phase 2b delivered:
 * Backup/restore compatibility
 * Restore-flow hardening
 
+Phase 3 work in progress:
+
+* On-device Latin and Chinese OCR for user-selected shopping-order screenshots
+  (PNG/JPEG files can be selected from Android Files, including Downloads)
+  and order-detail screenshots. Detail pages use the item title and order total
+  when recognized; delivery timestamps are not treated as purchase dates.
+  Taobao/Tmall order lists are split at repeated shop headers into separate
+  review rows, including cropped rows with missing totals. Item prices are not
+  substituted for the final paid amount. Shopee My Purchases lists are likewise
+  split at each store header, so adjacent orders keep their own item titles and
+  final "Total 1 item" amounts even when OCR sees little space between cards.
+  A cropped Shopee card without a final-total line is omitted from review;
+  a present but unreadable total can still be corrected manually.
+* Editable batch review, cross-screenshot duplicate removal, and transactional
+  expense creation
+* Camera or selected-image receipt capture with editable expense review
+  (gallery and Files/Downloads are separate choices)
+  including shopping order-detail screenshots chosen through the receipt
+  picker; those use the item title and order total, not the page heading.
+  A screenshot containing multiple recognized Taobao order cards opens the
+  shopping-order batch review with the selected image already loaded.
+  A recognized paid total in a different currency is shown for review but is
+  never silently entered as the app's locked currency or converted. In the
+  shopping-order review, users may explicitly check Use scanned amount to
+  copy its numeric value unchanged into the locked-currency amount field.
+  The checkbox starts unchecked, leaving the amount field empty. Checking it
+  can record ¥34.29 as USD 34.29 when USD is locked; unticking it returns to
+  manual amount entry. The single-receipt review offers the same opt-in. No
+  exchange-rate conversion occurs.
+* Generic UTF-8 bank CSV import from the Expenses scan/import menu. The user
+  can export a blank `Date,Description,Amount` CSV template from that screen
+  without including any example transactions or existing expense data. They
+  map date, description, and amount columns, explicitly select the date
+  convention and whether debits, negative values, or positive values mean
+  spending, then review/edit/select rows before a transactional batch save.
+  Users may opt to remember these column, date-format, and spending-direction
+  choices for a CSV with the same column headers. A restored mapping remains
+  editable and still requires transaction review; it can also be forgotten.
+  Saved mappings contain no statement transactions or file paths.
+  Unknown unsigned amounts, credits, refunds, transfers, repayments, invalid
+  dates, and ambiguous rows start unchecked. Possible existing duplicates
+  require an extra confirmation. CSV data is parsed on-device; no bank link or
+  automatic import is created. Bank-specific mapping and PDF statements remain
+  later Phase 3b work.
+* Optional retained image per expense, off by default. The image is compressed
+  to a 1 MB JPEG and shared when one shopping screenshot is linked to several
+  expenses. Total retained image storage is capped at 100 MB.
+* Retained images live inside the SQLCipher database, encrypted by the same
+  database key as expenses. Full manual backups include them inside the
+  passphrase-encrypted payload. Restoring on a new device writes them into that
+  device's encrypted database; no image key from the old device is required.
+  A backup with a damaged image is rejected before replacing any current data,
+  and the user sees a specific error. Recovery passphrase changes do not change
+  the database key or its image protection.
+* iOS deployment target raised to 15.5 for the selected OCR dependencies
+
 ## Branching and pull-request workflow
 
 Development uses phase integration branches rather than committing directly to `main`.
@@ -399,6 +455,7 @@ Development uses phase integration branches rather than committing directly to `
    * Phase 1: `dev/Phase1_main`
    * Phase 1.5: `dev/phase1.5_main`
    * Phase 2b: `dev/phase2b_main`
+   * Phase 3: `dev/phase3_main`
 3. Create individual feature branches from the applicable phase integration branch.
 4. Push the feature branch to GitHub before making implementation changes.
 5. Run the relevant tests and build checks.

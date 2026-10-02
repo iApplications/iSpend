@@ -59,6 +59,36 @@ void main() {
     expect(find.text('This is not a supported iSpend backup.'), findsOneWidget);
     await tester.pump(const Duration(seconds: 2));
   });
+
+  testWidgets('damaged saved image is reported without replacing data', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _page(
+        files: _FakeBackupFiles(picked: Uint8List.fromList([1, 2, 3])),
+        service: _FakeManualBackupService(
+          restoreError: const DamagedBackupImageException(),
+        ),
+        keys: _FakeRecoveryKeys(),
+      ),
+    );
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Restore backup'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'correct passphrase');
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Restore'));
+    await tester.pump();
+
+    expect(
+      find.text(
+        'A saved image in this backup is damaged. Your current data was not changed.',
+      ),
+      findsOneWidget,
+    );
+    await tester.pump(const Duration(seconds: 2));
+  });
 }
 
 Widget _page({

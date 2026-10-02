@@ -30,7 +30,7 @@ class ISpendDatabase {
     final database = await openDatabase(
       resolvedDatabasePath,
       password: resolvedDatabaseKey,
-      version: 12,
+      version: 13,
       onCreate: (db, _) async {
         await db.execute('''
           CREATE TABLE expenses (
@@ -54,6 +54,7 @@ class ISpendDatabase {
         await _createRecurringExpensesTable(db);
         await _createRecurringExpenseIndexes(db);
         await _createQuickEntryTemplatesTable(db);
+        await _createExpenseImagesTables(db);
       },
       onUpgrade: (db, oldVersion, _) async {
         if (oldVersion < 2) {
@@ -145,6 +146,7 @@ class ISpendDatabase {
         }
         if (oldVersion < 11) await _migrateStableReferenceIds(db);
         if (oldVersion < 12) await _createQuickEntryTemplatesTable(db);
+        if (oldVersion < 13) await _createExpenseImagesTables(db);
       },
     );
     return ISpendDatabase._(database);
@@ -157,6 +159,27 @@ class ISpendDatabase {
         value TEXT NOT NULL
       )
     ''');
+  }
+
+  static Future<void> _createExpenseImagesTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE ocr_images (
+        id TEXT PRIMARY KEY,
+        jpeg_bytes BLOB NOT NULL,
+        size_bytes INTEGER NOT NULL,
+        sha256 TEXT NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE expense_images (
+        expense_id TEXT NOT NULL,
+        image_id TEXT NOT NULL,
+        PRIMARY KEY (expense_id, image_id)
+      )
+    ''');
+    await db.execute(
+      'CREATE INDEX expense_images_by_image ON expense_images(image_id)',
+    );
   }
 
   static Future<void> _createCategoriesTable(Database db) async {
