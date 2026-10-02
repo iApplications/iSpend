@@ -28,6 +28,10 @@
 	<true/>
 	<key>NSFaceIDUsageDescription</key>
 	<string>iSpend uses Face ID to protect your expense data when app lock is enabled.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>iSpend uses the camera to scan receipts you choose.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>iSpend reads the receipt or shopping image you choose for local expense capture.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
