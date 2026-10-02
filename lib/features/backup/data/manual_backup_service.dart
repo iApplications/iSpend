@@ -1,9 +1,16 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:sqflite_sqlcipher/sqflite.dart';
 import 'package:uuid/uuid.dart';
+import 'package:image/image.dart' as image;
 
 import '../../../core/database/recovery_key.dart';
+import '../../expenses/data/expense_repository.dart';
+
+class DamagedBackupImageException implements Exception {
+  const DamagedBackupImageException();
+}
 
 /// Creates a complete, encrypted logical backup without exposing a raw
 /// database file. The document can only be opened with the recovery passphrase.
@@ -34,13 +41,26 @@ class ManualBackupService implements ManualBackupOperations {
     required Database database,
     required String passphrase,
   }) async {
+    final expenses = await database.query('expenses');
+    final images = await database.query('ocr_images');
+    final imageLinks = await database.query('expense_images');
+    final encodedImages = <Map<String, Object?>>[
+      for (final row in images)
+        {
+          ...row,
+          'jpeg_bytes': base64UrlEncode(row['jpeg_bytes']! as Uint8List),
+        },
+    ];
+    _validateImages(encodedImages, imageLinks, expenses);
     final payload = <String, Object>{
-      'expenses': await database.query('expenses'),
+      'expenses': expenses,
       'categories': await database.query('categories'),
       'payment_methods': await database.query('payment_methods'),
       'app_settings': await database.query('app_settings'),
       'recurring_expenses': await database.query('recurring_expenses'),
       'quick_entry_templates': await database.query('quick_entry_templates'),
+      'ocr_images': encodedImages,
+      'expense_images': imageLinks,
     };
     final encodedPayload = base64UrlEncode(utf8.encode(jsonEncode(payload)));
     final encryptedPayload = await _recoveryKeyService.wrap(
@@ -92,9 +112,12 @@ class ManualBackupService implements ManualBackupOperations {
         decodedPayload['quick_entry_templates'],
       ),
     );
+    final images = _validatedImagePayload(decodedPayload, normalized.expenses);
 
     await database.transaction((transaction) async {
       for (final table in const [
+        'expense_images',
+        'ocr_images',
         'expenses',
         'categories',
         'payment_methods',
@@ -122,7 +145,91 @@ class ManualBackupService implements ManualBackupOperations {
         'quick_entry_templates',
         normalized.quickEntryTemplates,
       );
+      await _insertAll(transaction, 'ocr_images', images.images);
+      await _insertAll(transaction, 'expense_images', images.links);
     });
+  }
+
+  static ({List<Map<String, Object?>> images, List<Map<String, Object?>> links})
+  _validatedImagePayload(
+    Map<String, dynamic> payload,
+    List<Map<String, Object?>> expenses,
+  ) {
+    try {
+      return _validateImages(
+        _optionalRows(payload['ocr_images']),
+        _optionalRows(payload['expense_images']),
+        expenses,
+      );
+    } on DamagedBackupImageException {
+      rethrow;
+    } on FormatException {
+      throw const DamagedBackupImageException();
+    }
+  }
+
+  static ({List<Map<String, Object?>> images, List<Map<String, Object?>> links})
+  _validateImages(
+    List<Map<String, Object?>> images,
+    List<Map<String, Object?>> links,
+    List<Map<String, Object?>> expenses,
+  ) {
+    final imageIds = <String>{};
+    var total = 0;
+    final decoded = <Map<String, Object?>>[];
+    for (final row in images) {
+      try {
+        final id = row['id'];
+        final encoded = row['jpeg_bytes'];
+        final size = row['size_bytes'];
+        final digest = row['sha256'];
+        if (id is! String ||
+            id.isEmpty ||
+            !imageIds.add(id) ||
+            encoded is! String ||
+            size is! int ||
+            digest is! String) {
+          throw const DamagedBackupImageException();
+        }
+        final bytes = Uint8List.fromList(base64Url.decode(encoded));
+        if (bytes.length != size ||
+            size < 4 ||
+            size > maxExpenseImageBytes ||
+            bytes[0] != 0xff ||
+            bytes[1] != 0xd8 ||
+            bytes[size - 2] != 0xff ||
+            bytes.last != 0xd9 ||
+            expenseImageDigest(bytes) != digest ||
+            image.decodeJpg(bytes) == null) {
+          throw const DamagedBackupImageException();
+        }
+        total += size;
+        if (total > maxTotalImageBytes) {
+          throw const DamagedBackupImageException();
+        }
+        decoded.add({...row, 'jpeg_bytes': bytes});
+      } catch (_) {
+        throw const DamagedBackupImageException();
+      }
+    }
+    final expenseIds = expenses.map((row) => row['id']).toSet();
+    final linkedExpenses = <String>{};
+    for (final row in links) {
+      final expenseId = row['expense_id'];
+      final imageId = row['image_id'];
+      if (expenseId is! String ||
+          imageId is! String ||
+          !expenseIds.contains(expenseId) ||
+          !imageIds.contains(imageId) ||
+          !linkedExpenses.add(expenseId)) {
+        throw const DamagedBackupImageException();
+      }
+    }
+    if (imageIds.isNotEmpty &&
+        imageIds.any((id) => !links.any((row) => row['image_id'] == id))) {
+      throw const DamagedBackupImageException();
+    }
+    return (images: decoded, links: links);
   }
 
   static List<Map<String, Object?>> _rows(Object? value) {

@@ -1,10 +1,23 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:pointycastle/export.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
+import 'package:uuid/uuid.dart';
 
 import 'expense_model.dart';
 
 abstract interface class ExpenseRepository {
   Future<List<Expense>> getAll();
   Future<void> save(Expense expense);
+  Future<void> saveAll(
+    List<Expense> expenses, {
+    List<ExpenseImageAttachment> attachments = const [],
+  });
+  Future<Uint8List?> imageForExpense(String expenseId);
+  Future<Set<String>> expenseIdsWithImages();
+  Future<void> removeImageForExpense(String expenseId);
+  Future<int> imageStorageBytes();
   Future<void> delete(String id);
   Future<int> countByCategory(String category);
   Future<void> renameCategory(String oldName, String newName);
@@ -12,8 +25,27 @@ abstract interface class ExpenseRepository {
   Future<void> renamePaymentMethod(String oldName, String newName);
 }
 
+class ImageStorageLimitException implements Exception {
+  const ImageStorageLimitException();
+}
+
+class ExpenseImageAttachment {
+  const ExpenseImageAttachment({required this.bytes, required this.expenseIds});
+
+  final Uint8List bytes;
+  final Set<String> expenseIds;
+}
+
+const maxExpenseImageBytes = 1024 * 1024;
+const maxTotalImageBytes = 100 * 1024 * 1024;
+
+String expenseImageDigest(Uint8List bytes) =>
+    base64UrlEncode(SHA256Digest().process(bytes));
+
 class InMemoryExpenseRepository implements ExpenseRepository {
   final List<Expense> _expenses = [];
+  final Map<String, Uint8List> _images = {};
+  final Map<String, String> _expenseImageIds = {};
 
   @override
   Future<List<Expense>> getAll() async => List.unmodifiable(_expenses);
@@ -25,8 +57,59 @@ class InMemoryExpenseRepository implements ExpenseRepository {
   }
 
   @override
+  Future<void> saveAll(
+    List<Expense> expenses, {
+    List<ExpenseImageAttachment> attachments = const [],
+  }) async {
+    _validateImageBatch(expenses, attachments);
+    final newIds = expenses.map((expense) => expense.id).toSet();
+    if (newIds.length != expenses.length ||
+        _expenses.any((existing) => newIds.contains(existing.id))) {
+      throw StateError('An expense in this batch already exists.');
+    }
+    final addedBytes = attachments.fold(
+      0,
+      (sum, image) => sum + image.bytes.length,
+    );
+    if ((await imageStorageBytes()) + addedBytes > maxTotalImageBytes) {
+      throw const ImageStorageLimitException();
+    }
+    for (final expense in expenses) {
+      await save(expense);
+    }
+    for (final attachment in attachments) {
+      final imageId = const Uuid().v4();
+      _images[imageId] = attachment.bytes;
+      for (final expenseId in attachment.expenseIds) {
+        _expenseImageIds[expenseId] = imageId;
+      }
+    }
+  }
+
+  @override
+  Future<Uint8List?> imageForExpense(String expenseId) async =>
+      _images[_expenseImageIds[expenseId]];
+
+  @override
+  Future<Set<String>> expenseIdsWithImages() async =>
+      _expenseImageIds.keys.toSet();
+
+  @override
+  Future<int> imageStorageBytes() async =>
+      _images.values.fold<int>(0, (total, image) => total + image.length);
+
+  @override
+  Future<void> removeImageForExpense(String expenseId) async {
+    final imageId = _expenseImageIds.remove(expenseId);
+    if (imageId != null && !_expenseImageIds.containsValue(imageId)) {
+      _images.remove(imageId);
+    }
+  }
+
+  @override
   Future<void> delete(String id) async {
     _expenses.removeWhere((expense) => expense.id == id);
+    await removeImageForExpense(id);
   }
 
   @override
@@ -110,8 +193,135 @@ class SqlCipherExpenseRepository implements ExpenseRepository {
   }
 
   @override
+  Future<void> saveAll(
+    List<Expense> expenses, {
+    List<ExpenseImageAttachment> attachments = const [],
+  }) async {
+    _validateImageBatch(expenses, attachments);
+    await _database.transaction((transaction) async {
+      if (attachments.isNotEmpty) {
+        final current =
+            Sqflite.firstIntValue(
+              await transaction.rawQuery(
+                'SELECT COALESCE(SUM(size_bytes), 0) FROM ocr_images',
+              ),
+            ) ??
+            0;
+        final addedBytes = attachments.fold(
+          0,
+          (sum, image) => sum + image.bytes.length,
+        );
+        if (current + addedBytes > maxTotalImageBytes) {
+          throw const ImageStorageLimitException();
+        }
+      }
+      for (final expense in expenses) {
+        final references = await resolveReferenceIds(
+          transaction,
+          category: expense.category,
+          paymentMethod: expense.paymentMethod,
+        );
+        await transaction.insert(
+          'expenses',
+          _toRow(expense, references),
+          conflictAlgorithm: ConflictAlgorithm.abort,
+        );
+      }
+      for (final attachment in attachments) {
+        final imageId = const Uuid().v4();
+        await transaction.insert('ocr_images', {
+          'id': imageId,
+          'jpeg_bytes': attachment.bytes,
+          'size_bytes': attachment.bytes.length,
+          'sha256': expenseImageDigest(attachment.bytes),
+        });
+        for (final expenseId in attachment.expenseIds) {
+          await transaction.insert('expense_images', {
+            'expense_id': expenseId,
+            'image_id': imageId,
+          });
+        }
+      }
+    });
+  }
+
+  @override
+  Future<Uint8List?> imageForExpense(String expenseId) async {
+    final rows = await _database.rawQuery(
+      '''
+      SELECT ocr_images.jpeg_bytes, ocr_images.sha256 FROM ocr_images
+      JOIN expense_images ON expense_images.image_id = ocr_images.id
+      WHERE expense_images.expense_id = ? LIMIT 1
+    ''',
+      [expenseId],
+    );
+    if (rows.isEmpty) return null;
+    final bytes = rows.single['jpeg_bytes'] as Uint8List;
+    if (expenseImageDigest(bytes) != rows.single['sha256']) {
+      throw const FormatException('The saved image is damaged.');
+    }
+    return bytes;
+  }
+
+  @override
+  Future<Set<String>> expenseIdsWithImages() async {
+    final rows = await _database.query(
+      'expense_images',
+      columns: ['expense_id'],
+    );
+    return rows.map((row) => row['expense_id']! as String).toSet();
+  }
+
+  @override
+  Future<int> imageStorageBytes() async =>
+      Sqflite.firstIntValue(
+        await _database.rawQuery(
+          'SELECT COALESCE(SUM(size_bytes), 0) FROM ocr_images',
+        ),
+      ) ??
+      0;
+
+  @override
+  Future<void> removeImageForExpense(String expenseId) async {
+    await _database.transaction((transaction) async {
+      await _removeImageLinks(transaction, expenseId);
+    });
+  }
+
+  Future<void> _removeImageLinks(
+    Transaction transaction,
+    String expenseId,
+  ) async {
+    final links = await transaction.query(
+      'expense_images',
+      columns: ['image_id'],
+      where: 'expense_id = ?',
+      whereArgs: [expenseId],
+    );
+    await transaction.delete(
+      'expense_images',
+      where: 'expense_id = ?',
+      whereArgs: [expenseId],
+    );
+    for (final link in links) {
+      await transaction.rawDelete(
+        '''
+        DELETE FROM ocr_images
+        WHERE id = ? AND NOT EXISTS (
+          SELECT 1 FROM expense_images WHERE image_id = ?
+        )
+      ''',
+        [link['image_id'], link['image_id']],
+      );
+    }
+  }
+
+  @override
   Future<void> delete(String id) async {
-    await _database.delete('expenses', where: 'id = ?', whereArgs: [id]);
+    await _database.transaction((transaction) async {
+      await _removeImageLinks(transaction, id);
+      await transaction.delete('expenses', where: 'id = ?', whereArgs: [id]);
+    });
   }
 
   @override
@@ -250,4 +460,31 @@ Future<ReferenceIds> resolveReferenceIds(
     categoryId: categoryRows.single['id']! as String,
     paymentMethodId: paymentMethodId,
   );
+}
+
+void _validateImageBatch(
+  List<Expense> expenses,
+  List<ExpenseImageAttachment> attachments,
+) {
+  final ids = expenses.map((expense) => expense.id).toSet();
+  final linked = <String>{};
+  for (final attachment in attachments) {
+    final bytes = attachment.bytes;
+    if (attachment.expenseIds.isEmpty ||
+        bytes.length < 4 ||
+        bytes.length > maxExpenseImageBytes ||
+        bytes[0] != 0xff ||
+        bytes[1] != 0xd8 ||
+        bytes[bytes.length - 2] != 0xff ||
+        bytes.last != 0xd9) {
+      throw const FormatException('The retained image is invalid.');
+    }
+    if (!ids.containsAll(attachment.expenseIds) ||
+        linked.intersection(attachment.expenseIds).isNotEmpty) {
+      throw ArgumentError(
+        'Image links must reference distinct batch expenses.',
+      );
+    }
+    linked.addAll(attachment.expenseIds);
+  }
 }

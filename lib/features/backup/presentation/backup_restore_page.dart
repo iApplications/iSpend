@@ -12,6 +12,7 @@ import '../../settings/currency_preference.dart';
 import '../../settings/time_format_preference.dart';
 import '../../security/app_lock.dart';
 import '../backup_providers.dart';
+import '../data/manual_backup_service.dart';
 
 class BackupRestorePage extends ConsumerStatefulWidget {
   const BackupRestorePage({super.key});
@@ -54,6 +55,8 @@ class _BackupRestorePageState extends ConsumerState<BackupRestorePage> {
       }
     } on RecoveryPassphraseException {
       err('That recovery passphrase is incorrect. Backup not created.');
+    } on DamagedBackupImageException {
+      err('A saved image is damaged. Backup was not created.');
     } catch (_) {
       err('The backup could not be created. Try again.');
     } finally {
@@ -108,6 +111,8 @@ class _BackupRestorePageState extends ConsumerState<BackupRestorePage> {
       // Expenses page watching a notifier that was disposed before it loaded.
       // Reload their persisted state instead.
       await ref.read(expensesProvider.notifier).refresh();
+      ref.invalidate(expenseImageIdsProvider);
+      ref.invalidate(imageStorageBytesProvider);
       await ref.read(categoriesProvider.notifier).refresh();
       await ref.read(paymentMethodsProvider.notifier).refresh();
       ref.invalidate(categoryIconKeysProvider);
@@ -121,6 +126,10 @@ class _BackupRestorePageState extends ConsumerState<BackupRestorePage> {
     } on RecoveryPassphraseException {
       err(
         'That passphrase did not open this backup. Your current data was not changed.',
+      );
+    } on DamagedBackupImageException {
+      err(
+        'A saved image in this backup is damaged. Your current data was not changed.',
       );
     } on FormatException {
       err('This is not a supported iSpend backup.');

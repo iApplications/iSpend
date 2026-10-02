@@ -8,6 +8,7 @@ import '../../backup/presentation/backup_restore_page.dart';
 import '../../budgets/presentation/budget_limits_page.dart';
 import '../../categories/presentation/category_management_page.dart';
 import '../../expenses/presentation/recurring_expenses_page.dart';
+import '../../expenses/expense_providers.dart';
 import '../../payment_methods/presentation/payment_method_management_page.dart';
 import '../../quick_entry/android_quick_settings_tile.dart';
 import '../../quick_entry/presentation/quick_entry_templates_page.dart';
@@ -30,6 +31,7 @@ class SettingsPage extends ConsumerWidget {
     final quickLoggingWithoutUnlock = ref.watch(
       quickLoggingWithoutUnlockProvider,
     );
+    final imageBytes = ref.watch(imageStorageBytesProvider);
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
       children: [
@@ -126,6 +128,18 @@ class SettingsPage extends ConsumerWidget {
               title: 'Backup & Restore',
               subtitle: 'Export or restore your encrypted data',
               page: const BackupRestorePage(),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Saved image storage'),
+              subtitle: Text(
+                imageBytes.when(
+                  data: (bytes) =>
+                      '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB of 100 MB used',
+                  error: (_, _) => 'Unavailable',
+                  loading: () => 'Checking storage…',
+                ),
+              ),
             ),
             SwitchListTile(
               secondary: const Icon(Icons.lock_outline),

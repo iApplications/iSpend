@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as image;
 import 'package:integration_test/integration_test.dart';
 import 'package:ispend/core/database/database.dart';
 import 'package:ispend/core/database/recovery_key.dart';
@@ -618,6 +619,112 @@ void main() {
     await db.close();
     await deleteDatabase(path);
   });
+
+  testWidgets('version 12 creates encrypted image and link tables', (
+    tester,
+  ) async {
+    const password = 'integration-test-key-not-for-production';
+    final path = '${await getDatabasesPath()}/ispend_schema_v12_image_test.db';
+    await deleteDatabase(path);
+    final legacy = await openDatabase(
+      path,
+      password: password,
+      version: 12,
+      onCreate: (db, _) async {
+        await db.execute('CREATE TABLE expenses (id TEXT PRIMARY KEY)');
+      },
+    );
+    await legacy.close();
+
+    final migrated = await ISpendDatabase.open(
+      databasePath: path,
+      databaseKey: password,
+    );
+    final tables = (await migrated.database.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type = 'table'",
+    )).map((row) => row['name']);
+    expect(tables, containsAll(['ocr_images', 'expense_images']));
+    await migrated.database.close();
+    await deleteDatabase(path);
+  });
+
+  testWidgets(
+    'shared images survive encrypted backup and damaged images abort restore',
+    (tester) async {
+      final path = '${await getDatabasesPath()}/ispend_image_backup_test.db';
+      await deleteDatabase(path);
+      final opened = await ISpendDatabase.open(
+        databasePath: path,
+        databaseKey: 'image-backup-test-key',
+      );
+      final db = opened.database;
+      final repository = SqlCipherExpenseRepository(db);
+      final jpeg = Uint8List.fromList(
+        image.encodeJpg(image.Image(width: 2, height: 2)),
+      );
+      final first = Expense(
+        id: 'image-expense-1',
+        amountCents: 100,
+        category: 'Food',
+        occurredAt: DateTime(2026, 9, 24),
+        createdAt: DateTime(2026, 9, 24),
+      );
+      final second = Expense(
+        id: 'image-expense-2',
+        amountCents: 200,
+        category: 'Food',
+        occurredAt: DateTime(2026, 9, 24),
+        createdAt: DateTime(2026, 9, 24),
+      );
+      await repository.saveAll(
+        [first, second],
+        attachments: [
+          ExpenseImageAttachment(
+            bytes: jpeg,
+            expenseIds: {first.id, second.id},
+          ),
+        ],
+      );
+      expect(await repository.imageStorageBytes(), jpeg.length);
+      final fake = _FakeRecoveryKeyService();
+      final service = ManualBackupService(recoveryKeyService: fake);
+      final document = await service.export(
+        database: db,
+        passphrase: 'correct',
+      );
+
+      await repository.delete(first.id);
+      expect(await repository.imageForExpense(second.id), jpeg);
+      await service.restore(
+        database: db,
+        document: document,
+        passphrase: 'correct',
+      );
+      expect(await repository.expenseIdsWithImages(), {first.id, second.id});
+      expect(await repository.imageStorageBytes(), jpeg.length);
+
+      final payload =
+          jsonDecode(utf8.decode(base64Url.decode(fake.payload!)))
+              as Map<String, dynamic>;
+      final images = payload['ocr_images'] as List<dynamic>;
+      final imageRow = images.single as Map<String, dynamic>;
+      final damaged = base64Url.decode(imageRow['jpeg_bytes'] as String);
+      damaged[damaged.length ~/ 2] ^= 1;
+      imageRow['jpeg_bytes'] = base64UrlEncode(damaged);
+      fake.payload = base64UrlEncode(utf8.encode(jsonEncode(payload)));
+      await expectLater(
+        service.restore(
+          database: db,
+          document: document,
+          passphrase: 'correct',
+        ),
+        throwsA(isA<DamagedBackupImageException>()),
+      );
+      expect(await repository.expenseIdsWithImages(), {first.id, second.id});
+      await db.close();
+      await deleteDatabase(path);
+    },
+  );
 }
 
 Future<Database> _openLegacyDatabase({

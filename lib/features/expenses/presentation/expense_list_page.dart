@@ -10,6 +10,9 @@ import '../../../core/widgets/app_toast.dart';
 import '../../categories/category_providers.dart';
 import '../../payment_methods/payment_method_providers.dart';
 import '../../quick_entry/presentation/quick_entry_sheet.dart';
+import '../../ocr_import/presentation/shopping_order_import_page.dart';
+import '../../ocr_import/presentation/receipt_import_page.dart';
+import '../../statement_import/presentation/statement_csv_import_page.dart';
 import '../../settings/time_format_preference.dart';
 import '../../settings/currency_preference.dart';
 import '../data/expense_model.dart';
@@ -19,6 +22,8 @@ import 'expense_entry_sheet.dart';
 import 'recurring_expenses_page.dart';
 
 enum _TaxUpdateScope { onlyThis, thisAndFuture }
+
+enum _CaptureAction { receipt, shoppingOrders, bankCsv }
 
 String _monthName(int month) => const [
   'January',
@@ -49,6 +54,8 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
   @override
   Widget build(BuildContext context) {
     final expenses = ref.watch(expensesProvider);
+    final imageIds =
+        ref.watch(expenseImageIdsProvider).value ?? const <String>{};
     final categories = ref.watch(categoriesProvider);
     final categoryIconKeys =
         ref.watch(categoryIconKeysProvider).value ?? const <String, String>{};
@@ -114,9 +121,38 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Expenses',
-                  style: Theme.of(context).textTheme.headlineMedium,
+                Expanded(
+                  child: Text(
+                    'Expenses',
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                ),
+                PopupMenuButton<_CaptureAction>(
+                  tooltip: 'Scan or import expenses',
+                  icon: const Icon(Icons.document_scanner_outlined),
+                  onSelected: (action) => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => action == _CaptureAction.receipt
+                          ? const ReceiptImportPage()
+                          : action == _CaptureAction.shoppingOrders
+                          ? const ShoppingOrderImportPage()
+                          : const StatementCsvImportPage(),
+                    ),
+                  ),
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(
+                      value: _CaptureAction.receipt,
+                      child: Text('Scan a receipt'),
+                    ),
+                    PopupMenuItem(
+                      value: _CaptureAction.shoppingOrders,
+                      child: Text('Import shopping orders'),
+                    ),
+                    PopupMenuItem(
+                      value: _CaptureAction.bankCsv,
+                      child: Text('Import bank CSV'),
+                    ),
+                  ],
                 ),
                 Text(
                   '${currency.code} (${currency.symbol})',
@@ -175,6 +211,12 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
                                       _deleteExpense(ref, expense),
                                   child: _ExpenseRow(
                                     expense: expense,
+                                    hasImage: imageIds.contains(expense.id),
+                                    onViewImage: () => _showExpenseImage(
+                                      context,
+                                      ref,
+                                      expense.id,
+                                    ),
                                     currency: currency,
                                     categoryIconKey:
                                         categoryIconKeys[expense.category],
@@ -310,6 +352,90 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
     }
     ref.invalidate(dueRecurringExpensesProvider);
     ref.invalidate(recurringExpensesProvider);
+  }
+
+  Future<void> _showExpenseImage(
+    BuildContext context,
+    WidgetRef ref,
+    String expenseId,
+  ) async {
+    try {
+      final bytes = await ref
+          .read(expenseRepositoryProvider)
+          .imageForExpense(expenseId);
+      if (!context.mounted || bytes == null) return;
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Saved image'),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 400),
+            child: SingleChildScrollView(child: Image.memory(bytes)),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Close'),
+            ),
+            TextButton(
+              onPressed: () async {
+                final remove = await showDialog<bool>(
+                  context: dialogContext,
+                  builder: (confirmContext) => AlertDialog(
+                    title: const Text('Delete saved image?'),
+                    content: const Text('The expense will stay in your list.'),
+                    actions: [
+                      TextButton(
+                        onPressed: () =>
+                            Navigator.of(confirmContext).pop(false),
+                        child: const Text('Cancel'),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.of(confirmContext).pop(true),
+                        child: const Text('Delete image'),
+                      ),
+                    ],
+                  ),
+                );
+                if (remove != true || !dialogContext.mounted) return;
+                await ref
+                    .read(expensesProvider.notifier)
+                    .removeImage(expenseId);
+                if (!dialogContext.mounted) return;
+                Navigator.of(dialogContext).pop();
+                if (context.mounted) AppToast.show(context, 'Image deleted');
+              },
+              child: const Text('Delete image'),
+            ),
+          ],
+        ),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      final remove = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Saved image unavailable'),
+          content: const Text(
+            'This image could not be opened. Remove it? The expense will stay in your list.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Keep'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Remove image'),
+            ),
+          ],
+        ),
+      );
+      if (remove == true && context.mounted) {
+        await ref.read(expensesProvider.notifier).removeImage(expenseId);
+        if (context.mounted) AppToast.show(context, 'Image removed');
+      }
+    }
   }
 
   Future<void> _confirmRecurring(
@@ -522,6 +648,8 @@ class _EmptyExpenses extends StatelessWidget {
 class _ExpenseRow extends StatelessWidget {
   const _ExpenseRow({
     required this.expense,
+    required this.hasImage,
+    required this.onViewImage,
     required this.currency,
     this.categoryIconKey,
     required this.use24HourFormat,
@@ -529,6 +657,8 @@ class _ExpenseRow extends StatelessWidget {
   });
 
   final Expense expense;
+  final bool hasImage;
+  final VoidCallback onViewImage;
   final AppCurrency currency;
   final String? categoryIconKey;
   final bool use24HourFormat;
@@ -556,10 +686,23 @@ class _ExpenseRow extends StatelessWidget {
             child: Icon(categoryStyle.icon, color: categoryStyle.color),
           ),
         ),
-        title: Text(
-          expense.merchantOrNote ?? expense.category,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                expense.merchantOrNote ?? expense.category,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (hasImage)
+              IconButton(
+                tooltip: 'View saved image',
+                visualDensity: VisualDensity.compact,
+                onPressed: onViewImage,
+                icon: const Icon(Icons.image_outlined, size: 20),
+              ),
+          ],
         ),
         subtitle: detailParts.isEmpty
             ? null

@@ -34,6 +34,12 @@ android {
     }
 }
 
+dependencies {
+    // Bundle Chinese OCR model data so recognition works from first launch,
+    // including when the device is offline.
+    implementation("com.google.mlkit:text-recognition-chinese:16.0.1")
+}
+
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
