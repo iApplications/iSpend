@@ -419,9 +419,15 @@ Phase 3 work in progress:
   manual amount entry. The single-receipt review offers the same opt-in. No
   exchange-rate conversion occurs.
 * Generic UTF-8 bank CSV import from the Expenses scan/import menu. The user
-  maps date, description, and amount columns, explicitly selects the date
+  can export a blank `Date,Description,Amount` CSV template from that screen
+  without including any example transactions or existing expense data. They
+  map date, description, and amount columns, explicitly select the date
   convention and whether debits, negative values, or positive values mean
-  spending, then reviews/edit/selects rows before a transactional batch save.
+  spending, then review/edit/select rows before a transactional batch save.
+  Users may opt to remember these column, date-format, and spending-direction
+  choices for a CSV with the same column headers. A restored mapping remains
+  editable and still requires transaction review; it can also be forgotten.
+  Saved mappings contain no statement transactions or file paths.
   Unknown unsigned amounts, credits, refunds, transfers, repayments, invalid
   dates, and ambiguous rows start unchecked. Possible existing duplicates
   require an extra confirmation. CSV data is parsed on-device; no bank link or

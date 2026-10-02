@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/database/app_settings_repository.dart';
 import '../../../core/utils/amount_formatter.dart';
 import '../../../core/utils/amount_parser.dart';
 import '../../../core/widgets/app_surface.dart';
@@ -16,9 +17,19 @@ import '../../payment_methods/payment_method_providers.dart';
 import '../../quick_entry/data/smart_quick_entry_parser.dart';
 import '../../settings/currency_preference.dart';
 import '../data/statement_csv_parser.dart';
+import '../data/statement_csv_template.dart';
+import '../data/statement_mapping_repository.dart';
 
 class StatementCsvImportPage extends ConsumerStatefulWidget {
-  const StatementCsvImportPage({super.key});
+  const StatementCsvImportPage({
+    super.key,
+    this.initialCsvText,
+    this.initialFileName = 'statement.csv',
+  });
+
+  /// Allows an already-read CSV to enter the same review path as file picking.
+  final String? initialCsvText;
+  final String initialFileName;
 
   @override
   ConsumerState<StatementCsvImportPage> createState() =>
@@ -38,7 +49,25 @@ class _StatementCsvImportPageState
   int? _debitColumn;
   int? _creditColumn;
   bool _saving = false;
+  bool _exportingTemplate = false;
+  bool _rememberMapping = false;
+  bool _hasSavedMapping = false;
+  int _mappingRevision = 0;
   String? _fileName;
+
+  StatementMappingRepository get _mappingRepository =>
+      StatementMappingRepository(ref.read(appSettingsRepositoryProvider));
+
+  @override
+  void initState() {
+    super.initState();
+    final csv = widget.initialCsvText;
+    if (csv != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (mounted) await _loadCsv(csv, widget.initialFileName);
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -59,34 +88,10 @@ class _StatementCsvImportPageState
         throw const FormatException('CSV is larger than 10 MB.');
       }
       final data = await files.first.xFile.readAsBytes();
-      final table = _parser.read(utf8.decode(data, allowMalformed: false));
-      if (!mounted) return;
-      final headers = table.first.map((cell) => cell.toLowerCase()).toList();
-      int? find(List<String> words) {
-        final index = headers.indexWhere(
-          (header) => words.any(header.contains),
-        );
-        return index < 0 ? null : index;
-      }
-
-      _clearRows();
-      setState(() {
-        _table = table;
-        _fileName = files.first.name;
-        _dateColumn = find(['date', 'tarikh']);
-        _descriptionColumn = find([
-          'description',
-          'merchant',
-          'details',
-          'narrative',
-        ]);
-        _debitColumn = find(['debit', 'withdrawal']);
-        _creditColumn = find(['credit', 'deposit']);
-        _amountColumn = find(['amount', 'jumlah']);
-        _mode = _debitColumn != null && _creditColumn != null
-            ? StatementAmountMode.debitCredit
-            : StatementAmountMode.unsigned;
-      });
+      await _loadCsv(
+        utf8.decode(data, allowMalformed: false),
+        files.first.name,
+      );
     } catch (_) {
       if (mounted) {
         AppToast.showError(
@@ -95,6 +100,68 @@ class _StatementCsvImportPageState
         );
       }
     }
+  }
+
+  Future<void> _exportTemplate() async {
+    if (_exportingTemplate) return;
+    setState(() => _exportingTemplate = true);
+    try {
+      final saved = await ref
+          .read(statementTemplateFileAccessProvider)
+          .save(
+            fileName: StatementCsvTemplate.fileName,
+            bytes: StatementCsvTemplate.bytes,
+          );
+      if (saved && mounted) {
+        AppToast.show(context, 'CSV template saved');
+      }
+    } catch (_) {
+      if (mounted) {
+        AppToast.showError(context, 'Could not save the CSV template.');
+      }
+    } finally {
+      if (mounted) setState(() => _exportingTemplate = false);
+    }
+  }
+
+  Future<void> _loadCsv(String csv, String fileName) async {
+    final table = _parser.read(csv);
+    if (!mounted) return;
+    StatementColumnMapping? savedMapping;
+    try {
+      savedMapping = await _mappingRepository.read(table.first);
+    } catch (_) {
+      // A settings read failure should not prevent manual CSV import.
+    }
+    if (!mounted) return;
+    final headers = table.first.map((cell) => cell.toLowerCase()).toList();
+    int? find(List<String> words) {
+      final index = headers.indexWhere((header) => words.any(header.contains));
+      return index < 0 ? null : index;
+    }
+
+    _clearRows();
+    setState(() {
+      _table = table;
+      _fileName = fileName;
+      _mappingRevision++;
+      _hasSavedMapping = savedMapping != null;
+      _rememberMapping = savedMapping != null;
+      _dateColumn = savedMapping?.date ?? find(['date', 'tarikh']);
+      _descriptionColumn =
+          savedMapping?.description ??
+          find(['description', 'merchant', 'details', 'narrative']);
+      _debitColumn = savedMapping?.debit ?? find(['debit', 'withdrawal']);
+      _creditColumn = savedMapping?.credit ?? find(['credit', 'deposit']);
+      _amountColumn = savedMapping?.amount ?? find(['amount', 'jumlah']);
+      _mode =
+          savedMapping?.amountMode ??
+          (_debitColumn != null && _creditColumn != null
+              ? StatementAmountMode.debitCredit
+              : StatementAmountMode.unsigned);
+      _dateFormat =
+          savedMapping?.dateFormat ?? StatementDateFormat.dayMonthYear;
+    });
   }
 
   void _clearRows() {
@@ -107,7 +174,7 @@ class _StatementCsvImportPageState
     });
   }
 
-  void _review() {
+  Future<void> _review() async {
     if (_dateColumn == null ||
         _descriptionColumn == null ||
         (_mode == StatementAmountMode.debitCredit
@@ -120,18 +187,16 @@ class _StatementCsvImportPageState
       return;
     }
     try {
-      final parsed = _parser.parse(
-        _table,
-        StatementColumnMapping(
-          date: _dateColumn!,
-          description: _descriptionColumn!,
-          amount: _amountColumn,
-          debit: _debitColumn,
-          credit: _creditColumn,
-          amountMode: _mode,
-          dateFormat: _dateFormat,
-        ),
+      final mapping = StatementColumnMapping(
+        date: _dateColumn!,
+        description: _descriptionColumn!,
+        amount: _amountColumn,
+        debit: _debitColumn,
+        credit: _creditColumn,
+        amountMode: _mode,
+        dateFormat: _dateFormat,
       );
+      final parsed = _parser.parse(_table, mapping);
       final categories = ref.read(categoriesProvider);
       final methods = ref.read(paymentMethodsProvider);
       final history = ref.read(expensesProvider);
@@ -158,9 +223,33 @@ class _StatementCsvImportPageState
       setState(() => _rows.addAll(next));
       if (next.isEmpty) {
         AppToast.showError(context, 'No transaction rows were found.');
+      } else if (_rememberMapping) {
+        try {
+          await _mappingRepository.save(_table.first, mapping);
+          if (mounted) setState(() => _hasSavedMapping = true);
+        } catch (_) {
+          if (mounted) {
+            AppToast.showError(context, 'Could not remember this CSV mapping.');
+          }
+        }
       }
     } on FormatException catch (error) {
-      AppToast.showError(context, error.message);
+      if (mounted) AppToast.showError(context, error.message);
+    }
+  }
+
+  Future<void> _forgetMapping() async {
+    try {
+      await _mappingRepository.remove(_table.first);
+      if (mounted) {
+        setState(() {
+          _hasSavedMapping = false;
+          _rememberMapping = false;
+        });
+        AppToast.show(context, 'Saved CSV mapping removed');
+      }
+    } catch (_) {
+      if (mounted) AppToast.showError(context, 'Could not remove the mapping.');
     }
   }
 
@@ -278,6 +367,17 @@ class _StatementCsvImportPageState
               icon: const Icon(Icons.upload_file_outlined),
               label: Text(_fileName ?? 'Choose CSV file'),
             ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _exportingTemplate ? null : _exportTemplate,
+              icon: const Icon(Icons.download_outlined),
+              label: const Text('Export CSV template'),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Blank Date, Description, Amount CSV. Use DD/MM/YYYY dates and negative amounts for spending; select “Negative amount = spending” when importing it.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
             if (_table.isNotEmpty && _rows.isEmpty) ...[
               const SizedBox(height: 12),
               Expanded(
@@ -293,6 +393,12 @@ class _StatementCsvImportPageState
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: 8),
+                    if (_hasSavedMapping)
+                      Text(
+                        'Saved mapping restored for these column headers. Check the date format and spending direction before reviewing.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    const SizedBox(height: 8),
                     _columnPicker(
                       'Date',
                       _dateColumn,
@@ -304,6 +410,7 @@ class _StatementCsvImportPageState
                       (v) => setState(() => _descriptionColumn = v),
                     ),
                     DropdownButtonFormField<StatementDateFormat>(
+                      key: ValueKey('date_format_$_mappingRevision'),
                       isExpanded: true,
                       initialValue: _dateFormat,
                       decoration: const InputDecoration(
@@ -328,6 +435,7 @@ class _StatementCsvImportPageState
                       },
                     ),
                     DropdownButtonFormField<StatementAmountMode>(
+                      key: ValueKey('amount_mode_$_mappingRevision'),
                       isExpanded: true,
                       initialValue: _mode,
                       decoration: const InputDecoration(
@@ -373,6 +481,26 @@ class _StatementCsvImportPageState
                         (v) => setState(() => _amountColumn = v),
                       ),
                     const SizedBox(height: 12),
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      value: _rememberMapping,
+                      title: const Text('Remember this column mapping'),
+                      subtitle: const Text(
+                        'Stored on this device for CSV files with matching column headers. Transactions are not stored.',
+                      ),
+                      onChanged: (value) =>
+                          setState(() => _rememberMapping = value ?? false),
+                    ),
+                    if (_hasSavedMapping)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                          onPressed: _forgetMapping,
+                          child: const Text('Forget saved mapping'),
+                        ),
+                      ),
+                    const SizedBox(height: 8),
                     Text(
                       '${_table.length - 1} data rows · ${_table.first.join(' · ')}',
                       style: Theme.of(context).textTheme.bodySmall,
@@ -421,6 +549,7 @@ class _StatementCsvImportPageState
     int? value,
     ValueChanged<int?> onChanged,
   ) => DropdownButtonFormField<int>(
+    key: ValueKey('$_mappingRevision:$label'),
     isExpanded: true,
     initialValue: value,
     decoration: InputDecoration(labelText: label),
