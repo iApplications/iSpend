@@ -377,8 +377,8 @@ There is no iSpend backend server and no bank-account integration.
 **Phase 1.5:** Complete
 **Phase 2:** On hold pending Mac access
 **Phase 2b:** Complete
-**Phase 3:** Complete — OCR capture and reviewed CSV import
-**Phase 3b:** In progress — PDF statement import (Touch 'n Go, Public Bank, HSBC); bank-specific CSV mapping remains
+**Phase 3:** Complete — OCR capture (its bank CSV import was removed in Phase 3b)
+**Phase 3b:** Complete — PDF statement import (Touch 'n Go, Public Bank, HSBC)
 
 Phase 2b delivered:
 
@@ -419,21 +419,8 @@ Phase 3 delivered:
   can record ¥34.29 as USD 34.29 when USD is locked; unticking it returns to
   manual amount entry. The single-receipt review offers the same opt-in. No
   exchange-rate conversion occurs.
-* Generic UTF-8 bank CSV import from the Expenses scan/import menu. The user
-  can export a blank `Date,Description,Amount` CSV template from that screen
-  without including any example transactions or existing expense data. They
-  map date, description, and amount columns, explicitly select the date
-  convention and whether debits, negative values, or positive values mean
-  spending, then review/edit/select rows before a transactional batch save.
-  Users may opt to remember these column, date-format, and spending-direction
-  choices for a CSV with the same column headers. A restored mapping remains
-  editable and still requires transaction review; it can also be forgotten.
-  Saved mappings contain no statement transactions or file paths.
-  Unknown unsigned amounts, credits, refunds, transfers, repayments, invalid
-  dates, and ambiguous rows start unchecked. Possible existing duplicates
-  require an extra confirmation. CSV data is parsed on-device; no bank link or
-  automatic import is created. Bank-specific mapping and PDF statements remain
-  later Phase 3b work.
+* Bank CSV import shipped here first. It was removed in Phase 3b, because
+  banks no longer offer CSV exports; PDF statements replace it (see below).
 * Optional retained image per expense, off by default. The image is compressed
   to a 1 MB JPEG and shared when one shopping screenshot is linked to several
   expenses. Total retained image storage is capped at 100 MB.
@@ -446,7 +433,7 @@ Phase 3 delivered:
   the database key or its image protection.
 * iOS deployment target raised to 15.5 for the selected OCR dependencies
 
-Phase 3b work in progress:
+Phase 3b delivered:
 
 * PDF statement import from the Expenses scan/import menu
   (**Import PDF statement**). The PDF is read on the device; nothing is
@@ -458,9 +445,9 @@ Phase 3b work in progress:
     Parsed spending is cross-checked against the total printed on the
     statement, and a warning is shown when they differ, so check every amount
     against the PDF.
-  * Rows go through the same editable review and duplicate warning as CSV
-    import before anything is saved. A row whose amount or date cannot be
-    read starts unticked and flagged.
+  * Rows go through an editable review with a duplicate warning before
+    anything is saved; each row's date and time can be changed. A row whose
+    amount or date cannot be read starts unticked and flagged.
 * Hardening from a full code review: app lock re-engages after an
   authenticated quick-entry session sits in the background; first-launch
   restore only reports a wrong passphrase when the passphrase is wrong; the

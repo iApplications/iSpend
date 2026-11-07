@@ -13,7 +13,6 @@ import '../../quick_entry/presentation/quick_entry_sheet.dart';
 import '../../ocr_import/presentation/shopping_order_import_page.dart';
 import '../../ocr_import/presentation/receipt_import_page.dart';
 import '../../statement_import/presentation/pdf_statement_import.dart';
-import '../../statement_import/presentation/statement_csv_import_page.dart';
 import '../../settings/time_format_preference.dart';
 import '../../settings/currency_preference.dart';
 import '../data/expense_model.dart';
@@ -24,7 +23,7 @@ import 'recurring_expenses_page.dart';
 
 enum _TaxUpdateScope { onlyThis, thisAndFuture }
 
-enum _CaptureAction { receipt, shoppingOrders, bankCsv, bankPdf }
+enum _CaptureAction { receipt, shoppingOrders, bankPdf }
 
 String _monthName(int month) => const [
   'January',
@@ -137,9 +136,7 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
                           MaterialPageRoute<void>(
                             builder: (_) => action == _CaptureAction.receipt
                                 ? const ReceiptImportPage()
-                                : action == _CaptureAction.shoppingOrders
-                                ? const ShoppingOrderImportPage()
-                                : const StatementCsvImportPage(),
+                                : const ShoppingOrderImportPage(),
                           ),
                         ),
                   itemBuilder: (_) => const [
@@ -150,10 +147,6 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
                     PopupMenuItem(
                       value: _CaptureAction.shoppingOrders,
                       child: Text('Import shopping orders'),
-                    ),
-                    PopupMenuItem(
-                      value: _CaptureAction.bankCsv,
-                      child: Text('Import bank CSV'),
                     ),
                     PopupMenuItem(
                       value: _CaptureAction.bankPdf,

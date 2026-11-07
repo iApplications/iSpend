@@ -7,9 +7,9 @@ import '../../../core/widgets/app_toast.dart';
 import '../data/pdf_page_ocr.dart';
 import '../data/pdf_text_extractor.dart';
 import '../data/card_statement_ocr_parser.dart';
-import '../data/statement_csv_parser.dart';
+import '../data/statement_row.dart';
 import '../data/tng_statement_parser.dart';
-import 'statement_csv_import_page.dart';
+import 'statement_review_page.dart';
 
 const _unsupported =
     "This PDF is not a supported statement yet. Touch 'n Go, Public Bank and HSBC card statements are supported.";
@@ -93,10 +93,9 @@ Future<void> _runImport(BuildContext context) async {
     }
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => StatementCsvImportPage(
+        builder: (_) => StatementReviewPage(
           parsedRows: rows,
           sourceLabel: label,
-          initialFileName: file.name,
           notice: notice,
         ),
       ),

@@ -1,5 +1,5 @@
 import '../../ocr_import/data/shopping_order_candidate.dart';
-import 'statement_csv_parser.dart';
+import 'statement_row.dart';
 
 class StatementParseResult {
   const StatementParseResult(this.rows, {this.notice});
