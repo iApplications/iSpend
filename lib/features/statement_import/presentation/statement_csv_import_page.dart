@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../../security/app_lock.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -95,9 +96,11 @@ class _StatementCsvImportPageState
   }
 
   Future<void> _chooseFile() async {
-    final files = await FilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['csv'],
+    final files = await AppLockPause.during(
+      () => FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['csv'],
+      ),
     );
     if (files.isEmpty || !mounted) return;
     try {

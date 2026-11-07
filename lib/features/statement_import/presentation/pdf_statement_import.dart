@@ -1,4 +1,5 @@
 import 'package:file_picker/file_picker.dart';
+import '../../security/app_lock.dart';
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 
@@ -31,9 +32,9 @@ Future<void> startPdfStatementImport(BuildContext context) async {
 }
 
 Future<void> _runImport(BuildContext context) async {
-  final files = await FilePicker.pickFiles(
-    type: FileType.custom,
-    allowedExtensions: ['pdf'],
+  final files = await AppLockPause.during(
+    () =>
+        FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['pdf']),
   );
   if (files.isEmpty || !context.mounted) return;
   final file = files.first;
