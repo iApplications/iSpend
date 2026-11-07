@@ -147,6 +147,18 @@ void main() {
       expect(notifier.prefillRate('USD'), 4.1);
     });
 
+    test('pre-fills the user rate over a suggested one', () async {
+      final container = _container(_FakeFetcher());
+      container.read(exchangeRatesProvider);
+      await _settle();
+      final notifier = container.read(exchangeRatesProvider.notifier);
+      await notifier.setSuggestionsEnabled(true);
+      expect(notifier.prefillRate('USD'), 4.0);
+      await notifier.rememberRate('USD', 4.05);
+      expect(notifier.prefillRate('USD'), 4.05);
+      expect(notifier.suggestedRate('USD'), 4.0);
+    });
+
     test('remembers the rate the user confirmed across restarts', () async {
       final settings = InMemoryAppSettingsRepository();
       final first = _container(_FakeFetcher(), s: settings);
@@ -288,5 +300,69 @@ void main() {
     expect(expense.category, 'Dining');
     expect(expense.originalCurrency, 'USD');
     expect(expense.exchangeRate, 4.05);
+  });
+
+  testWidgets('offers the last confirmed rate the next time', (tester) async {
+    final container = _container(_FakeFetcher());
+    ExpenseEntryResult? saved;
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () async {
+                  saved = await showExpenseEntrySheet(
+                    context,
+                    use24HourFormat: true,
+                    categories: const ['Food'],
+                    paymentMethods: const [],
+                    currency: _myr,
+                  );
+                },
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    Future<void> chooseUsd() async {
+      await tester.tap(
+        find.widgetWithText(DropdownButtonFormField<String>, 'Currency'),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('USD (\$)').last);
+      await tester.pumpAndSettle();
+    }
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, '12');
+    await chooseUsd();
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Exchange rate'),
+      '4.05',
+    );
+    await tester.pump();
+    await tester.ensureVisible(find.textContaining('Save USD'));
+    await tester.tap(find.textContaining('Save USD'));
+    await tester.pumpAndSettle();
+    expect(saved, isNotNull);
+
+    // Suggestions arrive later; they must sit beside the user's own rate.
+    await container
+        .read(exchangeRatesProvider.notifier)
+        .setSuggestionsEnabled(true);
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, '5');
+    await chooseUsd();
+    expect(find.widgetWithText(TextField, '4.05'), findsOneWidget);
+    expect(find.text('Last used 4.05'), findsOneWidget);
+    expect(find.text('Suggested 4'), findsOneWidget);
   });
 }

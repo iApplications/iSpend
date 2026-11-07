@@ -129,14 +129,14 @@ class ExchangeRatesNotifier extends Notifier<ExchangeRatesState> {
     }
   }
 
-  /// Rate to pre-fill: the recommended one when there is one, otherwise the
-  /// user's last confirmed rate.
+  /// Rate to pre-fill: the one the user last confirmed for this currency,
+  /// otherwise the recommended one. A suggestion never replaces a rate the
+  /// user chose themselves; it is offered beside it instead.
   double? prefillRate(String currency) {
-    final suggested = suggestedRate(currency);
-    if (suggested != null) return suggested;
     final last = state.lastUsed[currency];
-    return last != null && last >= minExchangeRate && last <= maxExchangeRate
-        ? last
-        : null;
+    if (last != null && last >= minExchangeRate && last <= maxExchangeRate) {
+      return last;
+    }
+    return suggestedRate(currency);
   }
 }

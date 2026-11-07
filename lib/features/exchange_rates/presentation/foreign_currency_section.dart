@@ -144,6 +144,7 @@ class _ForeignCurrencySectionState
         ? null
         : convertToBaseCents(widget.amountCents!, rate);
     final suggested = code == null ? null : notifier.suggestedRate(code);
+    final lastUsed = code == null ? null : rates.lastUsed[code];
     final cache = rates.cache;
     DateTime? published;
     if (cache != null) published = DateTime.tryParse(cache.date);
@@ -196,30 +197,35 @@ class _ForeignCurrencySectionState
                       '${base.code}${foreign == null ? '' : ' (${foreign.code} ${formatCents(widget.amountCents!)})'}',
             style: theme.textTheme.bodyMedium,
           ),
-          if (suggested != null) ...[
+          if (lastUsed != null || suggested != null) ...[
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
+              runSpacing: 4,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                ActionChip(
-                  avatar: const Icon(Icons.auto_awesome_outlined, size: 16),
-                  label: Text('Suggested ${formatExchangeRate(suggested)}'),
-                  onPressed: () => _useRate(suggested),
-                ),
-                if (published != null)
-                  Text(
-                    'ECB rate, ${published.day} ${_monthNames[published.month - 1]}',
-                    style: theme.textTheme.bodySmall,
+                if (lastUsed != null)
+                  ActionChip(
+                    avatar: const Icon(Icons.history, size: 16),
+                    label: Text('Last used ${formatExchangeRate(lastUsed)}'),
+                    onPressed: () => _useRate(lastUsed),
+                  ),
+                if (suggested != null)
+                  ActionChip(
+                    avatar: const Icon(Icons.auto_awesome_outlined, size: 16),
+                    label: Text('Suggested ${formatExchangeRate(suggested)}'),
+                    onPressed: () => _useRate(suggested),
                   ),
               ],
             ),
-          ] else if (rates.lastUsed[code] case final last?) ...[
-            const SizedBox(height: 8),
-            ActionChip(
-              label: Text('Last used ${formatExchangeRate(last)}'),
-              onPressed: () => _useRate(last),
-            ),
+            if (suggested != null && published != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  'Suggested: ECB rate, ${published.day} ${_monthNames[published.month - 1]}',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ),
           ],
           if (rates.refreshing)
             Padding(
