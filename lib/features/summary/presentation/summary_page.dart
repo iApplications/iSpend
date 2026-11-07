@@ -11,6 +11,7 @@ import '../../expenses/data/expense_model.dart';
 import '../../expenses/expense_providers.dart';
 import '../../payment_methods/payment_method_providers.dart';
 import '../../settings/currency_preference.dart';
+import '../../reports/presentation/monthly_report_page.dart';
 import 'tax_deductible_expenses_page.dart';
 
 class SummaryPage extends ConsumerStatefulWidget {
@@ -117,6 +118,8 @@ class _SummaryPageState extends ConsumerState<SummaryPage> {
           ),
         ),
         const SizedBox(height: AppSpacing.xl),
+        const _MonthlyReportLink(),
+        const SizedBox(height: AppSpacing.xl),
         _Breakdown(
           title: 'Category breakdown',
           totals: _group(filteredExpenses, (expense) => expense.category),
@@ -157,6 +160,54 @@ class _SummaryPageState extends ConsumerState<SummaryPage> {
       lastDate: DateTime(2100),
     );
     if (selected != null) setState(() => _pickedDate = selected);
+  }
+}
+
+class _MonthlyReportLink extends StatelessWidget {
+  const _MonthlyReportLink();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        const Divider(),
+        InkWell(
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const MonthlyReportPage()),
+          ),
+          borderRadius: AppRadii.rowBorder,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.bar_chart_outlined,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Monthly report',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Categories and change from last month',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 
