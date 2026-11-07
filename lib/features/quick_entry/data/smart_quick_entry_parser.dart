@@ -24,6 +24,28 @@ class SmartQuickEntryResult {
 class SmartQuickEntryParser {
   const SmartQuickEntryParser();
 
+  // Digits joined by a hyphen ("7-11") are part of a name, not an amount.
+  static final _amountPattern = RegExp(
+    r'(?<![\w.])(?<!\d-)(?:rm\s*)?(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)(?![\w.])(?!-\d)',
+    caseSensitive: false,
+  );
+
+  /// "Grab 2 pax 15" and "7-11 snack 5" contain more than one number. Prefer
+  /// an explicit RM amount, then a decimal one, then the last number typed.
+  RegExpMatch? _pickAmount(String text) {
+    final matches = _amountPattern.allMatches(text).toList();
+    if (matches.isEmpty) return null;
+    for (final match in matches) {
+      if (RegExp(r'^rm', caseSensitive: false).hasMatch(match.group(0)!)) {
+        return match;
+      }
+    }
+    for (final match in matches) {
+      if (match.group(1)!.contains('.')) return match;
+    }
+    return matches.last;
+  }
+
   SmartQuickEntryResult parse({
     required String input,
     required List<String> categories,
@@ -35,12 +57,11 @@ class SmartQuickEntryParser {
         : categories.first;
     var remainder = input.trim();
     int? amountCents;
-    final amountMatch = RegExp(
-      r'(?<![\w.])(?:rm\s*)?(\d+(?:\.\d+)?)(?![\w.])',
-      caseSensitive: false,
-    ).firstMatch(remainder);
+    final amountMatch = _pickAmount(remainder);
     if (amountMatch != null) {
-      amountCents = parseAmountToCents(amountMatch.group(1)!);
+      amountCents = parseAmountToCents(
+        amountMatch.group(1)!.replaceAll(',', ''),
+      );
       remainder = _removeMatch(remainder, amountMatch);
     }
 

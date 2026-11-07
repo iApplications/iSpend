@@ -68,4 +68,15 @@ void main() {
       expect(result.paymentMethod, isNull);
     },
   );
+
+  test('takes the amount, not a name or quantity, from several numbers', () {
+    expect(parse('7-11 snack 5').amountCents, 500);
+    expect(parse('Grab 2 pax 15').amountCents, 1500);
+    expect(parse('lunch rm 12 for 2').amountCents, 1200);
+  });
+
+  test('reads thousands separators', () {
+    expect(parse('laptop 1,200').amountCents, 120000);
+    expect(parse('rent 1,234.50').amountCents, 123450);
+  });
 }
