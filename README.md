@@ -377,7 +377,8 @@ There is no iSpend backend server and no bank-account integration.
 **Phase 1.5:** Complete
 **Phase 2:** On hold pending Mac access
 **Phase 2b:** Complete
-**Phase 3:** In progress — OCR capture and reviewed CSV import
+**Phase 3:** Complete — OCR capture and reviewed CSV import
+**Phase 3b:** In progress — bank-specific CSV mapping and PDF statement import
 
 Phase 2b delivered:
 
@@ -389,7 +390,7 @@ Phase 2b delivered:
 * Backup/restore compatibility
 * Restore-flow hardening
 
-Phase 3 work in progress:
+Phase 3 delivered:
 
 * On-device Latin and Chinese OCR for user-selected shopping-order screenshots
   (PNG/JPEG files can be selected from Android Files, including Downloads)
@@ -456,6 +457,7 @@ Development uses phase integration branches rather than committing directly to `
    * Phase 1.5: `dev/phase1.5_main`
    * Phase 2b: `dev/phase2b_main`
    * Phase 3: `dev/phase3_main`
+   * Phase 3b: `dev/phase3b_main`
 3. Create individual feature branches from the applicable phase integration branch.
 4. Push the feature branch to GitHub before making implementation changes.
 5. Run the relevant tests and build checks.
