@@ -23,6 +23,8 @@ abstract interface class ExpenseRepository {
   Future<void> renameCategory(String oldName, String newName);
   Future<int> countByPaymentMethod(String paymentMethod);
   Future<void> renamePaymentMethod(String oldName, String newName);
+  Future<void> renameTag(String oldName, String newName);
+  Future<void> deleteTag(String name);
 }
 
 class ImageStorageLimitException implements Exception {
@@ -121,18 +123,7 @@ class InMemoryExpenseRepository implements ExpenseRepository {
     for (var index = 0; index < _expenses.length; index++) {
       final expense = _expenses[index];
       if (expense.category == oldName) {
-        _expenses[index] = Expense(
-          id: expense.id,
-          amountCents: expense.amountCents,
-          category: newName,
-          occurredAt: expense.occurredAt,
-          createdAt: expense.createdAt,
-          merchantOrNote: expense.merchantOrNote,
-          paymentMethod: expense.paymentMethod,
-          recurringRuleId: expense.recurringRuleId,
-          recurringOccurrence: expense.recurringOccurrence,
-          isTaxDeductible: expense.isTaxDeductible,
-        );
+        _expenses[index] = expense.copyWith(category: newName);
       }
     }
   }
@@ -147,17 +138,39 @@ class InMemoryExpenseRepository implements ExpenseRepository {
     for (var i = 0; i < _expenses.length; i++) {
       final expense = _expenses[i];
       if (expense.paymentMethod == oldName) {
-        _expenses[i] = Expense(
-          id: expense.id,
-          amountCents: expense.amountCents,
-          category: expense.category,
-          occurredAt: expense.occurredAt,
-          createdAt: expense.createdAt,
-          merchantOrNote: expense.merchantOrNote,
-          paymentMethod: newName,
-          recurringRuleId: expense.recurringRuleId,
-          recurringOccurrence: expense.recurringOccurrence,
-          isTaxDeductible: expense.isTaxDeductible,
+        _expenses[i] = expense.copyWith(paymentMethod: newName);
+      }
+    }
+  }
+
+  @override
+  Future<void> renameTag(String oldName, String newName) async {
+    final oldKey = oldName.toLowerCase();
+    for (var i = 0; i < _expenses.length; i++) {
+      final expense = _expenses[i];
+      if (!expense.tags.any((tag) => tag.toLowerCase() == oldKey)) continue;
+      final renamed = <String>[];
+      for (final tag in expense.tags) {
+        final next = tag.toLowerCase() == oldKey ? newName : tag;
+        if (!renamed.any((t) => t.toLowerCase() == next.toLowerCase())) {
+          renamed.add(next);
+        }
+      }
+      _expenses[i] = expense.copyWith(tags: renamed);
+    }
+  }
+
+  @override
+  Future<void> deleteTag(String name) async {
+    final key = name.toLowerCase();
+    for (var i = 0; i < _expenses.length; i++) {
+      final expense = _expenses[i];
+      if (expense.tags.any((tag) => tag.toLowerCase() == key)) {
+        _expenses[i] = expense.copyWith(
+          tags: [
+            for (final tag in expense.tags)
+              if (tag.toLowerCase() != key) tag,
+          ],
         );
       }
     }
@@ -175,7 +188,16 @@ class SqlCipherExpenseRepository implements ExpenseRepository {
       'expenses',
       orderBy: 'occurred_at_millis DESC, created_at_millis DESC',
     );
-    return rows.map(_fromRow).toList();
+    final tagRows = await _database.query('expense_tags', orderBy: 'rowid');
+    final tagsByExpense = <String, List<String>>{};
+    for (final row in tagRows) {
+      (tagsByExpense[row['expense_id']! as String] ??= []).add(
+        row['tag']! as String,
+      );
+    }
+    return rows
+        .map((row) => _fromRow(row, tagsByExpense[row['id']] ?? const []))
+        .toList();
   }
 
   @override
@@ -185,11 +207,28 @@ class SqlCipherExpenseRepository implements ExpenseRepository {
       category: expense.category,
       paymentMethod: expense.paymentMethod,
     );
-    await _database.insert(
-      'expenses',
-      _toRow(expense, references),
-      conflictAlgorithm: ConflictAlgorithm.replace,
+    await _database.transaction((transaction) async {
+      await transaction.insert(
+        'expenses',
+        _toRow(expense, references),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      await _writeTags(transaction, expense);
+    });
+  }
+
+  Future<void> _writeTags(DatabaseExecutor executor, Expense expense) async {
+    await executor.delete(
+      'expense_tags',
+      where: 'expense_id = ?',
+      whereArgs: [expense.id],
     );
+    for (final tag in expense.tags) {
+      await executor.insert('expense_tags', {
+        'expense_id': expense.id,
+        'tag': tag,
+      }, conflictAlgorithm: ConflictAlgorithm.ignore);
+    }
   }
 
   @override
@@ -226,6 +265,7 @@ class SqlCipherExpenseRepository implements ExpenseRepository {
           _toRow(expense, references),
           conflictAlgorithm: ConflictAlgorithm.abort,
         );
+        await _writeTags(transaction, expense);
       }
       for (final attachment in attachments) {
         final imageId = const Uuid().v4();
@@ -320,6 +360,11 @@ class SqlCipherExpenseRepository implements ExpenseRepository {
   Future<void> delete(String id) async {
     await _database.transaction((transaction) async {
       await _removeImageLinks(transaction, id);
+      await transaction.delete(
+        'expense_tags',
+        where: 'expense_id = ?',
+        whereArgs: [id],
+      );
       await transaction.delete('expenses', where: 'id = ?', whereArgs: [id]);
     });
   }
@@ -399,7 +444,7 @@ class SqlCipherExpenseRepository implements ExpenseRepository {
     };
   }
 
-  Expense _fromRow(Map<String, Object?> row) {
+  Expense _fromRow(Map<String, Object?> row, List<String> tags) {
     return Expense(
       id: row['id']! as String,
       amountCents: row['amount_cents']! as int,
@@ -419,8 +464,40 @@ class SqlCipherExpenseRepository implements ExpenseRepository {
               row['recurring_occurrence_millis']! as int,
             ),
       isTaxDeductible: (row['is_tax_deductible'] as int? ?? 0) == 1,
+      tags: tags,
     );
   }
+
+  @override
+  Future<void> renameTag(String oldName, String newName) async {
+    await _database.transaction((transaction) async {
+      if (oldName.toLowerCase() == newName.toLowerCase()) {
+        // Only the capitalisation changes.
+        await transaction.update(
+          'expense_tags',
+          {'tag': newName},
+          where: 'tag = ?',
+          whereArgs: [oldName],
+        );
+        return;
+      }
+      // An expense that already has the new tag keeps one copy of it.
+      await transaction.rawInsert(
+        'INSERT OR IGNORE INTO expense_tags (expense_id, tag) '
+        'SELECT expense_id, ? FROM expense_tags WHERE tag = ?',
+        [newName, oldName],
+      );
+      await transaction.delete(
+        'expense_tags',
+        where: 'tag = ?',
+        whereArgs: [oldName],
+      );
+    });
+  }
+
+  @override
+  Future<void> deleteTag(String name) =>
+      _database.delete('expense_tags', where: 'tag = ?', whereArgs: [name]);
 }
 
 class ReferenceIds {

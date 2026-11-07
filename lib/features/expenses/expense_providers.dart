@@ -89,6 +89,16 @@ class ExpensesNotifier extends Notifier<List<Expense>> {
     ref.invalidate(expenseImageIdsProvider);
   }
 
+  Future<void> renameTag(String oldName, String newName) async {
+    await _repository.renameTag(oldName, newName);
+    await _load();
+  }
+
+  Future<void> deleteTag(String name) async {
+    await _repository.deleteTag(name);
+    await _load();
+  }
+
   Future<void> removeImage(String expenseId) async {
     await _repository.removeImageForExpense(expenseId);
     ref.invalidate(expenseImageProvider(expenseId));

@@ -14,6 +14,7 @@ import '../../payment_methods/presentation/payment_method_management_page.dart';
 import '../../quick_entry/android_quick_settings_tile.dart';
 import '../../quick_entry/presentation/quick_entry_templates_page.dart';
 import '../../security/app_lock.dart';
+import '../../tags/presentation/tags_page.dart';
 import '../appearance_preference.dart';
 import '../currency_preference.dart';
 import '../time_format_preference.dart';
@@ -74,6 +75,13 @@ class SettingsPage extends ConsumerWidget {
               title: 'Categories',
               subtitle: 'Manage your expense categories',
               page: const CategoryManagementPage(),
+            ),
+            _navigationTile(
+              context,
+              icon: Icons.sell_outlined,
+              title: 'Tags',
+              subtitle: 'See, rename or remove your tags',
+              page: const TagsPage(),
             ),
             _navigationTile(
               context,

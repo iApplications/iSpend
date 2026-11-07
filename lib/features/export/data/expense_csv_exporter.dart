@@ -17,6 +17,7 @@ class ExpenseCsvExporter {
     'Category',
     'Merchant or note',
     'Payment method',
+    'Tags',
     'Tax deductible',
   ];
 
@@ -48,6 +49,7 @@ class ExpenseCsvExporter {
       _cell(expense.category),
       _cell(expense.merchantOrNote ?? ''),
       _cell(expense.paymentMethod ?? ''),
+      _cell(expense.tags.join('; ')),
       expense.isTaxDeductible ? 'Yes' : 'No',
     ];
   }

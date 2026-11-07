@@ -30,7 +30,7 @@ class ISpendDatabase {
     final database = await openDatabase(
       resolvedDatabasePath,
       password: resolvedDatabaseKey,
-      version: 13,
+      version: 14,
       onCreate: (db, _) async {
         await db.execute('''
           CREATE TABLE expenses (
@@ -55,6 +55,7 @@ class ISpendDatabase {
         await _createRecurringExpenseIndexes(db);
         await _createQuickEntryTemplatesTable(db);
         await _createExpenseImagesTables(db);
+        await _createExpenseTagsTable(db);
       },
       onUpgrade: (db, oldVersion, _) async {
         if (oldVersion < 2) {
@@ -151,6 +152,7 @@ class ISpendDatabase {
         if (oldVersion < 11) await _migrateStableReferenceIds(db);
         if (oldVersion < 12) await _createQuickEntryTemplatesTable(db);
         if (oldVersion < 13) await _createExpenseImagesTables(db);
+        if (oldVersion < 14) await _createExpenseTagsTable(db);
       },
     );
     return ISpendDatabase._(database);
@@ -184,6 +186,19 @@ class ISpendDatabase {
     await db.execute(
       'CREATE INDEX expense_images_by_image ON expense_images(image_id)',
     );
+  }
+
+  static Future<void> _createExpenseTagsTable(Database db) async {
+    // One row per tag on an expense. The tag text is the identity, compared
+    // without regard to case, so renaming a tag updates its rows.
+    await db.execute('''
+      CREATE TABLE expense_tags (
+        expense_id TEXT NOT NULL,
+        tag TEXT NOT NULL COLLATE NOCASE,
+        PRIMARY KEY (expense_id, tag)
+      )
+    ''');
+    await db.execute('CREATE INDEX expense_tags_by_tag ON expense_tags(tag)');
   }
 
   static Future<bool> _hasColumn(

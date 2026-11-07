@@ -5,6 +5,8 @@ import 'package:uuid/uuid.dart';
 import '../../../core/utils/amount_formatter.dart';
 import '../../../core/utils/amount_parser.dart';
 import '../../../core/widgets/icon_registry.dart';
+import '../../tags/data/tag_rules.dart';
+import '../../tags/presentation/tag_editor.dart';
 import '../data/expense_model.dart';
 import '../data/recurring_expense.dart';
 
@@ -21,6 +23,7 @@ Future<ExpenseEntryResult?> showExpenseEntrySheet(
   VoidCallback? onViewRecurringSchedule,
   String? title,
   String? saveButtonLabel,
+  List<Expense> tagHistory = const [],
 }) {
   return showModalBottomSheet<ExpenseEntryResult>(
     context: context,
@@ -37,6 +40,7 @@ Future<ExpenseEntryResult?> showExpenseEntrySheet(
       onViewRecurringSchedule: onViewRecurringSchedule,
       title: title,
       saveButtonLabel: saveButtonLabel,
+      tagHistory: tagHistory,
     ),
   );
 }
@@ -54,6 +58,7 @@ class ExpenseEntrySheet extends StatefulWidget {
     this.onViewRecurringSchedule,
     this.title,
     this.saveButtonLabel,
+    this.tagHistory = const [],
     super.key,
   });
 
@@ -69,6 +74,10 @@ class ExpenseEntrySheet extends StatefulWidget {
   final String? title;
   final String? saveButtonLabel;
 
+  /// Existing expenses, used to suggest tags. Tags are not offered for
+  /// recurring expenses, whose series do not carry them yet.
+  final List<Expense> tagHistory;
+
   @override
   State<ExpenseEntrySheet> createState() => _ExpenseEntrySheetState();
 }
@@ -83,6 +92,14 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
   String? _amountError;
   bool _repeatsMonthly = false;
   bool _isTaxDeductible = false;
+  List<String> _tags = [];
+  final _tagController = TextEditingController();
+
+  bool get _tagsAllowed =>
+      !_repeatsMonthly &&
+      widget.recurringSchedule == null &&
+      widget.expense?.recurringRuleId == null &&
+      widget.showRecurringOption;
 
   String get _saveLabel {
     final cents = parseAmountToCents(_amountController.text);
@@ -105,12 +122,14 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
     _date = expense.occurredAt;
     _time = TimeOfDay.fromDateTime(expense.occurredAt);
     _isTaxDeductible = expense.isTaxDeductible;
+    _tags = [...expense.tags];
   }
 
   @override
   void dispose() {
     _amountController.dispose();
     _merchantController.dispose();
+    _tagController.dispose();
     super.dispose();
   }
 
@@ -170,6 +189,12 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
           recurringRuleId: widget.expense?.recurringRuleId,
           recurringOccurrence: widget.expense?.recurringOccurrence,
           isTaxDeductible: _isTaxDeductible,
+          tags: _tagsAllowed
+              ? normalizeTags([
+                  ..._tags,
+                  ..._tagController.text.split(','),
+                ], known: tagUsage(widget.tagHistory).map((e) => e.key))
+              : const [],
         ),
         repeatsMonthly: _repeatsMonthly,
       ),
@@ -285,7 +310,18 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
                   labelText: 'Merchant or note',
                   hintText: 'Add an optional note',
                 ),
+                onChanged: (_) => setState(() {}),
               ),
+              if (_tagsAllowed) ...[
+                const SizedBox(height: 16),
+                TagEditor(
+                  tags: _tags,
+                  controller: _tagController,
+                  history: widget.tagHistory,
+                  merchant: _merchantController.text,
+                  onChanged: (tags) => setState(() => _tags = tags),
+                ),
+              ],
               const SizedBox(height: 12),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,

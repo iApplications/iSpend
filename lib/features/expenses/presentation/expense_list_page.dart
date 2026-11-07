@@ -273,6 +273,7 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
       paymentMethods: ref.read(paymentMethodsProvider),
       currency: ref.read(appCurrencyProvider),
       expense: expense,
+      tagHistory: ref.read(expensesProvider),
       showRecurringOption: recurringSchedule == null,
       recurringSchedule: recurringSchedule,
       onViewRecurringSchedule: recurringSchedule == null
@@ -688,6 +689,7 @@ class _ExpenseRow extends StatelessWidget {
     final detailParts = <String>[
       if (expense.merchantOrNote != null) expense.category,
       if (expense.paymentMethod != null) expense.paymentMethod!,
+      for (final tag in expense.tags) '#$tag',
     ];
     return Card(
       child: ListTile(
@@ -724,7 +726,7 @@ class _ExpenseRow extends StatelessWidget {
             ? null
             : Text(
                 detailParts.join(' · '),
-                maxLines: 1,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
         trailing: Row(

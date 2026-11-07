@@ -10,6 +10,7 @@ class Expense {
     this.recurringRuleId,
     this.recurringOccurrence,
     this.isTaxDeductible = false,
+    this.tags = const [],
   });
 
   final String id;
@@ -23,6 +24,9 @@ class Expense {
   final DateTime? recurringOccurrence;
   final bool isTaxDeductible;
 
+  /// Freeform labels the user added, in addition to the category.
+  final List<String> tags;
+
   Expense copyWith({
     int? amountCents,
     String? category,
@@ -32,6 +36,7 @@ class Expense {
     String? recurringRuleId,
     DateTime? recurringOccurrence,
     bool? isTaxDeductible,
+    List<String>? tags,
   }) => Expense(
     id: id,
     amountCents: amountCents ?? this.amountCents,
@@ -43,5 +48,6 @@ class Expense {
     recurringRuleId: recurringRuleId ?? this.recurringRuleId,
     recurringOccurrence: recurringOccurrence ?? this.recurringOccurrence,
     isTaxDeductible: isTaxDeductible ?? this.isTaxDeductible,
+    tags: tags ?? this.tags,
   );
 }
