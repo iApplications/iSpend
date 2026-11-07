@@ -431,7 +431,8 @@ void main() {
     await tester.tap(find.text('Settings').last);
     await tester.pumpAndSettle();
     final recurringTile = find.widgetWithText(ListTile, 'Recurring expenses');
-    await tester.drag(find.byType(ListView), const Offset(0, -260));
+    // Settings keeps growing, so scroll to the tile instead of a fixed offset.
+    await tester.ensureVisible(recurringTile);
     await tester.pumpAndSettle();
     await tester.tap(recurringTile);
     await tester.pumpAndSettle();
