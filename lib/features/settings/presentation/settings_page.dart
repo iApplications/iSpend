@@ -8,6 +8,7 @@ import '../../backup/presentation/backup_restore_page.dart';
 import '../../budgets/presentation/budget_limits_page.dart';
 import '../../categories/presentation/category_management_page.dart';
 import '../../expenses/presentation/recurring_expenses_page.dart';
+import '../../export/presentation/export_data_page.dart';
 import '../../expenses/expense_providers.dart';
 import '../../payment_methods/presentation/payment_method_management_page.dart';
 import '../../quick_entry/android_quick_settings_tile.dart';
@@ -128,6 +129,13 @@ class SettingsPage extends ConsumerWidget {
               title: 'Backup & Restore',
               subtitle: 'Export or restore your encrypted data',
               page: const BackupRestorePage(),
+            ),
+            _navigationTile(
+              context,
+              icon: Icons.table_chart_outlined,
+              title: 'Export data',
+              subtitle: 'Save expenses or tax-deductible items as CSV',
+              page: const ExportDataPage(),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library_outlined),

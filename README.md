@@ -379,6 +379,7 @@ There is no iSpend backend server and no bank-account integration.
 **Phase 2b:** Complete
 **Phase 3:** Complete — OCR capture (its bank CSV import was removed in Phase 3b)
 **Phase 3b:** Complete — PDF statement import (Touch 'n Go, Public Bank, HSBC)
+**Phase 4a:** In progress — data export done; basic reports, tags and multi-currency remain
 
 Phase 2b delivered:
 
@@ -455,6 +456,15 @@ Phase 3b delivered:
   hides the screen from screenshots and the Recents thumbnail; recurring
   series are no longer stopped by deleting one occurrence; and several amount
   and total parsing fixes for quick entry, receipts, and shopping orders.
+
+Phase 4a work in progress:
+
+* **Export data** under Settings > Privacy & data saves all expenses, or only
+  the expenses marked tax-deductible (optionally for one year), as a CSV file.
+  The file is unencrypted, so a warning is shown before saving. Text cells
+  that start with `=`, `+`, `-` or `@` are prefixed so a spreadsheet shows
+  them as text. The tax export is a record of the user's own entries, not tax
+  advice or a tax calculation.
 
 ## Branching and pull-request workflow
 
