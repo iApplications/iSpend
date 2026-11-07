@@ -37,6 +37,7 @@ class StatementRow {
     required this.amountCents,
     required this.reason,
     required this.selected,
+    this.hasTime = false,
   });
 
   final int line;
@@ -44,6 +45,10 @@ class StatementRow {
   final DateTime? date;
   final int? amountCents;
   final String? reason;
+
+  /// Whether [date] carries a time read from the statement. Otherwise the
+  /// time is a placeholder (noon).
+  final bool hasTime;
   final bool selected;
 }
 
@@ -51,10 +56,13 @@ class StatementCsvParser {
   const StatementCsvParser();
 
   List<List<String>> read(String text) {
-    final normalized = text.replaceFirst('\uFEFF', '');
-    final eol = normalized.contains('\r\n') ? '\r\n' : '\n';
+    // Windows (CRLF), Unix (LF) and old Mac (CR) line endings all become LF.
+    final normalized = text
+        .replaceFirst('\uFEFF', '')
+        .replaceAll('\r\n', '\n')
+        .replaceAll('\r', '\n');
     final rows = CsvToListConverter(
-      eol: eol,
+      eol: '\n',
       shouldParseNumbers: false,
       allowInvalid: false,
       convertEmptyTo: '',

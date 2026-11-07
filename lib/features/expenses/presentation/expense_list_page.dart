@@ -12,6 +12,7 @@ import '../../payment_methods/payment_method_providers.dart';
 import '../../quick_entry/presentation/quick_entry_sheet.dart';
 import '../../ocr_import/presentation/shopping_order_import_page.dart';
 import '../../ocr_import/presentation/receipt_import_page.dart';
+import '../../statement_import/presentation/pdf_statement_import.dart';
 import '../../statement_import/presentation/statement_csv_import_page.dart';
 import '../../settings/time_format_preference.dart';
 import '../../settings/currency_preference.dart';
@@ -23,7 +24,7 @@ import 'recurring_expenses_page.dart';
 
 enum _TaxUpdateScope { onlyThis, thisAndFuture }
 
-enum _CaptureAction { receipt, shoppingOrders, bankCsv }
+enum _CaptureAction { receipt, shoppingOrders, bankCsv, bankPdf }
 
 String _monthName(int month) => const [
   'January',
@@ -130,15 +131,17 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
                 PopupMenuButton<_CaptureAction>(
                   tooltip: 'Scan or import expenses',
                   icon: const Icon(Icons.document_scanner_outlined),
-                  onSelected: (action) => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => action == _CaptureAction.receipt
-                          ? const ReceiptImportPage()
-                          : action == _CaptureAction.shoppingOrders
-                          ? const ShoppingOrderImportPage()
-                          : const StatementCsvImportPage(),
-                    ),
-                  ),
+                  onSelected: (action) => action == _CaptureAction.bankPdf
+                      ? startPdfStatementImport(context)
+                      : Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => action == _CaptureAction.receipt
+                                ? const ReceiptImportPage()
+                                : action == _CaptureAction.shoppingOrders
+                                ? const ShoppingOrderImportPage()
+                                : const StatementCsvImportPage(),
+                          ),
+                        ),
                   itemBuilder: (_) => const [
                     PopupMenuItem(
                       value: _CaptureAction.receipt,
@@ -151,6 +154,10 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
                     PopupMenuItem(
                       value: _CaptureAction.bankCsv,
                       child: Text('Import bank CSV'),
+                    ),
+                    PopupMenuItem(
+                      value: _CaptureAction.bankPdf,
+                      child: Text('Import PDF statement'),
                     ),
                   ],
                 ),
@@ -346,8 +353,12 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
   Future<void> _deleteExpense(WidgetRef ref, Expense expense) async {
     await ref.read(expensesProvider.notifier).delete(expense.id);
     final recurringRepository = ref.read(recurringExpenseRepositoryProvider);
+    // Only deleting the expense that started a series stops it. Deleting or
+    // undoing one confirmed occurrence must leave the schedule running.
+    // The starting expense is linked to its own rule (rule id == expense id).
     final ruleId = expense.recurringRuleId ?? expense.id;
-    if (await recurringRepository.getById(ruleId) != null) {
+    if (ruleId == expense.id &&
+        await recurringRepository.getById(ruleId) != null) {
       await recurringRepository.stop(ruleId);
     }
     ref.invalidate(dueRecurringExpensesProvider);
@@ -445,21 +456,33 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
     Expense? updatedExpense,
   }) async {
     final expense = updatedExpense ?? recurring.draftExpense();
-    final confirmed = await ref
-        .read(recurringExpenseRepositoryProvider)
-        .confirm(
-          recurring,
-          Expense(
-            id: const Uuid().v4(),
-            amountCents: expense.amountCents,
-            category: expense.category,
-            merchantOrNote: expense.merchantOrNote,
-            paymentMethod: expense.paymentMethod,
-            occurredAt: expense.occurredAt,
-            createdAt: DateTime.now(),
-            isTaxDeductible: expense.isTaxDeductible,
-          ),
+    final bool confirmed;
+    try {
+      confirmed = await ref
+          .read(recurringExpenseRepositoryProvider)
+          .confirm(
+            recurring,
+            Expense(
+              id: const Uuid().v4(),
+              amountCents: expense.amountCents,
+              category: expense.category,
+              merchantOrNote: expense.merchantOrNote,
+              paymentMethod: expense.paymentMethod,
+              occurredAt: expense.occurredAt,
+              createdAt: DateTime.now(),
+              isTaxDeductible: expense.isTaxDeductible,
+            ),
+          );
+    } catch (_) {
+      if (context.mounted) {
+        AppToast.showError(
+          context,
+          'This recurring expense could not be confirmed. Check its category, '
+          'payment method and date in Settings > Recurring expenses.',
         );
+      }
+      return;
+    }
     if (!confirmed) return;
     await ref.read(expensesProvider.notifier).refresh();
     ref.invalidate(dueRecurringExpensesProvider);
@@ -779,10 +802,18 @@ class _SpendingContextCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final now = DateTime.now();
     final monthStart = DateTime(now.year, now.month);
-    final monthTotal = _sumSince(monthStart);
-    final todayTotal = _sumSince(DateTime(now.year, now.month, now.day));
-    final weekTotal = _sumSince(
-      DateTime(now.year, now.month, now.day).subtract(const Duration(days: 6)),
+    final today = DateTime(now.year, now.month, now.day);
+    final tomorrow = DateTime(now.year, now.month, now.day + 1);
+    // Future-dated expenses (a bill entered ahead of time) are not spent yet.
+    // The month keeps its whole calendar month, like the budgets do.
+    final monthTotal = _sumBetween(
+      monthStart,
+      DateTime(now.year, now.month + 1),
+    );
+    final todayTotal = _sumBetween(today, tomorrow);
+    final weekTotal = _sumBetween(
+      DateTime(now.year, now.month, now.day - 6),
+      tomorrow,
     );
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -829,8 +860,12 @@ class _SpendingContextCard extends StatelessWidget {
     );
   }
 
-  int _sumSince(DateTime start) => expenses
-      .where((expense) => !expense.occurredAt.isBefore(start))
+  int _sumBetween(DateTime start, DateTime endExclusive) => expenses
+      .where(
+        (expense) =>
+            !expense.occurredAt.isBefore(start) &&
+            expense.occurredAt.isBefore(endExclusive),
+      )
       .fold(0, (total, expense) => total + expense.amountCents);
 }
 

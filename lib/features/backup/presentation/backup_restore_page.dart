@@ -99,13 +99,21 @@ class _BackupRestorePageState extends ConsumerState<BackupRestorePage> {
             document: utf8.decode(document),
             passphrase: p,
           );
-      final e = await ref
-          .read(recoveryKeyOperationsProvider)
-          .wrap(
-            databaseKey: ref.read(backupDatabaseKeyProvider),
-            passphrase: p,
-          );
-      await ref.read(recoveryEnvelopeAccessProvider).write(e);
+      // The data is restored from here on. A failure while saving the new
+      // recovery envelope must not hide that, or leave the screens showing
+      // the old data.
+      var envelopeSaved = true;
+      try {
+        final e = await ref
+            .read(recoveryKeyOperationsProvider)
+            .wrap(
+              databaseKey: ref.read(backupDatabaseKeyProvider),
+              passphrase: p,
+            );
+        await ref.read(recoveryEnvelopeAccessProvider).write(e);
+      } catch (_) {
+        envelopeSaved = false;
+      }
       // Do not invalidate active NotifierProviders here. Their initial loads
       // run in microtasks, so invalidating them mid-restore can leave the
       // Expenses page watching a notifier that was disposed before it loaded.
@@ -122,7 +130,17 @@ class _BackupRestorePageState extends ConsumerState<BackupRestorePage> {
       await ref.read(timeFormatPreferenceProvider.notifier).refresh();
       await ref.read(appearancePreferenceProvider.notifier).refresh();
       await ref.read(appLockEnabledProvider.notifier).refresh();
-      if (mounted) AppToast.show(context, 'Backup restored');
+      // The backup also replaced this setting, which gates unlocked quick entry.
+      await ref.read(quickLoggingWithoutUnlockProvider.notifier).refresh();
+      if (!mounted) return;
+      if (envelopeSaved) {
+        AppToast.show(context, 'Backup restored');
+      } else {
+        err(
+          'Backup restored, but the new recovery passphrase could not be saved '
+          'on this device. Open Settings and set a recovery passphrase again.',
+        );
+      }
     } on RecoveryPassphraseException {
       err(
         'That passphrase did not open this backup. Your current data was not changed.',

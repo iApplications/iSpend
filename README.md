@@ -378,7 +378,7 @@ There is no iSpend backend server and no bank-account integration.
 **Phase 2:** On hold pending Mac access
 **Phase 2b:** Complete
 **Phase 3:** Complete — OCR capture and reviewed CSV import
-**Phase 3b:** In progress — bank-specific CSV mapping and PDF statement import
+**Phase 3b:** In progress — PDF statement import (Touch 'n Go, Public Bank, HSBC); bank-specific CSV mapping remains
 
 Phase 2b delivered:
 
@@ -445,6 +445,29 @@ Phase 3 delivered:
   and the user sees a specific error. Recovery passphrase changes do not change
   the database key or its image protection.
 * iOS deployment target raised to 15.5 for the selected OCR dependencies
+
+Phase 3b work in progress:
+
+* PDF statement import from the Expenses scan/import menu
+  (**Import PDF statement**). The PDF is read on the device; nothing is
+  uploaded, and an encrypted PDF's password is used only to open it.
+  * Touch 'n Go card statements with a text layer are read directly.
+  * Scanned Public Bank and HSBC credit-card statements are rendered page by
+    page and read with on-device OCR (up to 12 pages). Spending rows start
+    ticked; payments, refunds, and cash-back (marked `CR`) start unticked.
+    Parsed spending is cross-checked against the total printed on the
+    statement, and a warning is shown when they differ, so check every amount
+    against the PDF.
+  * Rows go through the same editable review and duplicate warning as CSV
+    import before anything is saved. A row whose amount or date cannot be
+    read starts unticked and flagged.
+* Hardening from a full code review: app lock re-engages after an
+  authenticated quick-entry session sits in the background; first-launch
+  restore only reports a wrong passphrase when the passphrase is wrong; the
+  home widget hides spending until the lock setting has loaded; app lock also
+  hides the screen from screenshots and the Recents thumbnail; recurring
+  series are no longer stopped by deleting one occurrence; and several amount
+  and total parsing fixes for quick entry, receipts, and shopping orders.
 
 ## Branching and pull-request workflow
 

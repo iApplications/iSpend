@@ -16,8 +16,8 @@ final budgetLimitsProvider =
     );
 
 class BudgetLimitsNotifier extends Notifier<Map<String, int>> {
-  late final BudgetLimitRepository _repository;
-  late final CategoryRepository _categories;
+  late BudgetLimitRepository _repository;
+  late CategoryRepository _categories;
   var _refreshVersion = 0;
 
   @override

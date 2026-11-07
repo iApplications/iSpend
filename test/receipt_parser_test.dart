@@ -175,6 +175,72 @@ void main() {
     expect(result.foreignAmountReference, 'MYR12.33');
     expect(result.amountNeedsReview, isTrue);
   });
+  test('keeps a grand total that mentions tax in brackets', () {
+    final result = parser.parse(
+      currencyCode: 'MYR',
+      currencySymbol: 'RM',
+      input: [
+        _line('Cafe', 10),
+        _line('Subtotal RM 42.45', 90),
+        _line('Grand Total (incl. 6% SST) RM 45.00', 130),
+      ],
+    );
+    expect(result.amountCents, 4500);
+  });
+
+  test('ignores a bracketed note after the total', () {
+    final result = parser.parse(
+      currencyCode: 'MYR',
+      currencySymbol: 'RM',
+      input: [_line('Cafe', 10), _line('Total RM 45.00 (SST 2.55)', 130)],
+    );
+    expect(result.amountCents, 4500);
+  });
+
+  test('prefers the total over cash handed over', () {
+    final result = parser.parse(
+      currencyCode: 'MYR',
+      currencySymbol: 'RM',
+      input: [
+        _line('Kedai', 10),
+        _line('Total RM 45.50', 90),
+        _line('Amount Paid RM 50.00', 110),
+        _line('Change RM 4.50', 130),
+      ],
+    );
+    expect(result.amountCents, 4550);
+  });
+
+  test('still uses amount paid when there is no other total', () {
+    final result = parser.parse(
+      currencyCode: 'MYR',
+      currencySymbol: 'RM',
+      input: [_line('Kedai', 10), _line('Amount Paid RM 45.50', 90)],
+    );
+    expect(result.amountCents, 4550);
+  });
+
+  test('recognises S\$ as the selected Singapore dollar', () {
+    final result = parser.parse(
+      currencyCode: 'SGD',
+      currencySymbol: r'S$',
+      input: [_line('Shop', 10), _line(r'Grand Total S$12.00', 90)],
+    );
+    expect(result.amountCents, 1200);
+  });
+  test('reads amounts that use a decimal comma', () {
+    for (final (text, cents) in [
+      ('Total RM 12,50', 1250),
+      ('Total RM 1.234,56', 123456),
+    ]) {
+      final result = parser.parse(
+        currencyCode: 'MYR',
+        currencySymbol: 'RM',
+        input: [_line('Kedai', 10), _line(text, 90)],
+      );
+      expect(result.amountCents, cents, reason: text);
+    }
+  });
 }
 
 RecognizedOcrLine _line(String text, double top) =>
