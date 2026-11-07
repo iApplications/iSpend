@@ -20,7 +20,7 @@ final paymentMethodColourKeysProvider =
     );
 
 class PaymentMethodColoursNotifier extends Notifier<Map<String, String>> {
-  late final PaymentMethodRepository _repository;
+  late PaymentMethodRepository _repository;
 
   @override
   Map<String, String> build() {
@@ -47,8 +47,8 @@ class PaymentMethodColoursNotifier extends Notifier<Map<String, String>> {
 }
 
 class PaymentMethodsNotifier extends Notifier<List<String>> {
-  late final PaymentMethodRepository _repository;
-  late final ExpenseRepository _expenses;
+  late PaymentMethodRepository _repository;
+  late ExpenseRepository _expenses;
   @override
   List<String> build() {
     _repository = ref.watch(paymentMethodRepositoryProvider);

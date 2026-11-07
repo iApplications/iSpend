@@ -444,6 +444,38 @@ void main() {
     expect(candidates[2].merchant, '【活动价】适用三星s25ultra磁吸');
     expect(candidates[2].amountCents, isNull);
   });
+  test('the strongest total label wins over savings and status badges', () {
+    final candidates = parser.parseImage(
+      imagePath: 'orders-a.png',
+      currencyCode: 'MYR',
+      currencySymbol: 'RM',
+      lines: [
+        _line('Tealive', 10),
+        _line('Order date: 2026-08-28', 32),
+        _line('Total Savings RM 5.00', 54),
+        _line('Order Total RM 12.33', 76),
+        _line('Paid', 98),
+      ],
+    );
+
+    expect(candidates.single.amountCents, 1233);
+  });
+
+  test('a bare Paid badge does not take the next line as the total', () {
+    final candidates = parser.parseImage(
+      imagePath: 'orders-a.png',
+      currencyCode: 'MYR',
+      currencySymbol: 'RM',
+      lines: [
+        _line('Tealive', 10),
+        _line('Order date: 2026-08-28', 32),
+        _line('Paid', 54),
+        _line('RM 99.00', 76),
+      ],
+    );
+
+    expect(candidates.single.amountCents, isNull);
+  });
 }
 
 RecognizedOcrLine _line(String text, double top) =>

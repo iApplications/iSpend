@@ -28,7 +28,7 @@ final appearancePreferenceProvider =
 
 class AppearancePreferenceNotifier extends Notifier<AppearancePreference> {
   static const _settingKey = 'appearance_preference';
-  late final AppSettingsRepository _repository;
+  late AppSettingsRepository _repository;
 
   @override
   AppearancePreference build() {

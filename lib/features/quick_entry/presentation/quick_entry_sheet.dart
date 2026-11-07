@@ -61,6 +61,11 @@ class _QuickEntrySheetState extends State<_QuickEntrySheet> {
   String? _error;
   late DateTime _occurredAt;
   bool _saving = false;
+
+  // Fields the user set by hand. Typing in the smart input must not undo them.
+  bool _categoryTouched = false;
+  bool _paymentTouched = false;
+  bool _merchantTouched = false;
   bool get _templateMode => widget.template != null;
   @override
   void initState() {
@@ -111,9 +116,9 @@ class _QuickEntrySheetState extends State<_QuickEntrySheet> {
     );
     setState(() {
       _amount = r.amountCents;
-      _category = r.category;
-      _payment = r.paymentMethod;
-      _merchant.text = r.merchantOrNote ?? '';
+      if (!_categoryTouched) _category = r.category;
+      if (!_paymentTouched) _payment = r.paymentMethod;
+      if (!_merchantTouched) _merchant.text = r.merchantOrNote ?? '';
       _error = null;
     });
   }
@@ -222,7 +227,12 @@ class _QuickEntrySheetState extends State<_QuickEntrySheet> {
         ),
       ),
     );
-    if (choice != _payment) setState(() => _payment = choice);
+    if (choice != _payment) {
+      setState(() {
+        _payment = choice;
+        _paymentTouched = true;
+      });
+    }
   }
 
   @override
@@ -264,6 +274,7 @@ class _QuickEntrySheetState extends State<_QuickEntrySheet> {
                   labelText: 'Merchant or note',
                 ),
                 textCapitalization: TextCapitalization.sentences,
+                onChanged: (_) => _merchantTouched = true,
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
@@ -272,7 +283,10 @@ class _QuickEntrySheetState extends State<_QuickEntrySheet> {
                 items: widget.categories
                     .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                     .toList(),
-                onChanged: (v) => setState(() => _category = v!),
+                onChanged: (v) => setState(() {
+                  _category = v!;
+                  _categoryTouched = true;
+                }),
               ),
               const SizedBox(height: 16),
               Text(
@@ -288,7 +302,10 @@ class _QuickEntrySheetState extends State<_QuickEntrySheet> {
                     ChoiceChip(
                       label: Text(method),
                       selected: _payment == method,
-                      onSelected: (_) => setState(() => _payment = method),
+                      onSelected: (_) => setState(() {
+                        _payment = method;
+                        _paymentTouched = true;
+                      }),
                     ),
                   ActionChip(
                     avatar: const Icon(Icons.more_horiz, size: 18),

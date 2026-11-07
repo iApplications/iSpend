@@ -112,49 +112,11 @@ class PaymentMethodManagementPage extends ConsumerWidget {
     WidgetRef ref, [
     String? oldName,
   ]) async {
-    final controller = TextEditingController(text: oldName ?? '');
-    String? error;
     final name = await showDialog<String>(
       context: context,
-      builder: (c) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: Text(
-            oldName == null ? 'Add payment method' : 'Rename payment method',
-          ),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: InputDecoration(labelText: 'Name', errorText: error),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(c),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                final name = controller.text.trim();
-                final duplicate = ref
-                    .read(paymentMethodsProvider)
-                    .any(
-                      (method) =>
-                          method.toLowerCase() == name.toLowerCase() &&
-                          method != oldName,
-                    );
-                if (name.isEmpty || duplicate) {
-                  setState(
-                    () => error = name.isEmpty
-                        ? 'Enter a payment method name.'
-                        : 'This payment method already exists.',
-                  );
-                  return;
-                }
-                Navigator.pop(c, name);
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        ),
+      builder: (_) => _PaymentMethodNameDialog(
+        oldName: oldName,
+        existing: ref.read(paymentMethodsProvider),
       ),
     );
     if (name == null || name.isEmpty) return;
@@ -213,4 +175,69 @@ class PaymentMethodManagementPage extends ConsumerWidget {
       await ref.read(paymentMethodsProvider.notifier).delete(name);
     }
   }
+}
+
+/// Owns its text controller so it is disposed only after the dialog is gone.
+class _PaymentMethodNameDialog extends StatefulWidget {
+  const _PaymentMethodNameDialog({
+    required this.oldName,
+    required this.existing,
+  });
+
+  final String? oldName;
+  final List<String> existing;
+
+  @override
+  State<_PaymentMethodNameDialog> createState() =>
+      _PaymentMethodNameDialogState();
+}
+
+class _PaymentMethodNameDialogState extends State<_PaymentMethodNameDialog> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.oldName ?? '',
+  );
+  String? _error;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final name = _controller.text.trim();
+    final duplicate = widget.existing.any(
+      (method) =>
+          method.toLowerCase() == name.toLowerCase() &&
+          method != widget.oldName,
+    );
+    if (name.isEmpty || duplicate) {
+      setState(
+        () => _error = name.isEmpty
+            ? 'Enter a payment method name.'
+            : 'This payment method already exists.',
+      );
+      return;
+    }
+    Navigator.pop(context, name);
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(
+      widget.oldName == null ? 'Add payment method' : 'Rename payment method',
+    ),
+    content: TextField(
+      controller: _controller,
+      autofocus: true,
+      decoration: InputDecoration(labelText: 'Name', errorText: _error),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(onPressed: _save, child: const Text('Save')),
+    ],
+  );
 }

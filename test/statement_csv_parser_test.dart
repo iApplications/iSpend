@@ -170,4 +170,12 @@ void main() {
       throwsFormatException,
     );
   });
+
+  test('reads CSV files with old Mac (CR only) line endings', () {
+    final rows = const StatementCsvParser().read(
+      'Date,Description,Amount\r01/01/2026,Coffee,-5.00\r',
+    );
+    expect(rows, hasLength(2));
+    expect(rows[1], ['01/01/2026', 'Coffee', '-5.00']);
+  });
 }

@@ -51,10 +51,13 @@ class StatementCsvParser {
   const StatementCsvParser();
 
   List<List<String>> read(String text) {
-    final normalized = text.replaceFirst('\uFEFF', '');
-    final eol = normalized.contains('\r\n') ? '\r\n' : '\n';
+    // Windows (CRLF), Unix (LF) and old Mac (CR) line endings all become LF.
+    final normalized = text
+        .replaceFirst('\uFEFF', '')
+        .replaceAll('\r\n', '\n')
+        .replaceAll('\r', '\n');
     final rows = CsvToListConverter(
-      eol: eol,
+      eol: '\n',
       shouldParseNumbers: false,
       allowInvalid: false,
       convertEmptyTo: '',

@@ -50,7 +50,7 @@ class QuickEntryTemplateReferences {
 }
 
 class QuickEntryTemplatesNotifier extends Notifier<List<QuickEntryTemplate>> {
-  late final QuickEntryTemplateRepository _repository;
+  late QuickEntryTemplateRepository _repository;
 
   @override
   List<QuickEntryTemplate> build() {
