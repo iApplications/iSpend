@@ -12,6 +12,7 @@ import '../../payment_methods/payment_method_providers.dart';
 import '../../quick_entry/presentation/quick_entry_sheet.dart';
 import '../../ocr_import/presentation/shopping_order_import_page.dart';
 import '../../ocr_import/presentation/receipt_import_page.dart';
+import '../../statement_import/presentation/pdf_statement_import.dart';
 import '../../statement_import/presentation/statement_csv_import_page.dart';
 import '../../settings/time_format_preference.dart';
 import '../../settings/currency_preference.dart';
@@ -23,7 +24,7 @@ import 'recurring_expenses_page.dart';
 
 enum _TaxUpdateScope { onlyThis, thisAndFuture }
 
-enum _CaptureAction { receipt, shoppingOrders, bankCsv }
+enum _CaptureAction { receipt, shoppingOrders, bankCsv, bankPdf }
 
 String _monthName(int month) => const [
   'January',
@@ -130,15 +131,17 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
                 PopupMenuButton<_CaptureAction>(
                   tooltip: 'Scan or import expenses',
                   icon: const Icon(Icons.document_scanner_outlined),
-                  onSelected: (action) => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => action == _CaptureAction.receipt
-                          ? const ReceiptImportPage()
-                          : action == _CaptureAction.shoppingOrders
-                          ? const ShoppingOrderImportPage()
-                          : const StatementCsvImportPage(),
-                    ),
-                  ),
+                  onSelected: (action) => action == _CaptureAction.bankPdf
+                      ? startPdfStatementImport(context)
+                      : Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => action == _CaptureAction.receipt
+                                ? const ReceiptImportPage()
+                                : action == _CaptureAction.shoppingOrders
+                                ? const ShoppingOrderImportPage()
+                                : const StatementCsvImportPage(),
+                          ),
+                        ),
                   itemBuilder: (_) => const [
                     PopupMenuItem(
                       value: _CaptureAction.receipt,
@@ -151,6 +154,10 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
                     PopupMenuItem(
                       value: _CaptureAction.bankCsv,
                       child: Text('Import bank CSV'),
+                    ),
+                    PopupMenuItem(
+                      value: _CaptureAction.bankPdf,
+                      child: Text('Import PDF statement'),
                     ),
                   ],
                 ),
