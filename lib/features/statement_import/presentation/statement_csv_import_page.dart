@@ -25,11 +25,22 @@ class StatementCsvImportPage extends ConsumerStatefulWidget {
     super.key,
     this.initialCsvText,
     this.initialFileName = 'statement.csv',
+    this.parsedRows,
+    this.sourceLabel = 'CSV',
+    this.notice,
   });
 
   /// Allows an already-read CSV to enter the same review path as file picking.
   final String? initialCsvText;
   final String initialFileName;
+
+  /// Rows already extracted from another file type, such as a PDF statement.
+  /// They go straight to review and are saved by the same path as CSV rows.
+  final List<StatementRow>? parsedRows;
+  final String sourceLabel;
+
+  /// A warning about the extracted rows, shown above the review list.
+  final String? notice;
 
   @override
   ConsumerState<StatementCsvImportPage> createState() =>
@@ -62,7 +73,12 @@ class _StatementCsvImportPageState
   void initState() {
     super.initState();
     final csv = widget.initialCsvText;
-    if (csv != null) {
+    final parsed = widget.parsedRows;
+    if (parsed != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _reviewParsed(parsed);
+      });
+    } else if (csv != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (mounted) await _loadCsv(csv, widget.initialFileName);
       });
@@ -196,29 +212,7 @@ class _StatementCsvImportPageState
         amountMode: _mode,
         dateFormat: _dateFormat,
       );
-      final parsed = _parser.parse(_table, mapping);
-      final categories = ref.read(categoriesProvider);
-      final methods = ref.read(paymentMethodsProvider);
-      final history = ref.read(expensesProvider);
-      final smart = const SmartQuickEntryParser();
-      final next = <_CsvReviewRow>[];
-      for (final item in parsed) {
-        final suggestion = smart.parse(
-          input: item.description,
-          categories: categories,
-          paymentMethods: methods,
-          history: history,
-        );
-        next.add(
-          _CsvReviewRow(
-            item,
-            category: categories.contains(suggestion.category)
-                ? suggestion.category
-                : categories.first,
-            paymentMethod: suggestion.paymentMethod,
-          ),
-        );
-      }
+      final next = _reviewRows(_parser.parse(_table, mapping));
       _clearRows();
       setState(() => _rows.addAll(next));
       if (next.isEmpty) {
@@ -235,6 +229,39 @@ class _StatementCsvImportPageState
       }
     } on FormatException catch (error) {
       if (mounted) AppToast.showError(context, error.message);
+    }
+  }
+
+  List<_CsvReviewRow> _reviewRows(List<StatementRow> parsed) {
+    final categories = ref.read(categoriesProvider);
+    final methods = ref.read(paymentMethodsProvider);
+    final history = ref.read(expensesProvider);
+    final smart = const SmartQuickEntryParser();
+    return [
+      for (final item in parsed)
+        () {
+          final suggestion = smart.parse(
+            input: item.description,
+            categories: categories,
+            paymentMethods: methods,
+            history: history,
+          );
+          return _CsvReviewRow(
+            item,
+            category: categories.contains(suggestion.category)
+                ? suggestion.category
+                : categories.first,
+            paymentMethod: suggestion.paymentMethod,
+          );
+        }(),
+    ];
+  }
+
+  void _reviewParsed(List<StatementRow> parsed) {
+    final next = _reviewRows(parsed);
+    setState(() => _rows.addAll(next));
+    if (next.isEmpty) {
+      AppToast.showError(context, 'No transaction rows were found.');
     }
   }
 
@@ -311,7 +338,7 @@ class _StatementCsvImportPageState
         builder: (dialogContext) => AlertDialog(
           title: const Text('Possible duplicates'),
           content: Text(
-            '$duplicateCount selected row${duplicateCount == 1 ? '' : 's'} may already be in Expenses or repeated in this CSV. Add anyway?',
+            '$duplicateCount selected row${duplicateCount == 1 ? '' : 's'} may already be in Expenses or repeated in this ${widget.sourceLabel == 'CSV' ? 'CSV' : 'statement'}. Add anyway?',
           ),
           actions: [
             TextButton(
@@ -352,32 +379,50 @@ class _StatementCsvImportPageState
     final currency = ref.watch(appCurrencyProvider);
     final selectedCount = _rows.where((row) => row.selected).length;
     return Scaffold(
-      appBar: AppBar(title: const Text('Import bank CSV')),
+      appBar: AppBar(
+        title: Text(
+          widget.parsedRows == null
+              ? 'Import bank CSV'
+              : 'Import ${widget.sourceLabel} statement',
+        ),
+      ),
       body: Padding(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Choose a CSV, map its columns, then review every transaction before adding it.',
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: _saving ? null : _chooseFile,
-              icon: const Icon(Icons.upload_file_outlined),
-              label: Text(_fileName ?? 'Choose CSV file'),
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: _exportingTemplate ? null : _exportTemplate,
-              icon: const Icon(Icons.download_outlined),
-              label: const Text('Export CSV template'),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Blank Date, Description, Amount CSV. Use DD/MM/YYYY dates and negative amounts for spending; select “Negative amount = spending” when importing it.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+            if (widget.parsedRows == null) ...[
+              const Text(
+                'Choose a CSV, map its columns, then review every transaction before adding it.',
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _saving ? null : _chooseFile,
+                icon: const Icon(Icons.upload_file_outlined),
+                label: Text(_fileName ?? 'Choose CSV file'),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _exportingTemplate ? null : _exportTemplate,
+                icon: const Icon(Icons.download_outlined),
+                label: const Text('Export CSV template'),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Blank Date, Description, Amount CSV. Use DD/MM/YYYY dates and negative amounts for spending; select “Negative amount = spending” when importing it.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ] else
+              Text(
+                'Review every transaction from ${widget.sourceLabel} before adding it. iSpend does not convert currencies during import.',
+              ),
+            if (widget.notice != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                widget.notice!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
             if (_table.isNotEmpty && _rows.isEmpty) ...[
               const SizedBox(height: 12),
               Expanded(
@@ -585,7 +630,7 @@ class _StatementCsvImportPageState
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,
             title: Text(
-              'CSV row ${row.source.line} · ${row.description.text}',
+              '${widget.sourceLabel} row ${row.source.line} · ${row.description.text}',
               maxLines: 2,
             ),
             subtitle: Text(
@@ -593,7 +638,8 @@ class _StatementCsvImportPageState
             ),
             controlAffinity: ListTileControlAffinity.leading,
             value: row.selected,
-            onChanged: valid
+            // A ticked row that is not valid yet can always be unticked.
+            onChanged: valid || row.selected
                 ? (v) => setState(() => row.selected = v ?? false)
                 : null,
           ),
