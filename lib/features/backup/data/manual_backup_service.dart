@@ -49,6 +49,7 @@ class ManualBackupService implements ManualBackupOperations {
           'expenses',
           'ocr_images',
           'expense_images',
+          'expense_tags',
           'categories',
           'payment_methods',
           'app_settings',
@@ -78,6 +79,7 @@ class ManualBackupService implements ManualBackupOperations {
       'quick_entry_templates': snapshot['quick_entry_templates']!,
       'ocr_images': encodedImages,
       'expense_images': imageLinks,
+      'expense_tags': snapshot['expense_tags']!,
     };
     final encodedPayload = base64UrlEncode(utf8.encode(jsonEncode(payload)));
     final encryptedPayload = await _recoveryKeyService.wrap(
@@ -130,9 +132,11 @@ class ManualBackupService implements ManualBackupOperations {
       ),
     );
     final images = _validatedImagePayload(decodedPayload, normalized.expenses);
+    final tags = _validatedTags(decodedPayload, normalized.expenses);
 
     await database.transaction((transaction) async {
       for (final table in const [
+        'expense_tags',
         'expense_images',
         'ocr_images',
         'expenses',
@@ -164,7 +168,32 @@ class ManualBackupService implements ManualBackupOperations {
       );
       await _insertAll(transaction, 'ocr_images', images.images);
       await _insertAll(transaction, 'expense_images', images.links);
+      await _insertAll(transaction, 'expense_tags', tags);
     });
+  }
+
+  /// Backups made before tags existed have no `expense_tags`; they restore
+  /// with no tags. A row for a missing expense, or a repeated pair, means the
+  /// backup is damaged.
+  static List<Map<String, Object?>> _validatedTags(
+    Map<String, dynamic> payload,
+    List<Map<String, Object?>> expenses,
+  ) {
+    final rows = _optionalRows(payload['expense_tags']);
+    final expenseIds = expenses.map((row) => row['id']).toSet();
+    final seen = <String>{};
+    for (final row in rows) {
+      final expenseId = row['expense_id'];
+      final tag = row['tag'];
+      if (expenseId is! String ||
+          tag is! String ||
+          tag.trim().isEmpty ||
+          !expenseIds.contains(expenseId) ||
+          !seen.add('$expenseId|${tag.toLowerCase()}')) {
+        throw const FormatException('The backup data is invalid.');
+      }
+    }
+    return rows;
   }
 
   static ({List<Map<String, Object?>> images, List<Map<String, Object?>> links})

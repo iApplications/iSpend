@@ -4,6 +4,8 @@ import 'package:uuid/uuid.dart';
 
 import '../../../core/utils/amount_formatter.dart';
 import '../../expenses/data/expense_model.dart';
+import '../../tags/data/tag_rules.dart';
+import '../../tags/presentation/tag_editor.dart';
 import '../data/quick_entry_template.dart';
 import '../data/smart_quick_entry_parser.dart';
 
@@ -61,6 +63,8 @@ class _QuickEntrySheetState extends State<_QuickEntrySheet> {
   String? _error;
   late DateTime _occurredAt;
   bool _saving = false;
+  List<String> _tags = [];
+  final _tagController = TextEditingController();
 
   // Fields the user set by hand. Typing in the smart input must not undo them.
   bool _categoryTouched = false;
@@ -91,6 +95,7 @@ class _QuickEntrySheetState extends State<_QuickEntrySheet> {
   void dispose() {
     _input.dispose();
     _merchant.dispose();
+    _tagController.dispose();
     super.dispose();
   }
 
@@ -143,6 +148,12 @@ class _QuickEntrySheetState extends State<_QuickEntrySheet> {
         paymentMethod: _payment,
         occurredAt: _occurredAt,
         createdAt: DateTime.now(),
+        tags: _templateMode
+            ? const []
+            : normalizeTags([
+                ..._tags,
+                ..._tagController.text.split(','),
+              ], known: tagUsage(widget.history).map((e) => e.key)),
       ),
     );
   }
@@ -274,8 +285,18 @@ class _QuickEntrySheetState extends State<_QuickEntrySheet> {
                   labelText: 'Merchant or note',
                 ),
                 textCapitalization: TextCapitalization.sentences,
-                onChanged: (_) => _merchantTouched = true,
+                onChanged: (_) => setState(() => _merchantTouched = true),
               ),
+              if (!_templateMode) ...[
+                const SizedBox(height: 16),
+                TagEditor(
+                  tags: _tags,
+                  controller: _tagController,
+                  history: widget.history,
+                  merchant: _merchant.text,
+                  onChanged: (tags) => setState(() => _tags = tags),
+                ),
+              ],
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 initialValue: _category,

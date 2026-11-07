@@ -379,7 +379,7 @@ There is no iSpend backend server and no bank-account integration.
 **Phase 2b:** Complete
 **Phase 3:** Complete — OCR capture (its bank CSV import was removed in Phase 3b)
 **Phase 3b:** Complete — PDF statement import (Touch 'n Go, Public Bank, HSBC)
-**Phase 4a:** In progress — data export and monthly report done; tags and multi-currency remain
+**Phase 4a:** In progress — data export, monthly report and tags done; multi-currency remains
 
 Phase 2b delivered:
 
@@ -470,6 +470,19 @@ Phase 4a work in progress:
   from the previous month in amount and percent (new categories show as
   "new"). A six-month list of totals sits below, with thin bars that only show
   scale. Expenses dated after today are left out, like the other totals.
+* **Tags**: freeform labels on an expense, in addition to its category. Add
+  them in the quick-entry sheet or the edit sheet; separate several with commas.
+  A tag is trimmed, has no leading `#`, is at most 24 characters, and an
+  expense holds at most 8. `Trip` and `trip` are the same tag. Suggestions
+  come only from the user's own history, matched on the device: tags used
+  before with the same merchant first, then the most used tags. Expenses show
+  their tags in the list, **Settings > Tags** lists each tag with its count and
+  total, opens its expenses, and can rename it (merging into an existing tag)
+  or remove it without touching the expenses. Tags are a column in the CSV
+  export and are included in the encrypted backup; a backup made before tags
+  existed restores with none. Tags are stored in a new `expense_tags` table
+  (database version 14). Recurring expenses do not carry tags yet, so the tag
+  field is hidden for them.
 
 ## Branching and pull-request workflow
 

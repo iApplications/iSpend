@@ -42,8 +42,8 @@ void main() {
     expect(bytes.sublist(0, 3), [0xEF, 0xBB, 0xBF]);
     final lines = _text(bytes).trim().split('\r\n');
     expect(lines.first, ExpenseCsvExporter.header.join(','));
-    expect(lines[1], '2026-10-03,18:30,999.00,MYR,Food,,Cash,Yes');
-    expect(lines[2], '2026-10-01,09:05,12.50,MYR,Food,Lunch,Cash,No');
+    expect(lines[1], '2026-10-03,18:30,999.00,MYR,Food,,Cash,,Yes');
+    expect(lines[2], '2026-10-01,09:05,12.50,MYR,Food,Lunch,Cash,,No');
   });
 
   test('quotes commas and quotes, and keeps one row per expense', () {
