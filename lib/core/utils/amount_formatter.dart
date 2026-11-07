@@ -21,6 +21,7 @@ class AppCurrency {
       'US' => const AppCurrency(code: 'USD', symbol: '\$'),
       'GB' => const AppCurrency(code: 'GBP', symbol: '£'),
       'JP' => const AppCurrency(code: 'JPY', symbol: '¥'),
+      'CN' => const AppCurrency(code: 'CNY', symbol: '¥'),
       _ => const AppCurrency(code: 'MYR', symbol: 'RM'),
     };
   }
@@ -31,6 +32,7 @@ class AppCurrency {
       'USD' => const AppCurrency(code: 'USD', symbol: '\$'),
       'GBP' => const AppCurrency(code: 'GBP', symbol: '£'),
       'JPY' => const AppCurrency(code: 'JPY', symbol: '¥'),
+      'CNY' => const AppCurrency(code: 'CNY', symbol: '¥'),
       _ => const AppCurrency(code: 'MYR', symbol: 'RM'),
     };
   }

@@ -1,4 +1,5 @@
 import '../../../core/utils/amount_parser.dart';
+import '../../../core/utils/yen.dart';
 
 /// Reads the numeric value from an already-recognized paid-total reference.
 /// The caller must explicitly opt in before using it as an app-currency amount.
@@ -37,10 +38,13 @@ String? foreignPaidAmountReference(
   for (final match in amounts.allMatches(normalized)) {
     final value = match.group(0)!;
     final marker = markerPattern.firstMatch(value)!.group(0)!;
-    final selected =
-        marker.toUpperCase() == selectedCode.toUpperCase() ||
-        (selectedCode.toUpperCase() == 'MYR' && marker.toUpperCase() == 'RM') ||
-        marker == selectedSymbol;
+    final upper = marker.toUpperCase();
+    final selected = isYenSign(marker)
+        ? yenMatchesCurrency(normalized, selectedCode)
+        : upper == selectedCode.toUpperCase() ||
+              (selectedCode.toUpperCase() == 'MYR' && upper == 'RM') ||
+              (selectedCode.toUpperCase() == 'CNY' && upper == 'RMB') ||
+              marker == selectedSymbol;
     if (!selected) return value;
   }
   return null;

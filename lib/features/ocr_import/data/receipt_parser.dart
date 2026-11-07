@@ -1,3 +1,4 @@
+import '../../../core/utils/yen.dart';
 import 'paid_amount_ocr.dart';
 import 'shopping_order_candidate.dart';
 import 'shopping_order_parser.dart';
@@ -213,7 +214,9 @@ class ReceiptParser {
       caseSensitive: false,
     );
     final markers = currency.allMatches(text).map((m) => m.group(0)!).toList();
-    if (markers.any((marker) => !_isSelectedCurrency(marker, code, symbol))) {
+    if (markers.any(
+      (marker) => !_isSelectedCurrency(marker, code, symbol, text),
+    )) {
       return const [];
     }
     final matches = RegExp(
@@ -233,9 +236,16 @@ class ReceiptParser {
     return result;
   }
 
-  bool _isSelectedCurrency(String marker, String code, String symbol) {
+  bool _isSelectedCurrency(
+    String marker,
+    String code,
+    String symbol,
+    String context,
+  ) {
     final value = marker.toUpperCase();
     if (value == code.toUpperCase()) return true;
+    if (code.toUpperCase() == 'CNY' && value == 'RMB') return true;
+    if (isYenSign(marker)) return yenMatchesCurrency(context, code);
     if (code.toUpperCase() == 'MYR' && value == 'RM') return true;
     if (code.toUpperCase() == 'SGD' && value == r'S$') return true;
     return marker == symbol;

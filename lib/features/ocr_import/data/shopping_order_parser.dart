@@ -1,3 +1,4 @@
+import '../../../core/utils/yen.dart';
 import 'paid_amount_ocr.dart';
 import 'shopping_order_candidate.dart';
 
@@ -505,6 +506,11 @@ class ShoppingOrderParser {
       final text = lines[index].text;
       final score = _finalLabelScore(text);
       if (score == 0 || score <= bestScore) continue;
+      // A yen price on a Chinese order is yuan, not the app's yen.
+      if (isYenSign(currencySymbol) &&
+          !yenMatchesCurrency(text, currencyCode)) {
+        continue;
+      }
       int? found;
       final inline = _amounts(normalizePaidAmountOcr(text), currency);
       if (inline.isNotEmpty) {
