@@ -1,4 +1,4 @@
-import 'statement_csv_parser.dart';
+import 'statement_row.dart';
 
 /// Parses the text of a Touch 'n Go "Customer Transactions Statement" PDF.
 ///
