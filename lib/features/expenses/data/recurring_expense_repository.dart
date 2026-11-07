@@ -448,17 +448,10 @@ Map<String, Object?> _seriesFields(
 };
 
 Expense _withSeriesFields(Expense expense, RecurringExpense recurring) =>
-    Expense(
-      id: expense.id,
-      amountCents: expense.amountCents,
+    expense.copyWith(
       category: recurring.category,
       merchantOrNote: recurring.merchantOrNote,
       paymentMethod: recurring.paymentMethod,
-      occurredAt: expense.occurredAt,
-      createdAt: expense.createdAt,
-      recurringRuleId: expense.recurringRuleId,
-      recurringOccurrence: expense.recurringOccurrence,
-      isTaxDeductible: expense.isTaxDeductible,
     );
 
 RecurringExpense _withRecurringSeriesFields(

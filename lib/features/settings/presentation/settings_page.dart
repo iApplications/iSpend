@@ -7,6 +7,7 @@ import '../../../core/widgets/app_toast.dart';
 import '../../backup/presentation/backup_restore_page.dart';
 import '../../budgets/presentation/budget_limits_page.dart';
 import '../../categories/presentation/category_management_page.dart';
+import '../../exchange_rates/presentation/exchange_rates_page.dart';
 import '../../expenses/presentation/recurring_expenses_page.dart';
 import '../../export/presentation/export_data_page.dart';
 import '../../expenses/expense_providers.dart';
@@ -82,6 +83,13 @@ class SettingsPage extends ConsumerWidget {
               title: 'Tags',
               subtitle: 'See, rename or remove your tags',
               page: const TagsPage(),
+            ),
+            _navigationTile(
+              context,
+              icon: Icons.currency_exchange,
+              title: 'Exchange rates',
+              subtitle: 'Foreign-currency expenses and suggested rates',
+              page: const ExchangeRatesPage(),
             ),
             _navigationTile(
               context,

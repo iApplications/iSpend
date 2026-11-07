@@ -30,7 +30,7 @@ class ISpendDatabase {
     final database = await openDatabase(
       resolvedDatabasePath,
       password: resolvedDatabaseKey,
-      version: 14,
+      version: 15,
       onCreate: (db, _) async {
         await db.execute('''
           CREATE TABLE expenses (
@@ -45,7 +45,10 @@ class ISpendDatabase {
             created_at_millis INTEGER NOT NULL,
             recurring_rule_id TEXT,
             recurring_occurrence_millis INTEGER,
-            is_tax_deductible INTEGER NOT NULL DEFAULT 0
+            is_tax_deductible INTEGER NOT NULL DEFAULT 0,
+            original_amount_cents INTEGER,
+            original_currency TEXT,
+            exchange_rate REAL
           )
         ''');
         await _createSettingsTable(db);
@@ -153,6 +156,18 @@ class ISpendDatabase {
         if (oldVersion < 12) await _createQuickEntryTemplatesTable(db);
         if (oldVersion < 13) await _createExpenseImagesTables(db);
         if (oldVersion < 14) await _createExpenseTagsTable(db);
+        if (oldVersion < 15) {
+          // Foreign-currency expenses keep what was paid and the rate used.
+          for (final column in const [
+            'original_amount_cents INTEGER',
+            'original_currency TEXT',
+            'exchange_rate REAL',
+          ]) {
+            if (!await _hasColumn(db, 'expenses', column.split(' ').first)) {
+              await db.execute('ALTER TABLE expenses ADD COLUMN $column');
+            }
+          }
+        }
       },
     );
     return ISpendDatabase._(database);

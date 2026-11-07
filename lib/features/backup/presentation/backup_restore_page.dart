@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/database/recovery_key.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../categories/category_providers.dart';
+import '../../exchange_rates/exchange_rate_providers.dart';
 import '../../expenses/expense_providers.dart';
 import '../../payment_methods/payment_method_providers.dart';
 import '../../settings/appearance_preference.dart';
@@ -127,6 +128,7 @@ class _BackupRestorePageState extends ConsumerState<BackupRestorePage> {
       ref.invalidate(recurringExpensesProvider);
       ref.invalidate(dueRecurringExpensesProvider);
       await ref.read(appCurrencyProvider.notifier).refresh();
+      await ref.read(exchangeRatesProvider.notifier).refreshFromStorage();
       await ref.read(timeFormatPreferenceProvider.notifier).refresh();
       await ref.read(appearancePreferenceProvider.notifier).refresh();
       await ref.read(appLockEnabledProvider.notifier).refresh();

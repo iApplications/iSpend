@@ -689,6 +689,8 @@ class _ExpenseRow extends StatelessWidget {
     final detailParts = <String>[
       if (expense.merchantOrNote != null) expense.category,
       if (expense.paymentMethod != null) expense.paymentMethod!,
+      if (expense.isForeign)
+        '${expense.originalCurrency} ${formatCents(expense.originalAmountCents!)}',
       for (final tag in expense.tags) '#$tag',
     ];
     return Card(

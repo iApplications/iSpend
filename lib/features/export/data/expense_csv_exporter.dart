@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import '../../../core/utils/amount_formatter.dart';
+import '../../../core/utils/currency_catalog.dart';
 import '../../expenses/data/expense_model.dart';
 
 /// Builds a spreadsheet-friendly CSV from the user's own expenses. Nothing is
@@ -19,6 +20,9 @@ class ExpenseCsvExporter {
     'Payment method',
     'Tags',
     'Tax deductible',
+    'Original amount',
+    'Original currency',
+    'Exchange rate',
   ];
 
   /// UTF-8 bytes with a byte-order mark so Excel opens non-English merchant
@@ -51,6 +55,15 @@ class ExpenseCsvExporter {
       _cell(expense.paymentMethod ?? ''),
       _cell(expense.tags.join('; ')),
       expense.isTaxDeductible ? 'Yes' : 'No',
+      if (expense.isForeign) ...[
+        formatCents(expense.originalAmountCents!),
+        expense.originalCurrency!,
+        formatExchangeRate(expense.exchangeRate ?? 0),
+      ] else ...[
+        '',
+        '',
+        '',
+      ],
     ];
   }
 

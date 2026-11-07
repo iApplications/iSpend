@@ -379,7 +379,7 @@ There is no iSpend backend server and no bank-account integration.
 **Phase 2b:** Complete
 **Phase 3:** Complete — OCR capture (its bank CSV import was removed in Phase 3b)
 **Phase 3b:** Complete — PDF statement import (Touch 'n Go, Public Bank, HSBC)
-**Phase 4a:** In progress — data export, monthly report and tags done; multi-currency remains
+**Phase 4a:** Complete — data export, monthly report, tags and multi-currency
 
 Phase 2b delivered:
 
@@ -457,7 +457,7 @@ Phase 3b delivered:
   series are no longer stopped by deleting one occurrence; and several amount
   and total parsing fixes for quick entry, receipts, and shopping orders.
 
-Phase 4a work in progress:
+Phase 4a delivered:
 
 * **Export data** under Settings > Privacy & data saves all expenses, or only
   the expenses marked tax-deductible (optionally for one year), as a CSV file.
@@ -483,6 +483,26 @@ Phase 4a work in progress:
   existed restores with none. Tags are stored in a new `expense_tags` table
   (database version 14). Recurring expenses do not carry tags yet, so the tag
   field is hidden for them.
+* **Multi-currency**: the app currency is still fixed at first launch, but an
+  individual expense can be recorded in another currency (the quick-entry and
+  edit sheets have a **Currency** field). The user types the amount in that
+  currency and an exchange rate (app-currency units per one foreign unit); the
+  expense is converted **once**, rounded to the nearest cent, and saved in the
+  app currency, so every total, budget and report keeps its value when rates
+  later move. The original amount, currency and the rate used are kept on the
+  expense, shown in the list, editable, and exported to CSV. The last rate used
+  for each currency is remembered and offered again. Foreign amounts cannot be
+  repeating (recurring) expenses yet.
+  * **Recommended rates are optional and off by default** (Settings >
+    Exchange rates). When turned on, iSpend downloads the European Central
+    Bank's daily reference rates through the Frankfurter service about once a
+    day and offers the result as a *Suggested* chip; it never fills in or
+    changes a rate the user typed. The request contains only the app currency
+    code. This is the only network use in the app, which is why Android now
+    declares the internet permission. If the download fails, typing a rate
+    still works. A restored backup brings this setting with it.
+  * Currency amounts use the ISO code (for example `USD 12.00`) rather than
+    a bare symbol, because `$` and `¥` each stand for several currencies.
 
 ## Branching and pull-request workflow
 
