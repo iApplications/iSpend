@@ -1,3 +1,5 @@
+import '../../guides/data/guide_catalog.dart';
+import '../../guides/presentation/contextual_guide.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -20,62 +22,65 @@ class RecurringExpensesPage extends ConsumerWidget {
     final currency = ref.watch(appCurrencyProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Recurring expenses')),
-      body: items.isEmpty
-          ? const Center(child: Text('No recurring expenses yet.'))
-          : ListView.separated(
-              padding: const EdgeInsets.all(20),
-              itemCount: items.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final item = items[index];
-                return Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.merchantOrNote ?? item.category,
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${formatCurrencyCents(item.amountCents, currency)} · ${item.category}',
-                        ),
-                        if (item.paymentMethod != null)
-                          Text('Payment: ${item.paymentMethod}'),
-                        Text(
-                          item.isActive
-                              ? 'Next: ${_date(item.nextOccurrence)}'
-                              : 'Stopped · last next date ${_date(item.nextOccurrence)}',
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          children: [
-                            if (item.isActive) ...[
-                              TextButton(
-                                onPressed: () => _edit(context, ref, item),
-                                child: const Text('Edit schedule'),
-                              ),
-                              TextButton(
-                                onPressed: () => _stop(context, ref, item),
-                                child: const Text('Stop recurring'),
-                              ),
-                            ] else
-                              FilledButton.tonal(
-                                onPressed: () =>
-                                    _reactivate(context, ref, item),
-                                child: const Text('Reactivate recurring'),
-                              ),
-                          ],
-                        ),
-                      ],
+      body: GuidedBody(
+        guideId: GuideIds.recurring,
+        child: items.isEmpty
+            ? const Center(child: Text('No recurring expenses yet.'))
+            : ListView.separated(
+                padding: const EdgeInsets.all(20),
+                itemCount: items.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  return Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.merchantOrNote ?? item.category,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${formatCurrencyCents(item.amountCents, currency)} · ${item.category}',
+                          ),
+                          if (item.paymentMethod != null)
+                            Text('Payment: ${item.paymentMethod}'),
+                          Text(
+                            item.isActive
+                                ? 'Next: ${_date(item.nextOccurrence)}'
+                                : 'Stopped · last next date ${_date(item.nextOccurrence)}',
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            children: [
+                              if (item.isActive) ...[
+                                TextButton(
+                                  onPressed: () => _edit(context, ref, item),
+                                  child: const Text('Edit schedule'),
+                                ),
+                                TextButton(
+                                  onPressed: () => _stop(context, ref, item),
+                                  child: const Text('Stop recurring'),
+                                ),
+                              ] else
+                                FilledButton.tonal(
+                                  onPressed: () =>
+                                      _reactivate(context, ref, item),
+                                  child: const Text('Reactivate recurring'),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                );
-              },
-            ),
+                  );
+                },
+              ),
+      ),
     );
   }
 

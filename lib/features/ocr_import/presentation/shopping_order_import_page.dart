@@ -1,3 +1,5 @@
+import '../../guides/data/guide_catalog.dart';
+import '../../guides/presentation/contextual_guide.dart';
 import 'dart:async';
 
 import '../../security/app_lock.dart';
@@ -408,69 +410,72 @@ class _ShoppingOrderImportPageState
 
     return Scaffold(
       appBar: AppBar(title: const Text('Import shopping orders')),
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Choose one or more order-list screenshots from Files or Downloads. Review every result before it becomes an expense.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: _scanning || _saving ? null : _chooseScreenshots,
-              icon: const Icon(Icons.photo_library_outlined),
-              label: Text(
-                _reviewRows.isEmpty
-                    ? 'Browse screenshots in Files'
-                    : 'Browse different screenshots',
+      body: GuidedBody(
+        guideId: GuideIds.shoppingOrders,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Choose one or more order-list screenshots from Files or Downloads. Review every result before it becomes an expense.',
+                style: Theme.of(context).textTheme.bodyMedium,
               ),
-            ),
-            if (_scanning) ...[
-              const SizedBox(height: 16),
-              const LinearProgressIndicator(),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _scanning || _saving ? null : _chooseScreenshots,
+                icon: const Icon(Icons.photo_library_outlined),
+                label: Text(
+                  _reviewRows.isEmpty
+                      ? 'Browse screenshots in Files'
+                      : 'Browse different screenshots',
+                ),
+              ),
+              if (_scanning) ...[
+                const SizedBox(height: 16),
+                const LinearProgressIndicator(),
+                const SizedBox(height: 8),
+                const Text('Reading screenshots on this device…'),
+              ],
+              if (_scanMessage != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  _scanMessage!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ],
+              if (_reviewRows.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text(
+                  '${_reviewRows.length} order${_reviewRows.length == 1 ? '' : 's'} found',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ],
               const SizedBox(height: 8),
-              const Text('Reading screenshots on this device…'),
-            ],
-            if (_scanMessage != null) ...[
-              const SizedBox(height: 12),
-              Text(
-                _scanMessage!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-            ],
-            if (_reviewRows.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(
-                '${_reviewRows.length} order${_reviewRows.length == 1 ? '' : 's'} found',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ],
-            const SizedBox(height: 8),
-            Expanded(
-              child: _reviewRows.isEmpty
-                  ? const SizedBox.shrink()
-                  : ListView.separated(
-                      itemCount: _reviewRows.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 8),
-                      itemBuilder: (context, index) => _reviewCard(
-                        _reviewRows[index],
-                        categories,
-                        methods,
-                        currency,
+              Expanded(
+                child: _reviewRows.isEmpty
+                    ? const SizedBox.shrink()
+                    : ListView.separated(
+                        itemCount: _reviewRows.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 8),
+                        itemBuilder: (context, index) => _reviewCard(
+                          _reviewRows[index],
+                          categories,
+                          methods,
+                          currency,
+                        ),
                       ),
-                    ),
-            ),
-            if (_reviewRows.isNotEmpty)
-              FilledButton.icon(
-                onPressed: selectedCount == 0 || _scanning || _saving
-                    ? null
-                    : _importSelected,
-                icon: const Icon(Icons.add),
-                label: Text('Add selected ($selectedCount)'),
               ),
-          ],
+              if (_reviewRows.isNotEmpty)
+                FilledButton.icon(
+                  onPressed: selectedCount == 0 || _scanning || _saving
+                      ? null
+                      : _importSelected,
+                  icon: const Icon(Icons.add),
+                  label: Text('Add selected ($selectedCount)'),
+                ),
+            ],
+          ),
         ),
       ),
     );

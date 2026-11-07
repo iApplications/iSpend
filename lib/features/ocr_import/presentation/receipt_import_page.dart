@@ -1,3 +1,5 @@
+import '../../guides/data/guide_catalog.dart';
+import '../../guides/presentation/contextual_guide.dart';
 import 'dart:async';
 
 import '../../security/app_lock.dart';
@@ -396,210 +398,216 @@ class _ReceiptImportPageState extends ConsumerState<ReceiptImportPage> {
         : formatCents(scannedAmountCents);
     return Scaffold(
       appBar: AppBar(title: const Text('Scan a receipt')),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-          children: [
-            const Text(
-              'Take a photo or choose an existing receipt or payment screenshot. Files in Downloads can be selected with Browse files. Check the details before adding it.',
-            ),
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: _scanning
-                  ? null
-                  : () => _chooseImage(ImageSource.camera),
-              icon: const Icon(Icons.photo_camera_outlined),
-              label: const Text('Take receipt photo'),
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: _scanning
-                  ? null
-                  : () => _chooseImage(ImageSource.gallery),
-              icon: const Icon(Icons.photo_library_outlined),
-              label: const Text('Choose photo or screenshot'),
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: _scanning ? null : _chooseImageFile,
-              icon: const Icon(Icons.folder_open_outlined),
-              label: const Text('Browse files in Downloads'),
-            ),
-            if (_scanning) ...[
-              const SizedBox(height: 16),
-              const LinearProgressIndicator(),
-              const SizedBox(height: 8),
-              const Text('Reading image on this device…'),
-            ],
-            if (suggestion != null && !_scanning) ...[
-              const SizedBox(height: 20),
-              AppSurface(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      'Review expense',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Recognition can make mistakes. Edit any field below.',
-                    ),
-                    if (suggestion.amountNeedsReview &&
-                        suggestion.foreignAmountReference == null) ...[
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Amount needs review: no clear final payment was found.',
-                      ),
-                    ],
-                    if (suggestion.foreignAmountReference != null) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        'Detected ${suggestion.foreignAmountReference}. Enter an amount in ${currency.code}, or choose to copy the scanned number unchanged. No currency conversion is applied.',
-                      ),
-                    ],
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _amount,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-                      ],
-                      decoration: InputDecoration(
-                        labelText: 'Amount (${currency.code})',
-                        prefixText: '${currency.symbol} ',
-                      ),
-                      onChanged: (value) {
-                        if (_useScannedAmount && value != scannedAmountText) {
-                          setState(() => _useScannedAmount = false);
-                        }
-                      },
-                    ),
-                    if (scannedAmountText != null)
-                      CheckboxListTile(
-                        contentPadding: EdgeInsets.zero,
-                        controlAffinity: ListTileControlAffinity.leading,
-                        value: _useScannedAmount,
-                        title: const Text('Use scanned amount'),
-                        subtitle: Text(
-                          'Copy ${suggestion.foreignAmountReference} as ${currency.code} $scannedAmountText. No conversion.',
-                        ),
-                        onChanged: (value) => setState(() {
-                          _useScannedAmount = value ?? false;
-                          if (_useScannedAmount) {
-                            _amount.text = scannedAmountText;
-                          } else if (_amount.text == scannedAmountText) {
-                            _amount.clear();
-                          }
-                        }),
-                      ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _merchant,
-                      textCapitalization: TextCapitalization.sentences,
-                      decoration: const InputDecoration(
-                        labelText: 'Merchant or note',
-                      ),
-                    ),
-                    if (suggestion.merchant == null)
-                      const Text(
-                        'Merchant needs review: enter a shop or note if known.',
-                      ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: _category,
-                      decoration: const InputDecoration(labelText: 'Category'),
-                      items: [
-                        for (final category in categories)
-                          DropdownMenuItem(
-                            value: category,
-                            child: Text(category),
-                          ),
-                      ],
-                      onChanged: (value) => setState(() => _category = value),
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String?>(
-                      initialValue: _paymentMethod,
-                      decoration: const InputDecoration(
-                        labelText: 'Payment method',
-                      ),
-                      items: [
-                        const DropdownMenuItem<String?>(
-                          value: null,
-                          child: Text('Not specified'),
-                        ),
-                        for (final method in methods)
-                          DropdownMenuItem<String?>(
-                            value: method,
-                            child: Text(method),
-                          ),
-                      ],
-                      onChanged: (value) =>
-                          setState(() => _paymentMethod = value),
-                    ),
-                    const SizedBox(height: 8),
-                    if (suggestion.dateNeedsReview)
-                      const Text('Purchase date needs review.'),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        TextButton.icon(
-                          onPressed: _chooseDate,
-                          icon: const Icon(Icons.calendar_month_outlined),
-                          label: Text(
-                            _occurredAt == null
-                                ? 'Choose purchase date'
-                                : '${_occurredAt!.day}/${_occurredAt!.month}/${_occurredAt!.year}',
-                          ),
-                        ),
-                        TextButton.icon(
-                          onPressed: _chooseTime,
-                          icon: const Icon(Icons.schedule_outlined),
-                          label: Text(
-                            _occurredAt == null
-                                ? 'Choose time'
-                                : TimeOfDay.fromDateTime(
-                                    _occurredAt!,
-                                  ).format(context),
-                          ),
-                        ),
-                      ],
-                    ),
-                    ExpansionTile(
-                      tilePadding: EdgeInsets.zero,
-                      title: const Text('Recognized image text'),
-                      children: [
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            suggestion.rawText.isEmpty
-                                ? 'No text recognized.'
-                                : suggestion.rawText,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Keep image with expense'),
-                      subtitle: const Text('Off by default · up to 1 MB'),
-                      value: _keepImage,
-                      onChanged: (value) => setState(() => _keepImage = value),
-                    ),
-                    const SizedBox(height: 12),
-                    FilledButton(
-                      onPressed: _saving ? null : _save,
-                      child: const Text('Add expense'),
-                    ),
-                  ],
-                ),
+      body: GuidedBody(
+        guideId: GuideIds.receiptScan,
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+            children: [
+              const Text(
+                'Take a photo or choose an existing receipt or payment screenshot. Files in Downloads can be selected with Browse files. Check the details before adding it.',
               ),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: _scanning
+                    ? null
+                    : () => _chooseImage(ImageSource.camera),
+                icon: const Icon(Icons.photo_camera_outlined),
+                label: const Text('Take receipt photo'),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _scanning
+                    ? null
+                    : () => _chooseImage(ImageSource.gallery),
+                icon: const Icon(Icons.photo_library_outlined),
+                label: const Text('Choose photo or screenshot'),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _scanning ? null : _chooseImageFile,
+                icon: const Icon(Icons.folder_open_outlined),
+                label: const Text('Browse files in Downloads'),
+              ),
+              if (_scanning) ...[
+                const SizedBox(height: 16),
+                const LinearProgressIndicator(),
+                const SizedBox(height: 8),
+                const Text('Reading image on this device…'),
+              ],
+              if (suggestion != null && !_scanning) ...[
+                const SizedBox(height: 20),
+                AppSurface(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Review expense',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Recognition can make mistakes. Edit any field below.',
+                      ),
+                      if (suggestion.amountNeedsReview &&
+                          suggestion.foreignAmountReference == null) ...[
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Amount needs review: no clear final payment was found.',
+                        ),
+                      ],
+                      if (suggestion.foreignAmountReference != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Detected ${suggestion.foreignAmountReference}. Enter an amount in ${currency.code}, or choose to copy the scanned number unchanged. No currency conversion is applied.',
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _amount,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                        ],
+                        decoration: InputDecoration(
+                          labelText: 'Amount (${currency.code})',
+                          prefixText: '${currency.symbol} ',
+                        ),
+                        onChanged: (value) {
+                          if (_useScannedAmount && value != scannedAmountText) {
+                            setState(() => _useScannedAmount = false);
+                          }
+                        },
+                      ),
+                      if (scannedAmountText != null)
+                        CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          controlAffinity: ListTileControlAffinity.leading,
+                          value: _useScannedAmount,
+                          title: const Text('Use scanned amount'),
+                          subtitle: Text(
+                            'Copy ${suggestion.foreignAmountReference} as ${currency.code} $scannedAmountText. No conversion.',
+                          ),
+                          onChanged: (value) => setState(() {
+                            _useScannedAmount = value ?? false;
+                            if (_useScannedAmount) {
+                              _amount.text = scannedAmountText;
+                            } else if (_amount.text == scannedAmountText) {
+                              _amount.clear();
+                            }
+                          }),
+                        ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _merchant,
+                        textCapitalization: TextCapitalization.sentences,
+                        decoration: const InputDecoration(
+                          labelText: 'Merchant or note',
+                        ),
+                      ),
+                      if (suggestion.merchant == null)
+                        const Text(
+                          'Merchant needs review: enter a shop or note if known.',
+                        ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        initialValue: _category,
+                        decoration: const InputDecoration(
+                          labelText: 'Category',
+                        ),
+                        items: [
+                          for (final category in categories)
+                            DropdownMenuItem(
+                              value: category,
+                              child: Text(category),
+                            ),
+                        ],
+                        onChanged: (value) => setState(() => _category = value),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String?>(
+                        initialValue: _paymentMethod,
+                        decoration: const InputDecoration(
+                          labelText: 'Payment method',
+                        ),
+                        items: [
+                          const DropdownMenuItem<String?>(
+                            value: null,
+                            child: Text('Not specified'),
+                          ),
+                          for (final method in methods)
+                            DropdownMenuItem<String?>(
+                              value: method,
+                              child: Text(method),
+                            ),
+                        ],
+                        onChanged: (value) =>
+                            setState(() => _paymentMethod = value),
+                      ),
+                      const SizedBox(height: 8),
+                      if (suggestion.dateNeedsReview)
+                        const Text('Purchase date needs review.'),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          TextButton.icon(
+                            onPressed: _chooseDate,
+                            icon: const Icon(Icons.calendar_month_outlined),
+                            label: Text(
+                              _occurredAt == null
+                                  ? 'Choose purchase date'
+                                  : '${_occurredAt!.day}/${_occurredAt!.month}/${_occurredAt!.year}',
+                            ),
+                          ),
+                          TextButton.icon(
+                            onPressed: _chooseTime,
+                            icon: const Icon(Icons.schedule_outlined),
+                            label: Text(
+                              _occurredAt == null
+                                  ? 'Choose time'
+                                  : TimeOfDay.fromDateTime(
+                                      _occurredAt!,
+                                    ).format(context),
+                            ),
+                          ),
+                        ],
+                      ),
+                      ExpansionTile(
+                        tilePadding: EdgeInsets.zero,
+                        title: const Text('Recognized image text'),
+                        children: [
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              suggestion.rawText.isEmpty
+                                  ? 'No text recognized.'
+                                  : suggestion.rawText,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Keep image with expense'),
+                        subtitle: const Text('Off by default · up to 1 MB'),
+                        value: _keepImage,
+                        onChanged: (value) =>
+                            setState(() => _keepImage = value),
+                      ),
+                      const SizedBox(height: 12),
+                      FilledButton(
+                        onPressed: _saving ? null : _save,
+                        child: const Text('Add expense'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

@@ -1,3 +1,5 @@
+import '../../guides/data/guide_catalog.dart';
+import '../../guides/presentation/contextual_guide.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -112,63 +114,69 @@ class _ExportDataPageState extends ConsumerState<ExportDataPage> {
     if (_taxYear != null && !years.contains(_taxYear)) _taxYear = null;
     return Scaffold(
       appBar: AppBar(title: const Text('Export data')),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          const Text(
-            'Save your expenses as a CSV file you can open in a spreadsheet. '
-            'The file is not encrypted; use Backup & Restore to move data '
-            'between devices.',
-          ),
-          const SizedBox(height: 20),
-          Text('All expenses', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          FilledButton.icon(
-            onPressed: _exporting ? null : () => _export(taxOnly: false),
-            icon: const Icon(Icons.download_outlined),
-            label: Text('Export all (${expenses.length})'),
-          ),
-          const SizedBox(height: 28),
-          Text(
-            'Tax-deductible expenses',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Only expenses you marked as tax-deductible. This is a record of '
-            'your own entries, not tax advice or a tax calculation.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<int?>(
-            initialValue: _taxYear,
-            decoration: const InputDecoration(labelText: 'Year'),
-            items: [
-              const DropdownMenuItem<int?>(
-                value: null,
-                child: Text('All years'),
-              ),
-              for (final year in years)
-                DropdownMenuItem<int?>(value: year, child: Text('$year')),
-            ],
-            onChanged: (value) => setState(() => _taxYear = value),
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: _exporting ? null : () => _export(taxOnly: true),
-            icon: const Icon(Icons.receipt_long_outlined),
-            label: const Text('Export tax-deductible'),
-          ),
-          if (taxCount == 0)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                'No expenses are marked tax-deductible yet. Turn on "Count as '
-                'tax-deductible" when adding or editing an expense.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
+      body: GuidedBody(
+        guideId: GuideIds.exportData,
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            const Text(
+              'Save your expenses as a CSV file you can open in a spreadsheet. '
+              'The file is not encrypted; use Backup & Restore to move data '
+              'between devices.',
             ),
-        ],
+            const SizedBox(height: 20),
+            Text(
+              'All expenses',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              onPressed: _exporting ? null : () => _export(taxOnly: false),
+              icon: const Icon(Icons.download_outlined),
+              label: Text('Export all (${expenses.length})'),
+            ),
+            const SizedBox(height: 28),
+            Text(
+              'Tax-deductible expenses',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Only expenses you marked as tax-deductible. This is a record of '
+              'your own entries, not tax advice or a tax calculation.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<int?>(
+              initialValue: _taxYear,
+              decoration: const InputDecoration(labelText: 'Year'),
+              items: [
+                const DropdownMenuItem<int?>(
+                  value: null,
+                  child: Text('All years'),
+                ),
+                for (final year in years)
+                  DropdownMenuItem<int?>(value: year, child: Text('$year')),
+              ],
+              onChanged: (value) => setState(() => _taxYear = value),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _exporting ? null : () => _export(taxOnly: true),
+              icon: const Icon(Icons.receipt_long_outlined),
+              label: const Text('Export tax-deductible'),
+            ),
+            if (taxCount == 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  'No expenses are marked tax-deductible yet. Turn on "Count as '
+                  'tax-deductible" when adding or editing an expense.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

@@ -12,6 +12,7 @@ import '../../payment_methods/payment_method_providers.dart';
 import '../../quick_entry/presentation/quick_entry_sheet.dart';
 import '../../ocr_import/presentation/shopping_order_import_page.dart';
 import '../../ocr_import/presentation/receipt_import_page.dart';
+import '../../guides/guide_providers.dart';
 import '../../statement_import/presentation/pdf_statement_import.dart';
 import '../../settings/time_format_preference.dart';
 import '../../settings/currency_preference.dart';
@@ -118,6 +119,10 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text(
+              greetingFor(ref.watch(displayNameProvider)),
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [

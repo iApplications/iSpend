@@ -1,3 +1,5 @@
+import '../../guides/data/guide_catalog.dart';
+import '../../guides/presentation/contextual_guide.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -21,50 +23,56 @@ class TagsPage extends ConsumerWidget {
     final usage = tagUsage(expenses);
     return Scaffold(
       appBar: AppBar(title: const Text('Tags')),
-      body: usage.isEmpty
-          ? const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text(
-                  'No tags yet. Add tags when you add or edit an expense.',
-                  textAlign: TextAlign.center,
+      body: GuidedBody(
+        guideId: GuideIds.tags,
+        child: usage.isEmpty
+            ? const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text(
+                    'No tags yet. Add tags when you add or edit an expense.',
+                    textAlign: TextAlign.center,
+                  ),
                 ),
-              ),
-            )
-          : ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                for (final entry in usage)
-                  Card(
-                    child: ListTile(
-                      leading: const Icon(Icons.sell_outlined),
-                      title: Text(entry.key),
-                      subtitle: Text(
-                        '${entry.value} ${entry.value == 1 ? 'expense' : 'expenses'} · '
-                        '${formatCurrencyCents(_total(expenses, entry.key), currency)}',
-                      ),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => TagExpensesPage(tag: entry.key),
+              )
+            : ListView(
+                padding: const EdgeInsets.all(20),
+                children: [
+                  for (final entry in usage)
+                    Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.sell_outlined),
+                        title: Text(entry.key),
+                        subtitle: Text(
+                          '${entry.value} ${entry.value == 1 ? 'expense' : 'expenses'} · '
+                          '${formatCurrencyCents(_total(expenses, entry.key), currency)}',
+                        ),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => TagExpensesPage(tag: entry.key),
+                          ),
+                        ),
+                        trailing: PopupMenuButton<String>(
+                          tooltip: 'Tag options',
+                          onSelected: (action) => action == 'rename'
+                              ? _rename(context, ref, entry.key)
+                              : _delete(context, ref, entry.key, entry.value),
+                          itemBuilder: (_) => const [
+                            PopupMenuItem(
+                              value: 'rename',
+                              child: Text('Rename'),
+                            ),
+                            PopupMenuItem(
+                              value: 'delete',
+                              child: Text('Remove tag'),
+                            ),
+                          ],
                         ),
                       ),
-                      trailing: PopupMenuButton<String>(
-                        tooltip: 'Tag options',
-                        onSelected: (action) => action == 'rename'
-                            ? _rename(context, ref, entry.key)
-                            : _delete(context, ref, entry.key, entry.value),
-                        itemBuilder: (_) => const [
-                          PopupMenuItem(value: 'rename', child: Text('Rename')),
-                          PopupMenuItem(
-                            value: 'delete',
-                            child: Text('Remove tag'),
-                          ),
-                        ],
-                      ),
                     ),
-                  ),
-              ],
-            ),
+                ],
+              ),
+      ),
     );
   }
 

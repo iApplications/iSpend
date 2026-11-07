@@ -380,6 +380,7 @@ There is no iSpend backend server and no bank-account integration.
 **Phase 3:** Complete — OCR capture (its bank CSV import was removed in Phase 3b)
 **Phase 3b:** Complete — PDF statement import (Touch 'n Go, Public Bank, HSBC)
 **Phase 4a:** Complete — data export, monthly report, tags and multi-currency
+**Phase 4d:** Complete — onboarding, personalization and help
 
 Phase 2b delivered:
 
@@ -505,6 +506,27 @@ Phase 4a delivered:
     still works. A restored backup brings this setting with it.
   * Currency amounts use the ISO code (for example `USD 12.00`) rather than
     a bare symbol, because `$` and `¥` each stand for several currencies.
+
+Phase 4d delivered:
+
+* **Welcome guide**: shown once on a fresh install (after passphrase setup
+  and any app-lock prompt). It asks an optional "What should iSpend call
+  you?" and then introduces only Expenses, Summary and Settings. It can be
+  skipped at any point. Someone who already has expenses (for example after an
+  update) is not walked through it.
+* **Name**: used only for the greeting on the Expenses page ("Welcome back, Sam",
+  or plain "Welcome back" with no name). Edit or clear it under **Settings >
+  Personalization**. It never touches saved expenses.
+* **Contextual guides**: a short card the first time a feature screen is opened
+  (budgets, recurring, quick entry, tags, exchange rates, export, backup,
+  receipt scan, shopping orders). "Got it" dismisses it for good; it never
+  blocks the screen and is height-limited so it cannot push content out of reach.
+* **Help & Guide** under Settings > About keeps every guide readable at any
+  time, can replay the welcome guide, and has **Reset tutorials**, which shows
+  the tips again but does not reset the name.
+* Which guides were dismissed is stored locally in the encrypted app settings,
+  versioned so an updated guide can be shown again, and is included in the
+  encrypted backup. There is no analytics or tracking.
 
 ## Branching and pull-request workflow
 

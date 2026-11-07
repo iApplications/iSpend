@@ -8,6 +8,8 @@ import '../../backup/presentation/backup_restore_page.dart';
 import '../../budgets/presentation/budget_limits_page.dart';
 import '../../categories/presentation/category_management_page.dart';
 import '../../exchange_rates/presentation/exchange_rates_page.dart';
+import '../../guides/presentation/help_guide_page.dart';
+import '../../guides/presentation/personalization_page.dart';
 import '../../expenses/presentation/recurring_expenses_page.dart';
 import '../../export/presentation/export_data_page.dart';
 import '../../expenses/expense_providers.dart';
@@ -43,6 +45,13 @@ class SettingsPage extends ConsumerWidget {
         _SettingsGroup(
           label: 'GENERAL',
           children: [
+            _navigationTile(
+              context,
+              icon: Icons.person_outline,
+              title: 'Personalization',
+              subtitle: 'The name used in greetings',
+              page: const PersonalizationPage(),
+            ),
             ListTile(
               leading: const Icon(Icons.currency_exchange_outlined),
               title: const Text('Currency'),
@@ -203,6 +212,13 @@ class SettingsPage extends ConsumerWidget {
         _SettingsGroup(
           label: 'ABOUT',
           children: [
+            _navigationTile(
+              context,
+              icon: Icons.help_outline,
+              title: 'Help & Guide',
+              subtitle: 'Tips for each feature, and reset tutorials',
+              page: const HelpGuidePage(),
+            ),
             _navigationTile(
               context,
               icon: Icons.info_outline,
