@@ -236,6 +236,19 @@ class _AppShellState extends ConsumerState<AppShell> {
         // app. AppLockGate immediately asks for device authentication there.
         widget.onExternalEntryComplete?.call();
       }
+    } catch (_) {
+      // A failed read or save must not leave a spinner, or silently drop what
+      // the user typed.
+      if (!mounted) return;
+      if (widget.externalOnly) {
+        setState(
+          () => _externalEntryStatus =
+              'Could not save the expense. Open iSpend and try again.',
+        );
+      } else {
+        AppToast.showError(context, 'Could not save the expense. Try again.');
+        widget.onExternalEntryComplete?.call();
+      }
     } finally {
       _quickEntryInteraction.finish();
     }

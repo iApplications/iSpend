@@ -19,8 +19,8 @@ final categoryIconKeysProvider = FutureProvider<Map<String, String>>(
 );
 
 class CategoriesNotifier extends Notifier<List<String>> {
-  late final CategoryRepository _repository;
-  late final ExpenseRepository _expenseRepository;
+  late CategoryRepository _repository;
+  late ExpenseRepository _expenseRepository;
 
   @override
   List<String> build() {

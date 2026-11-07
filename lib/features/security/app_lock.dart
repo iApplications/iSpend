@@ -7,6 +7,7 @@ import 'package:home_widget/home_widget.dart';
 
 import '../../core/database/app_settings_repository.dart';
 import '../../core/widgets/app_toast.dart';
+import 'screen_security.dart';
 import '../quick_entry/android_app_shortcuts.dart';
 import '../quick_entry/android_quick_settings_tile.dart';
 
@@ -39,7 +40,7 @@ final appLockEnabledProvider = NotifierProvider<AppLockEnabledNotifier, bool?>(
 
 class AppLockEnabledNotifier extends Notifier<bool?> {
   static const _settingKey = 'app_lock_enabled';
-  late final AppSettingsRepository _repository;
+  late AppSettingsRepository _repository;
 
   @override
   bool? build() {
@@ -65,7 +66,7 @@ final quickLoggingWithoutUnlockProvider =
 
 class QuickLoggingWithoutUnlockNotifier extends Notifier<bool?> {
   static const _settingKey = 'quick_logging_without_unlock';
-  late final AppSettingsRepository _repository;
+  late AppSettingsRepository _repository;
 
   @override
   bool? build() {
@@ -108,6 +109,7 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
   static Future<Uri?>? _initialWidgetLaunchUri;
 
   bool _unlocked = false;
+  bool? _secureScreen;
   bool _authenticating = false;
   bool _promptedForCurrentLock = false;
   bool _authenticationLifecycleTransition = false;
@@ -291,6 +293,10 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
   Widget build(BuildContext context) {
     final enabled = ref.watch(appLockEnabledProvider);
     final bypass = ref.watch(quickLoggingWithoutUnlockProvider);
+    if (enabled != null && enabled != _secureScreen) {
+      _secureScreen = enabled;
+      unawaited(ScreenSecurity.setSecure(enabled));
+    }
     if (enabled == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }

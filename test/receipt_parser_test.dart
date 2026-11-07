@@ -228,6 +228,19 @@ void main() {
     );
     expect(result.amountCents, 1200);
   });
+  test('reads amounts that use a decimal comma', () {
+    for (final (text, cents) in [
+      ('Total RM 12,50', 1250),
+      ('Total RM 1.234,56', 123456),
+    ]) {
+      final result = parser.parse(
+        currencyCode: 'MYR',
+        currencySymbol: 'RM',
+        input: [_line('Kedai', 10), _line(text, 90)],
+      );
+      expect(result.amountCents, cents, reason: text);
+    }
+  });
 }
 
 RecognizedOcrLine _line(String text, double top) =>

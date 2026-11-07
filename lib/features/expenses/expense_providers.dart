@@ -44,7 +44,7 @@ final recurringExpensesProvider = FutureProvider<List<RecurringExpense>>(
 );
 
 class ExpensesNotifier extends Notifier<List<Expense>> {
-  late final ExpenseRepository _repository;
+  late ExpenseRepository _repository;
 
   @override
   List<Expense> build() {
@@ -53,8 +53,14 @@ class ExpensesNotifier extends Notifier<List<Expense>> {
     return const [];
   }
 
+  var _loadVersion = 0;
+
   Future<void> _load() async {
-    state = await _repository.getAll();
+    // Quick successive changes start overlapping loads; only the newest
+    // result may replace the list, or an older read could show stale data.
+    final version = ++_loadVersion;
+    final loaded = await _repository.getAll();
+    if (version == _loadVersion) state = loaded;
   }
 
   Future<void> refresh() => _load();

@@ -192,7 +192,20 @@ class ReceiptParser {
     return 0;
   }
 
+  /// Some receipts print 1.234,56 or 12,50. Turn those into 1234.56 / 12.50
+  /// so the comma is not read as a thousands separator.
+  String _normalizeDecimalComma(String text) => text
+      .replaceAllMapped(
+        RegExp(r'(?<![\d.,])(\d{1,3}(?:\.\d{3})+),(\d{2})(?![\d])'),
+        (m) => '${m[1]!.replaceAll('.', '')}.${m[2]}',
+      )
+      .replaceAllMapped(
+        RegExp(r'(?<![\d.,])(\d{1,6}),(\d{2})(?![\d,.])'),
+        (m) => '${m[1]}.${m[2]}',
+      );
+
   List<int> _amounts(String text, String code, String symbol) {
+    text = _normalizeDecimalComma(text);
     // A stated foreign currency must never be silently treated as the app's
     // currency. An unmarked receipt amount can still be suggested for review.
     final currency = RegExp(

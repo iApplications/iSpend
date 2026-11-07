@@ -130,6 +130,9 @@ class _ReceiptImportPageState extends ConsumerState<ReceiptImportPage> {
     if (_scanning || !mounted) return;
     setState(() => _scanning = true);
     final recognizer = ShoppingScreenshotOcr();
+    // Set once the picked image has an owner (this page or the batch page).
+    // Otherwise the picker's cache copy is deleted when the scan ends.
+    var adopted = false;
     try {
       final lines = await recognizer.recognize(file.path);
       final currency = ref.read(appCurrencyProvider);
@@ -146,6 +149,7 @@ class _ReceiptImportPageState extends ConsumerState<ReceiptImportPage> {
         if (previousPath != file.path) {
           unawaited(discardTemporaryOcrImage(previousPath));
         }
+        adopted = true;
         Navigator.of(context).pushReplacement(
           MaterialPageRoute<void>(
             builder: (_) => ShoppingOrderImportPage(
@@ -189,6 +193,7 @@ class _ReceiptImportPageState extends ConsumerState<ReceiptImportPage> {
         _category = suggestedCategory;
         _paymentMethod = _detectedPaymentMethod(suggestion.rawText, methods);
       });
+      adopted = true;
       if (previousPath != file.path) {
         unawaited(discardTemporaryOcrImage(previousPath));
       }
@@ -198,6 +203,9 @@ class _ReceiptImportPageState extends ConsumerState<ReceiptImportPage> {
       }
     } finally {
       await recognizer.close();
+      if (!adopted && file.path != _sourcePath) {
+        unawaited(discardTemporaryOcrImage(file.path));
+      }
       if (mounted) setState(() => _scanning = false);
     }
   }

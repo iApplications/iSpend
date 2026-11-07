@@ -46,6 +46,7 @@ class _ShoppingOrderImportPageState
   Set<String> _selectedPaths = {};
   bool _scanning = false;
   bool _saving = false;
+  bool _picking = false;
   String? _scanMessage;
 
   @override
@@ -70,10 +71,19 @@ class _ShoppingOrderImportPageState
   }
 
   Future<void> _chooseScreenshots() async {
-    final result = await FilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['png', 'jpg', 'jpeg'],
-    );
+    // A second tap while the picker is open, or a rescan during a save, would
+    // replace rows and images that are still in use.
+    if (_scanning || _saving || _picking) return;
+    _picking = true;
+    final List<PlatformFile> result;
+    try {
+      result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['png', 'jpg', 'jpeg'],
+      );
+    } finally {
+      _picking = false;
+    }
     if (result.isEmpty || !mounted) return;
     if (result.any(
       (file) => !{'png', 'jpg', 'jpeg'}.contains(file.extension?.toLowerCase()),
@@ -145,6 +155,9 @@ class _ShoppingOrderImportPageState
     if (!mounted) {
       for (final row in rows) {
         row.dispose();
+      }
+      for (final path in paths) {
+        unawaited(discardTemporaryOcrImage(path));
       }
       return;
     }
@@ -403,7 +416,7 @@ class _ShoppingOrderImportPageState
             ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
-              onPressed: _scanning ? null : _chooseScreenshots,
+              onPressed: _scanning || _saving ? null : _chooseScreenshots,
               icon: const Icon(Icons.photo_library_outlined),
               label: Text(
                 _reviewRows.isEmpty

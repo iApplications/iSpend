@@ -290,9 +290,6 @@ class _StatementCsvImportPageState
     if (chosen != null && mounted) setState(() => row.date = chosen);
   }
 
-  String _normalize(String text) =>
-      text.toLowerCase().replaceAll(RegExp(r'[^a-z0-9\u4e00-\u9fff]'), '');
-
   Future<void> _save() async {
     if (_saving) return;
     final selected = _rows.where((row) => row.selected).toList();
@@ -323,9 +320,11 @@ class _StatementCsvImportPageState
       );
     }
     final history = ref.read(expensesProvider);
+    // Same day and amount is enough to warn: a statement describes a purchase
+    // differently ("GRAB*A-123") from how it was typed by hand ("Grab").
     String duplicateKey(Expense expense) =>
         '${expense.occurredAt.year}-${expense.occurredAt.month}-${expense.occurredAt.day}|'
-        '${expense.amountCents}|${_normalize(expense.merchantOrNote ?? '')}';
+        '${expense.amountCents}';
     final seenInFile = <String>{};
     final duplicateCount = expenses.where((expense) {
       final key = duplicateKey(expense);

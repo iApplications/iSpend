@@ -64,9 +64,13 @@ class ISpendDatabase {
           await _createCategoriesTable(db);
         }
         if (oldVersion < 4) {
-          await db.execute(
-            "ALTER TABLE categories ADD COLUMN icon_key TEXT NOT NULL DEFAULT 'other'",
-          );
+          // A database upgrading from before version 3 has just had its
+          // categories table created with this column already.
+          if (!await _hasColumn(db, 'categories', 'icon_key')) {
+            await db.execute(
+              "ALTER TABLE categories ADD COLUMN icon_key TEXT NOT NULL DEFAULT 'other'",
+            );
+          }
           for (final name in const [
             'Food',
             'Transport',
@@ -180,6 +184,15 @@ class ISpendDatabase {
     await db.execute(
       'CREATE INDEX expense_images_by_image ON expense_images(image_id)',
     );
+  }
+
+  static Future<bool> _hasColumn(
+    Database db,
+    String table,
+    String column,
+  ) async {
+    final info = await db.rawQuery('PRAGMA table_info($table)');
+    return info.any((row) => row['name'] == column);
   }
 
   static Future<void> _createCategoriesTable(Database db) async {
