@@ -67,7 +67,7 @@ class ReceiptParser {
     String? foreignAmount;
     for (var index = 0; index < lines.length; index++) {
       final label = lines[index].text.toLowerCase();
-      if (_nonFinalLabel.hasMatch(label)) continue;
+      if (_isNonFinal(label)) continue;
       final score = _labelScore(label);
       if (score == 0) continue;
       foreignAmount ??= foreignPaidAmountReference(
@@ -75,7 +75,7 @@ class ReceiptParser {
         currencyCode,
         currencySymbol,
       );
-      final inline = _amounts(
+      final inline = _amountsIgnoringNotes(
         normalizePaidAmountOcr(lines[index].text),
         currencyCode,
         currencySymbol,
@@ -83,7 +83,7 @@ class ReceiptParser {
       if (inline.isNotEmpty) {
         amounts.add((cents: inline.last, score: score));
       } else if (index + 1 < lines.length &&
-          !_nonFinalLabel.hasMatch(lines[index + 1].text)) {
+          !_isNonFinal(lines[index + 1].text)) {
         foreignAmount ??= foreignPaidAmountReference(
           lines[index + 1].text,
           currencyCode,
@@ -136,6 +136,33 @@ class ReceiptParser {
     r'subtotal|sub total|tax|sst|service charge|shipping|delivery|voucher|discount|cash tendered|change|balance|original price|buy again|运费|优惠|折扣|原价|找零',
     caseSensitive: false,
   );
+
+  /// "Grand Total (incl. 6% SST)" is still the final total; the tax word only
+  /// disqualifies a line when it is the label itself.
+  bool _isNonFinal(String text) => _nonFinalLabel.hasMatch(
+    text
+        .replaceAll(RegExp(r'\([^)]*\)'), ' ')
+        .replaceAll(
+          RegExp(
+            r'incl(?:uding|usive|\.)?\s*(?:of\s*)?\d*\.?\d*%?\s*(?:sst|tax|gst|service charge)',
+            caseSensitive: false,
+          ),
+          ' ',
+        ),
+  );
+
+  /// Amounts in a trailing note such as "(SST 2.55)" are not the total.
+  List<int> _amountsIgnoringNotes(String text, String code, String symbol) {
+    final withoutNotes = _amounts(
+      text.replaceAll(RegExp(r'\([^)]*\)'), ' '),
+      code,
+      symbol,
+    );
+    return withoutNotes.isNotEmpty
+        ? withoutNotes
+        : _amounts(text, code, symbol);
+  }
+
   static final _nonPurchaseDate = RegExp(
     r'delivery|delivered|shipped|shipment|screenshot|captured|expiry|valid until|送达|发货|截图|有效期',
     caseSensitive: false,
@@ -143,10 +170,18 @@ class ReceiptParser {
 
   int _labelScore(String text) {
     if (RegExp(
-      r'grand\s*total|total\s*payment|amount\s*paid|paid\s*amount|实付款|實付款|实付|實付',
+      r'grand\s*total|total\s*payment|实付款|實付款|实付|實付',
       caseSensitive: false,
     ).hasMatch(text)) {
       return 100;
+    }
+    // On a cash receipt "amount paid" is the cash handed over, which can be
+    // more than the total, so a real total line must outrank it.
+    if (RegExp(
+      r'amount\s*paid|paid\s*amount',
+      caseSensitive: false,
+    ).hasMatch(text)) {
+      return 70;
     }
     if (RegExp(
       r'amount\s*due|order\s*total|total\s*due|(?:^|\b)total(?:\b|$)|应付|應付|合计|合計',
@@ -161,7 +196,7 @@ class ReceiptParser {
     // A stated foreign currency must never be silently treated as the app's
     // currency. An unmarked receipt amount can still be suggested for review.
     final currency = RegExp(
-      r'(?<![A-Za-z])(?:MYR|RM|SGD|USD|GBP|JPY|EUR|CNY|RMB)(?=\s*\d)|[£$¥€]',
+      r'(?<![A-Za-z])(?:MYR|RM|SGD|USD|GBP|JPY|EUR|CNY|RMB)(?=\s*\d)|S\$|[£$¥€]',
       caseSensitive: false,
     );
     final markers = currency.allMatches(text).map((m) => m.group(0)!).toList();
@@ -189,6 +224,7 @@ class ReceiptParser {
     final value = marker.toUpperCase();
     if (value == code.toUpperCase()) return true;
     if (code.toUpperCase() == 'MYR' && value == 'RM') return true;
+    if (code.toUpperCase() == 'SGD' && value == r'S$') return true;
     return marker == symbol;
   }
 

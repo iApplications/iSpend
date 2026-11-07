@@ -328,11 +328,14 @@ class SqlCipherExpenseRepository implements ExpenseRepository {
   Future<int> countByCategory(String category) async {
     return Sqflite.firstIntValue(
           await _database.rawQuery(
+            // Recurring schedules count too: deleting their category would
+            // leave a schedule that can no longer be confirmed.
             '''
-            SELECT COUNT(*) FROM expenses
-            WHERE category_id = (
-              SELECT id FROM categories WHERE name = ?
-            )
+            SELECT
+              (SELECT COUNT(*) FROM expenses WHERE category_id = c.id) +
+              (SELECT COUNT(*) FROM recurring_expenses
+                WHERE category_id = c.id)
+            FROM categories c WHERE c.name = ?
             ''',
             [category],
           ),
@@ -355,10 +358,11 @@ class SqlCipherExpenseRepository implements ExpenseRepository {
       Sqflite.firstIntValue(
         await _database.rawQuery(
           '''
-          SELECT COUNT(*) FROM expenses
-          WHERE payment_method_id = (
-            SELECT id FROM payment_methods WHERE name = ?
-          )
+          SELECT
+            (SELECT COUNT(*) FROM expenses WHERE payment_method_id = p.id) +
+            (SELECT COUNT(*) FROM recurring_expenses
+              WHERE payment_method_id = p.id)
+          FROM payment_methods p WHERE p.name = ?
           ''',
           [paymentMethod],
         ),

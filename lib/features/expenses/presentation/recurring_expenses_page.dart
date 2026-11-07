@@ -111,7 +111,8 @@ class RecurringExpensesPage extends ConsumerWidget {
             isTaxDeductible: result.expense.isTaxDeductible,
             nextOccurrence: result.expense.occurredAt,
             createdAt: item.createdAt,
-            anchorDay: item.anchorDay,
+            // The edited date is the new schedule; keep the day it repeats on.
+            anchorDay: result.expense.occurredAt.day,
             isActive: item.isActive,
           ),
         );

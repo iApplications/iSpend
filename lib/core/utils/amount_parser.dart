@@ -9,6 +9,10 @@ int? parseAmountToCents(String input) {
   }
 
   final parts = value.split('.');
+  // Far beyond any real expense; also keeps `whole * 100` from overflowing.
+  if (parts.first.length > 10) {
+    return null;
+  }
   final whole = int.tryParse(parts.first);
   if (whole == null) {
     return null;
