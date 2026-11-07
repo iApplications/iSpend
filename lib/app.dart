@@ -93,6 +93,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   int _selectedIndex = 0;
   StreamSubscription<Uri?>? _widgetClicks;
   ProviderSubscription<List<Expense>>? _expenseWidgetRefresh;
+  ProviderSubscription<bool?>? _lockWidgetRefresh;
   String? _externalEntryStatus;
   final _quickEntryInteraction = QuickEntryInteractionGuard();
 
@@ -127,6 +128,11 @@ class _AppShellState extends ConsumerState<AppShell> {
     _expenseWidgetRefresh = ref.listenManual(expensesProvider, (_, expenses) {
       unawaited(_refreshHomeWidget(expenses));
     }, fireImmediately: true);
+    // Turning app lock on or off must change what the home widget shows now,
+    // not at the next expense change.
+    _lockWidgetRefresh = ref.listenManual(appLockEnabledProvider, (_, _) {
+      unawaited(_refreshHomeWidget(ref.read(expensesProvider)));
+    });
   }
 
   @override
@@ -165,6 +171,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   void dispose() {
     _widgetClicks?.cancel();
     _expenseWidgetRefresh?.close();
+    _lockWidgetRefresh?.close();
     super.dispose();
   }
 
@@ -203,7 +210,8 @@ class _AppShellState extends ConsumerState<AppShell> {
         context,
         categories: categories,
         paymentMethods: methods,
-        history: ref.read(expensesProvider),
+        // Without unlock only the minimum needed to log an expense is exposed.
+        history: widget.externalOnly ? const [] : ref.read(expensesProvider),
         currency: ref.read(appCurrencyProvider),
         template: template,
         categoryNamesById: references.categoryNamesById,
@@ -253,7 +261,8 @@ class _AppShellState extends ConsumerState<AppShell> {
       templates,
       expenses: expenses,
       currency: ref.read(appCurrencyProvider),
-      hideFinancialDetails: ref.read(appLockEnabledProvider) ?? false,
+      // Until the lock setting has loaded, show nothing rather than data.
+      hideFinancialDetails: ref.read(appLockEnabledProvider) ?? true,
     );
   }
 

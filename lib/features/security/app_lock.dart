@@ -111,6 +111,11 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
   bool _authenticating = false;
   bool _promptedForCurrentLock = false;
   bool _authenticationLifecycleTransition = false;
+
+  /// When an unlocked external quick-entry surface left the foreground. A
+  /// brief system overlay must not re-lock it, but a real absence must.
+  DateTime? _externalBackgroundedAt;
+  static const _externalBackgroundGrace = Duration(seconds: 10);
   bool _externalSourcesReady = false;
   Uri? _externalUri;
   Uri? _pendingExternalUri;
@@ -215,6 +220,15 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
       // local_auth can resume the Flutter activity just after its Future has
       // completed. Clear the guard only after that transition has finished.
       if (!_authenticating) _authenticationLifecycleTransition = false;
+      final away = _externalBackgroundedAt;
+      _externalBackgroundedAt = null;
+      if (away != null &&
+          DateTime.now().difference(away) > _externalBackgroundGrace) {
+        // The phone was left on an authenticated quick-entry sheet. Require
+        // authentication again before it, or the full app behind it, shows.
+        _unlocked = false;
+        _promptedForCurrentLock = false;
+      }
       // The app was locked while it was in the background. Rebuild only now
       // so the authentication prompt appears after the user selects iSpend
       // from Android's Recents screen, not while they are browsing Recents.
@@ -223,9 +237,9 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
     }
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
-      if (_authenticating ||
-          _authenticationLifecycleTransition ||
-          (_externalUri != null && _unlocked)) {
+      if (_authenticating || _authenticationLifecycleTransition) return;
+      if (_externalUri != null && _unlocked) {
+        _externalBackgroundedAt ??= DateTime.now();
         return;
       }
       setState(() {
