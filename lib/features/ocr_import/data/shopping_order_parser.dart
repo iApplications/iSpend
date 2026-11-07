@@ -499,19 +499,30 @@ class ShoppingOrderParser {
   ) {
     final currency =
         '(?:${RegExp.escape(currencyCode)}|${RegExp.escape(currencySymbol)})';
+    int? best;
+    var bestScore = 0;
     for (var index = 0; index < lines.length; index++) {
       final text = lines[index].text;
-      if (!_hasFinalAmountLabel(text)) continue;
+      final score = _finalLabelScore(text);
+      if (score == 0 || score <= bestScore) continue;
+      int? found;
       final inline = _amounts(normalizePaidAmountOcr(text), currency);
-      if (inline.isNotEmpty) return inline.last;
-      if (index + 1 < lines.length) {
+      if (inline.isNotEmpty) {
+        found = inline.last;
+      } else if (score >= 40 && index + 1 < lines.length) {
+        // A bare "Paid" is usually a status badge, so it needs its amount on
+        // the same line; clearer labels may have the amount on the next line.
         final next = lines[index + 1].text.trim();
         if (_isStandaloneAmount(next, currency)) {
-          return _amounts(next, currency).single;
+          found = _amounts(next, currency).single;
         }
       }
+      if (found != null) {
+        best = found;
+        bestScore = score;
+      }
     }
-    return null;
+    return best;
   }
 
   String? _foreignAmountReference(
@@ -536,16 +547,36 @@ class ShoppingOrderParser {
     return null;
   }
 
-  bool _hasFinalAmountLabel(String text) {
+  bool _hasFinalAmountLabel(String text) => _finalLabelScore(text) > 0;
+
+  /// Rates how likely a line labels the amount actually paid. The strongest
+  /// label wins, not simply the first one, so "Total Savings" or a "Paid"
+  /// status badge above the real "Order Total" cannot be taken as the total.
+  int _finalLabelScore(String text) {
     final lower = text.toLowerCase();
     final excluded = RegExp(
-      r'subtotal|original price|shipping|voucher|discount|cash tendered|change|balance|buy again|运费|优惠|折扣|原价|找零',
+      r'subtotal|original price|shipping|voucher|discount|saving|saved|cash tendered|change|balance|buy again|运费|优惠|折扣|原价|已省|节省|找零',
     );
-    if (excluded.hasMatch(lower)) return false;
-    return RegExp(
-      r'grand\s*total|order\s*total|total\s*payment|amount\s*paid|paid\s*amount|amount\s*due|(?:^|\b)total(?:\b|$)|(?:^|\b)paid(?:\b|$)|实付款|實付款|实付|實付',
+    if (excluded.hasMatch(lower)) return 0;
+    if (RegExp(
+      r'grand\s*total|order\s*total|total\s*payment|amount\s*due|实付款|實付款|实付|實付',
       caseSensitive: false,
-    ).hasMatch(text);
+    ).hasMatch(text)) {
+      return 100;
+    }
+    if (RegExp(
+      r'amount\s*paid|paid\s*amount',
+      caseSensitive: false,
+    ).hasMatch(text)) {
+      return 70;
+    }
+    if (RegExp(r'(?:^|\b)total(?:\b|$)', caseSensitive: false).hasMatch(text)) {
+      return 40;
+    }
+    if (RegExp(r'(?:^|\b)paid(?:\b|$)', caseSensitive: false).hasMatch(text)) {
+      return 30;
+    }
+    return 0;
   }
 
   List<int> _amounts(String text, String currency) {

@@ -26,6 +26,7 @@ dependencies:
   home_widget: ^0.10.0
   quick_actions: ^1.1.1
   google_mlkit_text_recognition: ^0.17.1
+  pdfrx: ^2.4.8
 
 dev_dependencies:
   flutter_test:

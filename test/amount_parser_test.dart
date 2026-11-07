@@ -16,4 +16,9 @@ void main() {
     expect(parseAmountToCents('-5'), isNull);
     expect(parseAmountToCents('abc'), isNull);
   });
+
+  test('rejects amounts too large to be real or to store safely', () {
+    expect(parseAmountToCents('99999999999999999999'), isNull);
+    expect(parseAmountToCents('9999999999.99'), 999999999999);
+  });
 }

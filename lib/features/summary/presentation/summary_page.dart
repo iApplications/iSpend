@@ -23,7 +23,11 @@ enum _SummaryPeriod { today, last7Days, last30Days }
 
 class _SummaryPageState extends ConsumerState<SummaryPage> {
   _SummaryPeriod _period = _SummaryPeriod.last30Days;
-  DateTime _referenceDate = DateTime.now();
+
+  /// A date the user chose. Otherwise the summary follows today's date, so it
+  /// rolls over at midnight and at month end instead of freezing at launch.
+  DateTime? _pickedDate;
+  DateTime get _referenceDate => _pickedDate ?? DateTime.now();
 
   @override
   Widget build(BuildContext context) {
@@ -152,7 +156,7 @@ class _SummaryPageState extends ConsumerState<SummaryPage> {
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
-    if (selected != null) setState(() => _referenceDate = selected);
+    if (selected != null) setState(() => _pickedDate = selected);
   }
 }
 

@@ -50,7 +50,7 @@ class QuickEntryTemplateReferences {
 }
 
 class QuickEntryTemplatesNotifier extends Notifier<List<QuickEntryTemplate>> {
-  late final QuickEntryTemplateRepository _repository;
+  late QuickEntryTemplateRepository _repository;
 
   @override
   List<QuickEntryTemplate> build() {
@@ -96,6 +96,6 @@ class QuickEntryTemplatesNotifier extends Notifier<List<QuickEntryTemplate>> {
     state,
     expenses: ref.read(expensesProvider),
     currency: ref.read(appCurrencyProvider),
-    hideFinancialDetails: ref.read(appLockEnabledProvider) ?? false,
+    hideFinancialDetails: ref.read(appLockEnabledProvider) ?? true,
   );
 }

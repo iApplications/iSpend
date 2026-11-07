@@ -7,8 +7,28 @@ import 'package:home_widget/home_widget.dart';
 
 import '../../core/database/app_settings_repository.dart';
 import '../../core/widgets/app_toast.dart';
+import 'screen_security.dart';
 import '../quick_entry/android_app_shortcuts.dart';
 import '../quick_entry/android_quick_settings_tile.dart';
+
+/// System pickers (files, camera, save dialogs) send iSpend to the background.
+/// While one is open the app must not re-lock, or the screen that asked for
+/// the file is torn down and the result is dropped.
+class AppLockPause {
+  static var _depth = 0;
+  static bool get active => _depth > 0;
+
+  static Future<T> during<T>(Future<T> Function() action) async {
+    _depth++;
+    try {
+      return await action();
+    } finally {
+      // The resume event can arrive just after the picker's Future completes.
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      _depth--;
+    }
+  }
+}
 
 abstract interface class AppLockAuthenticator {
   Future<bool> authenticate();
@@ -39,7 +59,7 @@ final appLockEnabledProvider = NotifierProvider<AppLockEnabledNotifier, bool?>(
 
 class AppLockEnabledNotifier extends Notifier<bool?> {
   static const _settingKey = 'app_lock_enabled';
-  late final AppSettingsRepository _repository;
+  late AppSettingsRepository _repository;
 
   @override
   bool? build() {
@@ -65,7 +85,7 @@ final quickLoggingWithoutUnlockProvider =
 
 class QuickLoggingWithoutUnlockNotifier extends Notifier<bool?> {
   static const _settingKey = 'quick_logging_without_unlock';
-  late final AppSettingsRepository _repository;
+  late AppSettingsRepository _repository;
 
   @override
   bool? build() {
@@ -108,9 +128,15 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
   static Future<Uri?>? _initialWidgetLaunchUri;
 
   bool _unlocked = false;
+  bool? _secureScreen;
   bool _authenticating = false;
   bool _promptedForCurrentLock = false;
   bool _authenticationLifecycleTransition = false;
+
+  /// When an unlocked external quick-entry surface left the foreground. A
+  /// brief system overlay must not re-lock it, but a real absence must.
+  DateTime? _externalBackgroundedAt;
+  static const _externalBackgroundGrace = Duration(seconds: 10);
   bool _externalSourcesReady = false;
   Uri? _externalUri;
   Uri? _pendingExternalUri;
@@ -215,6 +241,15 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
       // local_auth can resume the Flutter activity just after its Future has
       // completed. Clear the guard only after that transition has finished.
       if (!_authenticating) _authenticationLifecycleTransition = false;
+      final away = _externalBackgroundedAt;
+      _externalBackgroundedAt = null;
+      if (away != null &&
+          DateTime.now().difference(away) > _externalBackgroundGrace) {
+        // The phone was left on an authenticated quick-entry sheet. Require
+        // authentication again before it, or the full app behind it, shows.
+        _unlocked = false;
+        _promptedForCurrentLock = false;
+      }
       // The app was locked while it was in the background. Rebuild only now
       // so the authentication prompt appears after the user selects iSpend
       // from Android's Recents screen, not while they are browsing Recents.
@@ -225,7 +260,11 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
         state == AppLifecycleState.paused) {
       if (_authenticating ||
           _authenticationLifecycleTransition ||
-          (_externalUri != null && _unlocked)) {
+          AppLockPause.active) {
+        return;
+      }
+      if (_externalUri != null && _unlocked) {
+        _externalBackgroundedAt ??= DateTime.now();
         return;
       }
       setState(() {
@@ -277,6 +316,10 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
   Widget build(BuildContext context) {
     final enabled = ref.watch(appLockEnabledProvider);
     final bypass = ref.watch(quickLoggingWithoutUnlockProvider);
+    if (enabled != null && enabled != _secureScreen) {
+      _secureScreen = enabled;
+      unawaited(ScreenSecurity.setSecure(enabled));
+    }
     if (enabled == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }

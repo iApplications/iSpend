@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.pm.ShortcutManager
 import android.graphics.drawable.Icon
 import android.os.Build
+import android.view.WindowManager
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -14,6 +15,7 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterFragmentActivity() {
   private val shortcutsChannel = "com.apps.ispend/shortcuts"
   private val quickSettingsTileChannel = "com.apps.ispend/quick_settings_tile"
+  private val screenSecurityChannel = "com.apps.ispend/screen_security"
   private var quickSettingsChannel: MethodChannel? = null
 
   companion object {
@@ -33,6 +35,25 @@ class MainActivity : FlutterFragmentActivity() {
             null
           }
           result.success(maximum?.maxShortcutCountPerActivity ?: 0)
+        } else {
+          result.notImplemented()
+        }
+      }
+    // While app lock is on, hide the window from screenshots and from the
+    // Recents thumbnail so spending is not visible without unlocking.
+    MethodChannel(flutterEngine.dartExecutor.binaryMessenger, screenSecurityChannel)
+      .setMethodCallHandler { call, result ->
+        if (call.method == "setSecure") {
+          val secure = call.arguments as? Boolean ?: false
+          if (secure) {
+            window.setFlags(
+              WindowManager.LayoutParams.FLAG_SECURE,
+              WindowManager.LayoutParams.FLAG_SECURE,
+            )
+          } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+          }
+          result.success(null)
         } else {
           result.notImplemented()
         }

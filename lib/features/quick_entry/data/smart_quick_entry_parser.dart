@@ -24,6 +24,28 @@ class SmartQuickEntryResult {
 class SmartQuickEntryParser {
   const SmartQuickEntryParser();
 
+  // Digits joined by a hyphen ("7-11") are part of a name, not an amount.
+  static final _amountPattern = RegExp(
+    r'(?<![\w.])(?<!\d-)(?:rm\s*)?(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)(?![\w.])(?!-\d)',
+    caseSensitive: false,
+  );
+
+  /// "Grab 2 pax 15" and "7-11 snack 5" contain more than one number. Prefer
+  /// an explicit RM amount, then a decimal one, then the last number typed.
+  RegExpMatch? _pickAmount(String text) {
+    final matches = _amountPattern.allMatches(text).toList();
+    if (matches.isEmpty) return null;
+    for (final match in matches) {
+      if (RegExp(r'^rm', caseSensitive: false).hasMatch(match.group(0)!)) {
+        return match;
+      }
+    }
+    for (final match in matches) {
+      if (match.group(1)!.contains('.')) return match;
+    }
+    return matches.last;
+  }
+
   SmartQuickEntryResult parse({
     required String input,
     required List<String> categories,
@@ -35,12 +57,11 @@ class SmartQuickEntryParser {
         : categories.first;
     var remainder = input.trim();
     int? amountCents;
-    final amountMatch = RegExp(
-      r'(?<![\w.])(?:rm\s*)?(\d+(?:\.\d+)?)(?![\w.])',
-      caseSensitive: false,
-    ).firstMatch(remainder);
+    final amountMatch = _pickAmount(remainder);
     if (amountMatch != null) {
-      amountCents = parseAmountToCents(amountMatch.group(1)!);
+      amountCents = parseAmountToCents(
+        amountMatch.group(1)!.replaceAll(',', ''),
+      );
       remainder = _removeMatch(remainder, amountMatch);
     }
 
@@ -95,10 +116,119 @@ class SmartQuickEntryParser {
   String? _keywordCategory(String merchant, List<String> categories) {
     if (merchant.isEmpty) return null;
     const aliases = {
-      'food': ['mee', 'nasi', 'kopi', 'coffee', 'restaurant'],
-      'transport': ['petrol', 'parking', 'toll'],
-      'shopping': ['uniqlo'],
+      'food': [
+        'mee',
+        'nasi',
+        'kopi',
+        'coffee',
+        'restaurant',
+        'cafe',
+        'kopitiam',
+        'mcdonald',
+        'kfc',
+        'starbucks',
+        'pizza',
+        'bakery',
+        'sushi',
+        'bubble',
+        'tealive',
+        'zus',
+        'grabfood',
+        'foodpanda',
+        'shopeefood',
+        'mamak',
+        'bistro',
+        'dining',
+        'kitchen',
+        'burger',
+        'chicken',
+        'tea',
+        'food',
+      ],
+      'transport': [
+        'petrol',
+        'parking',
+        'toll',
+        'plus',
+        'shell',
+        'petronas',
+        'petron',
+        'caltex',
+        'bhp',
+        'grab',
+        'touch n go',
+        'tng',
+        'rapid',
+        'mrt',
+        'lrt',
+        'ktm',
+        'fare',
+        'uber',
+        'airasia',
+        'malaysia airlines',
+        'maskapai',
+        'airlines',
+        'flight',
+        'ride',
+      ],
+      'shopping': [
+        'uniqlo',
+        'shopee',
+        'lazada',
+        'zalora',
+        'aeon',
+        'mydin',
+        'giant',
+        'tesco',
+        'lotus',
+        'speedmart',
+        'family mart',
+        'familymart',
+        '99 speed',
+        'watsons',
+        'guardian',
+        'mr diy',
+        'mrdiy',
+        'ikea',
+        'optics',
+        'metro',
+        'machines',
+        'mall',
+        'allianz l',
+        'popular',
+        'daiso',
+        'jaya grocer',
+        'village grocer',
+        'cold storage',
+      ],
+      'bills': [
+        'maxis',
+        'celcom',
+        'digi',
+        'unifi',
+        'umobile',
+        'u mobile',
+        'tnb',
+        'tenaga',
+        'syabas',
+        'indah water',
+        'astro',
+        'netflix',
+        'spotify',
+        'insurance',
+        'takaful',
+        'allianz',
+        'prudential',
+        'tax',
+        'cukai',
+        'telekom',
+        'yes 4g',
+        'time dotcom',
+        'bill',
+        'subscription',
+      ],
     };
+
     for (final entry in aliases.entries) {
       final category = categories.where(
         (item) => item.toLowerCase() == entry.key,

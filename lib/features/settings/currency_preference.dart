@@ -29,7 +29,7 @@ Future<AppCurrency> loadLockedAppCurrency(
 
 class AppCurrencyNotifier extends Notifier<AppCurrency> {
   static const settingKey = 'locked_currency_code';
-  late final AppSettingsRepository _repository;
+  late AppSettingsRepository _repository;
 
   @override
   AppCurrency build() {

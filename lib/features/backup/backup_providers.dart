@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import '../security/app_lock.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
@@ -31,9 +32,11 @@ class FilePickerBackupFileAccess implements BackupFileAccess {
 
   @override
   Future<Uint8List?> pick() async {
-    final selected = await FilePicker.pickFile(
-      type: FileType.custom,
-      allowedExtensions: ['ispendbackup'],
+    final selected = await AppLockPause.during(
+      () => FilePicker.pickFile(
+        type: FileType.custom,
+        allowedExtensions: ['ispendbackup'],
+      ),
     );
     return selected?.readAsBytes();
   }
@@ -43,13 +46,15 @@ class FilePickerBackupFileAccess implements BackupFileAccess {
     required String fileName,
     required Uint8List bytes,
   }) async {
-    final location = await FilePicker.saveFile(
-      dialogTitle: 'Save encrypted iSpend backup',
-      fileName: fileName,
-      bytes: bytes,
-      mimeType: 'application/octet-stream',
-      type: FileType.custom,
-      allowedExtensions: ['ispendbackup'],
+    final location = await AppLockPause.during(
+      () => FilePicker.saveFile(
+        dialogTitle: 'Save encrypted iSpend backup',
+        fileName: fileName,
+        bytes: bytes,
+        mimeType: 'application/octet-stream',
+        type: FileType.custom,
+        allowedExtensions: ['ispendbackup'],
+      ),
     );
     return location != null;
   }

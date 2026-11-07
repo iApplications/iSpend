@@ -41,9 +41,26 @@ class ManualBackupService implements ManualBackupOperations {
     required Database database,
     required String passphrase,
   }) async {
-    final expenses = await database.query('expenses');
-    final images = await database.query('ocr_images');
-    final imageLinks = await database.query('expense_images');
+    // Read every table in one transaction so the backup is a consistent
+    // snapshot even if an expense is saved while it is being created.
+    final snapshot = await database.transaction(
+      (transaction) async => {
+        for (final table in const [
+          'expenses',
+          'ocr_images',
+          'expense_images',
+          'categories',
+          'payment_methods',
+          'app_settings',
+          'recurring_expenses',
+          'quick_entry_templates',
+        ])
+          table: await transaction.query(table),
+      },
+    );
+    final expenses = snapshot['expenses']!;
+    final images = snapshot['ocr_images']!;
+    final imageLinks = snapshot['expense_images']!;
     final encodedImages = <Map<String, Object?>>[
       for (final row in images)
         {
@@ -54,11 +71,11 @@ class ManualBackupService implements ManualBackupOperations {
     _validateImages(encodedImages, imageLinks, expenses);
     final payload = <String, Object>{
       'expenses': expenses,
-      'categories': await database.query('categories'),
-      'payment_methods': await database.query('payment_methods'),
-      'app_settings': await database.query('app_settings'),
-      'recurring_expenses': await database.query('recurring_expenses'),
-      'quick_entry_templates': await database.query('quick_entry_templates'),
+      'categories': snapshot['categories']!,
+      'payment_methods': snapshot['payment_methods']!,
+      'app_settings': snapshot['app_settings']!,
+      'recurring_expenses': snapshot['recurring_expenses']!,
+      'quick_entry_templates': snapshot['quick_entry_templates']!,
       'ocr_images': encodedImages,
       'expense_images': imageLinks,
     };
@@ -213,7 +230,7 @@ class ManualBackupService implements ManualBackupOperations {
       }
     }
     final expenseIds = expenses.map((row) => row['id']).toSet();
-    final linkedExpenses = <String>{};
+    final linkedPairs = <String>{};
     for (final row in links) {
       final expenseId = row['expense_id'];
       final imageId = row['image_id'];
@@ -221,7 +238,9 @@ class ManualBackupService implements ManualBackupOperations {
           imageId is! String ||
           !expenseIds.contains(expenseId) ||
           !imageIds.contains(imageId) ||
-          !linkedExpenses.add(expenseId)) {
+          // The table's key is (expense, image), so only a repeated pair is
+          // damaged; an expense may legitimately link more than one image.
+          !linkedPairs.add('$expenseId|$imageId')) {
         throw const DamagedBackupImageException();
       }
     }

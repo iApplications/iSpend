@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../../security/app_lock.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,6 +17,7 @@ import '../../expenses/expense_providers.dart';
 import '../../payment_methods/payment_method_providers.dart';
 import '../../quick_entry/data/smart_quick_entry_parser.dart';
 import '../../settings/currency_preference.dart';
+import '../../settings/time_format_preference.dart';
 import '../data/statement_csv_parser.dart';
 import '../data/statement_csv_template.dart';
 import '../data/statement_mapping_repository.dart';
@@ -25,11 +27,22 @@ class StatementCsvImportPage extends ConsumerStatefulWidget {
     super.key,
     this.initialCsvText,
     this.initialFileName = 'statement.csv',
+    this.parsedRows,
+    this.sourceLabel = 'CSV',
+    this.notice,
   });
 
   /// Allows an already-read CSV to enter the same review path as file picking.
   final String? initialCsvText;
   final String initialFileName;
+
+  /// Rows already extracted from another file type, such as a PDF statement.
+  /// They go straight to review and are saved by the same path as CSV rows.
+  final List<StatementRow>? parsedRows;
+  final String sourceLabel;
+
+  /// A warning about the extracted rows, shown above the review list.
+  final String? notice;
 
   @override
   ConsumerState<StatementCsvImportPage> createState() =>
@@ -62,7 +75,12 @@ class _StatementCsvImportPageState
   void initState() {
     super.initState();
     final csv = widget.initialCsvText;
-    if (csv != null) {
+    final parsed = widget.parsedRows;
+    if (parsed != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _reviewParsed(parsed);
+      });
+    } else if (csv != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (mounted) await _loadCsv(csv, widget.initialFileName);
       });
@@ -78,9 +96,11 @@ class _StatementCsvImportPageState
   }
 
   Future<void> _chooseFile() async {
-    final files = await FilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['csv'],
+    final files = await AppLockPause.during(
+      () => FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['csv'],
+      ),
     );
     if (files.isEmpty || !mounted) return;
     try {
@@ -196,29 +216,7 @@ class _StatementCsvImportPageState
         amountMode: _mode,
         dateFormat: _dateFormat,
       );
-      final parsed = _parser.parse(_table, mapping);
-      final categories = ref.read(categoriesProvider);
-      final methods = ref.read(paymentMethodsProvider);
-      final history = ref.read(expensesProvider);
-      final smart = const SmartQuickEntryParser();
-      final next = <_CsvReviewRow>[];
-      for (final item in parsed) {
-        final suggestion = smart.parse(
-          input: item.description,
-          categories: categories,
-          paymentMethods: methods,
-          history: history,
-        );
-        next.add(
-          _CsvReviewRow(
-            item,
-            category: categories.contains(suggestion.category)
-                ? suggestion.category
-                : categories.first,
-            paymentMethod: suggestion.paymentMethod,
-          ),
-        );
-      }
+      final next = _reviewRows(_parser.parse(_table, mapping));
       _clearRows();
       setState(() => _rows.addAll(next));
       if (next.isEmpty) {
@@ -235,6 +233,46 @@ class _StatementCsvImportPageState
       }
     } on FormatException catch (error) {
       if (mounted) AppToast.showError(context, error.message);
+    }
+  }
+
+  List<_CsvReviewRow> _reviewRows(List<StatementRow> parsed) {
+    final categories = ref.read(categoriesProvider);
+    final methods = ref.read(paymentMethodsProvider);
+    final history = ref.read(expensesProvider);
+    final smart = const SmartQuickEntryParser();
+    return [
+      for (final item in parsed)
+        () {
+          final suggestion = smart.parse(
+            input: item.description,
+            categories: categories,
+            paymentMethods: methods,
+            history: history,
+          );
+          return _CsvReviewRow(
+            item,
+            // Statement lines are rarely food by default, so an unmatched
+            // merchant goes to Other for the user to review.
+            category:
+                suggestion.categorySource ==
+                        QuickEntryCategorySource.defaultCategory &&
+                    categories.contains('Other')
+                ? 'Other'
+                : categories.contains(suggestion.category)
+                ? suggestion.category
+                : categories.first,
+            paymentMethod: suggestion.paymentMethod,
+          );
+        }(),
+    ];
+  }
+
+  void _reviewParsed(List<StatementRow> parsed) {
+    final next = _reviewRows(parsed);
+    setState(() => _rows.addAll(next));
+    if (next.isEmpty) {
+      AppToast.showError(context, 'No transaction rows were found.');
     }
   }
 
@@ -260,11 +298,45 @@ class _StatementCsvImportPageState
       firstDate: DateTime(1900),
       lastDate: DateTime(2100),
     );
-    if (chosen != null && mounted) setState(() => row.date = chosen);
+    if (chosen == null || !mounted) return;
+    // Keep the time already on the row; the picker only returns a date.
+    final old = row.date;
+    setState(
+      () => row.date = DateTime(
+        chosen.year,
+        chosen.month,
+        chosen.day,
+        old?.hour ?? 12,
+        old?.minute ?? 0,
+        old?.second ?? 0,
+      ),
+    );
   }
 
-  String _normalize(String text) =>
-      text.toLowerCase().replaceAll(RegExp(r'[^a-z0-9\u4e00-\u9fff]'), '');
+  Future<void> _pickTime(_CsvReviewRow row, bool use24HourFormat) async {
+    final base = row.date ?? DateTime.now();
+    final chosen = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(base),
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(
+          context,
+        ).copyWith(alwaysUse24HourFormat: use24HourFormat),
+        child: child!,
+      ),
+    );
+    if (chosen == null || !mounted) return;
+    setState(() {
+      row.date = DateTime(
+        base.year,
+        base.month,
+        base.day,
+        chosen.hour,
+        chosen.minute,
+      );
+      row.hasTime = true;
+    });
+  }
 
   Future<void> _save() async {
     if (_saving) return;
@@ -296,9 +368,11 @@ class _StatementCsvImportPageState
       );
     }
     final history = ref.read(expensesProvider);
+    // Same day and amount is enough to warn: a statement describes a purchase
+    // differently ("GRAB*A-123") from how it was typed by hand ("Grab").
     String duplicateKey(Expense expense) =>
         '${expense.occurredAt.year}-${expense.occurredAt.month}-${expense.occurredAt.day}|'
-        '${expense.amountCents}|${_normalize(expense.merchantOrNote ?? '')}';
+        '${expense.amountCents}';
     final seenInFile = <String>{};
     final duplicateCount = expenses.where((expense) {
       final key = duplicateKey(expense);
@@ -311,7 +385,7 @@ class _StatementCsvImportPageState
         builder: (dialogContext) => AlertDialog(
           title: const Text('Possible duplicates'),
           content: Text(
-            '$duplicateCount selected row${duplicateCount == 1 ? '' : 's'} may already be in Expenses or repeated in this CSV. Add anyway?',
+            '$duplicateCount selected row${duplicateCount == 1 ? '' : 's'} may already be in Expenses or repeated in this ${widget.sourceLabel == 'CSV' ? 'CSV' : 'statement'}. Add anyway?',
           ),
           actions: [
             TextButton(
@@ -350,34 +424,57 @@ class _StatementCsvImportPageState
     final categories = ref.watch(categoriesProvider);
     final methods = ref.watch(paymentMethodsProvider);
     final currency = ref.watch(appCurrencyProvider);
+    final use24HourFormat = ref
+        .watch(timeFormatPreferenceProvider)
+        .resolve(
+          deviceUses24Hour: MediaQuery.of(context).alwaysUse24HourFormat,
+        );
     final selectedCount = _rows.where((row) => row.selected).length;
     return Scaffold(
-      appBar: AppBar(title: const Text('Import bank CSV')),
+      appBar: AppBar(
+        title: Text(
+          widget.parsedRows == null
+              ? 'Import bank CSV'
+              : 'Import ${widget.sourceLabel} statement',
+        ),
+      ),
       body: Padding(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Choose a CSV, map its columns, then review every transaction before adding it.',
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: _saving ? null : _chooseFile,
-              icon: const Icon(Icons.upload_file_outlined),
-              label: Text(_fileName ?? 'Choose CSV file'),
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: _exportingTemplate ? null : _exportTemplate,
-              icon: const Icon(Icons.download_outlined),
-              label: const Text('Export CSV template'),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Blank Date, Description, Amount CSV. Use DD/MM/YYYY dates and negative amounts for spending; select “Negative amount = spending” when importing it.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+            if (widget.parsedRows == null) ...[
+              const Text(
+                'Choose a CSV, map its columns, then review every transaction before adding it.',
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _saving ? null : _chooseFile,
+                icon: const Icon(Icons.upload_file_outlined),
+                label: Text(_fileName ?? 'Choose CSV file'),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _exportingTemplate ? null : _exportTemplate,
+                icon: const Icon(Icons.download_outlined),
+                label: const Text('Export CSV template'),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Blank Date, Description, Amount CSV. Use DD/MM/YYYY dates and negative amounts for spending; select “Negative amount = spending” when importing it.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ] else
+              Text(
+                'Review every transaction from ${widget.sourceLabel} before adding it. iSpend does not convert currencies during import.',
+              ),
+            if (widget.notice != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                widget.notice!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
             if (_table.isNotEmpty && _rows.isEmpty) ...[
               const SizedBox(height: 12),
               Expanded(
@@ -528,6 +625,7 @@ class _StatementCsvImportPageState
                     categories,
                     methods,
                     currency.code,
+                    use24HourFormat,
                   ),
                 ),
               ),
@@ -572,6 +670,7 @@ class _StatementCsvImportPageState
     List<String> categories,
     List<String> methods,
     String currency,
+    bool use24HourFormat,
   ) {
     final valid =
         (parseAmountToCents(row.amount.text) ?? 0) > 0 &&
@@ -585,7 +684,7 @@ class _StatementCsvImportPageState
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,
             title: Text(
-              'CSV row ${row.source.line} · ${row.description.text}',
+              '${widget.sourceLabel} row ${row.source.line} · ${row.description.text}',
               maxLines: 2,
             ),
             subtitle: Text(
@@ -593,7 +692,8 @@ class _StatementCsvImportPageState
             ),
             controlAffinity: ListTileControlAffinity.leading,
             value: row.selected,
-            onChanged: valid
+            // A ticked row that is not valid yet can always be unticked.
+            onChanged: valid || row.selected
                 ? (v) => setState(() => row.selected = v ?? false)
                 : null,
           ),
@@ -602,17 +702,20 @@ class _StatementCsvImportPageState
               'Review required: ${row.source.reason}',
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
+          const SizedBox(height: 8),
           TextField(
             controller: row.amount,
             decoration: InputDecoration(labelText: 'Amount ($currency)'),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             onChanged: (_) => setState(() {}),
           ),
+          const SizedBox(height: 16),
           TextField(
             controller: row.description,
             decoration: const InputDecoration(labelText: 'Description'),
             onChanged: (_) => setState(() {}),
           ),
+          const SizedBox(height: 16),
           DropdownButtonFormField<String>(
             isExpanded: true,
             initialValue: row.category,
@@ -625,6 +728,7 @@ class _StatementCsvImportPageState
               if (v != null) setState(() => row.category = v);
             },
           ),
+          const SizedBox(height: 16),
           DropdownButtonFormField<String?>(
             isExpanded: true,
             initialValue: row.paymentMethod,
@@ -639,14 +743,32 @@ class _StatementCsvImportPageState
             ],
             onChanged: (v) => setState(() => row.paymentMethod = v),
           ),
-          TextButton.icon(
-            onPressed: () => _pickDate(row),
-            icon: const Icon(Icons.calendar_month_outlined),
-            label: Text(
-              row.date == null
-                  ? 'Choose date'
-                  : '${row.date!.day}/${row.date!.month}/${row.date!.year}',
-            ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: [
+              TextButton.icon(
+                onPressed: () => _pickDate(row),
+                icon: const Icon(Icons.calendar_month_outlined),
+                label: Text(
+                  row.date == null
+                      ? 'Choose date'
+                      : '${row.date!.day}/${row.date!.month}/${row.date!.year}',
+                ),
+              ),
+              TextButton.icon(
+                onPressed: () => _pickTime(row, use24HourFormat),
+                icon: const Icon(Icons.schedule_outlined),
+                label: Text(
+                  row.hasTime && row.date != null
+                      ? MaterialLocalizations.of(context).formatTimeOfDay(
+                          TimeOfDay.fromDateTime(row.date!),
+                          alwaysUse24HourFormat: use24HourFormat,
+                        )
+                      : 'Add time',
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -666,11 +788,13 @@ class _CsvReviewRow {
        ),
        description = TextEditingController(text: source.description),
        date = source.date,
+       hasTime = source.hasTime,
        selected = source.selected;
   final StatementRow source;
   final TextEditingController amount;
   final TextEditingController description;
   DateTime? date;
+  bool hasTime;
   String category;
   String? paymentMethod;
   bool selected;

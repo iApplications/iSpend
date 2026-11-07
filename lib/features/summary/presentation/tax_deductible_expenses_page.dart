@@ -4,6 +4,7 @@ import '../../../core/utils/amount_formatter.dart';
 import '../../../core/widgets/icon_registry.dart';
 import '../../categories/category_providers.dart';
 import '../../expenses/data/expense_model.dart';
+import '../../expenses/expense_providers.dart';
 
 class TaxDeductibleExpensesPage extends ConsumerWidget {
   const TaxDeductibleExpensesPage({
@@ -19,6 +20,13 @@ class TaxDeductibleExpensesPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final categoryIconKeys =
         ref.watch(categoryIconKeysProvider).value ?? const <String, String>{};
+    // The list passed in decides which expenses belong to this period; their
+    // current values come from the provider so edits and deletes show here.
+    final ids = this.expenses.map((expense) => expense.id).toSet();
+    final expenses = ref
+        .watch(expensesProvider)
+        .where((expense) => ids.contains(expense.id) && expense.isTaxDeductible)
+        .toList();
     final total = expenses.fold<int>(
       0,
       (sum, expense) => sum + expense.amountCents,

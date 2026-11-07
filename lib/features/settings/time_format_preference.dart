@@ -32,7 +32,7 @@ final timeFormatPreferenceProvider =
 class TimeFormatPreferenceNotifier extends Notifier<TimeFormatPreference> {
   static const _settingKey = 'time_format_preference';
 
-  late final AppSettingsRepository _repository;
+  late AppSettingsRepository _repository;
 
   @override
   TimeFormatPreference build() {
