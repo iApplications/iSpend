@@ -2,4 +2,6 @@
 <full-backup-content>
     <!-- The device-bound key must not travel with the database and envelope. -->
     <exclude domain="sharedpref" path="FlutterSecureStorage.xml" />
+    <!-- Home widget copies of spending are rebuilt on launch. -->
+    <exclude domain="sharedpref" path="HomeWidgetPreferences.xml" />
 </full-backup-content>

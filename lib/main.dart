@@ -100,12 +100,17 @@ class _ISpendBootstrapState extends State<_ISpendBootstrap> {
   }
 
   Future<String?> _restore(String passphrase) async {
+    String databaseKey;
     try {
-      final databaseKey = await _recoveryBootstrap.restore(
-        _envelope!,
-        passphrase,
-      );
-      final database = await ISpendDatabase.open(databaseKey: databaseKey);
+      databaseKey = await _recoveryBootstrap.restore(_envelope!, passphrase);
+    } on RecoveryPassphraseException {
+      return 'That passphrase did not open this backup. Check it and try again.';
+    } catch (_) {
+      return 'The backup could not be read. Try again, or choose another backup.';
+    }
+    ISpendDatabase? database;
+    try {
+      database = await ISpendDatabase.open(databaseKey: databaseKey);
       await _recoveryBootstrap.persistRecoveredKey(databaseKey);
       final settingsRepository = SqlCipherAppSettingsRepository(
         database.database,
@@ -120,7 +125,14 @@ class _ISpendBootstrapState extends State<_ISpendBootstrap> {
       });
       return null;
     } catch (_) {
-      return 'That passphrase did not open this backup. Check it and try again.';
+      // The passphrase was right, so this is a storage or database problem.
+      // Release the handle and let the user retry without suggesting that
+      // their passphrase or data is wrong.
+      try {
+        await database?.database.close();
+      } catch (_) {}
+      return 'The passphrase was correct, but this device could not finish '
+          'restoring. Try again.';
     }
   }
 
