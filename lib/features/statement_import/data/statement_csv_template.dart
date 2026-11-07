@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../../security/app_lock.dart';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -26,13 +27,15 @@ class FilePickerStatementTemplateFileAccess
     required String fileName,
     required Uint8List bytes,
   }) async {
-    final location = await FilePicker.saveFile(
-      dialogTitle: 'Save iSpend CSV template',
-      fileName: fileName,
-      bytes: bytes,
-      mimeType: 'text/csv',
-      type: FileType.custom,
-      allowedExtensions: ['csv'],
+    final location = await AppLockPause.during(
+      () => FilePicker.saveFile(
+        dialogTitle: 'Save iSpend CSV template',
+        fileName: fileName,
+        bytes: bytes,
+        mimeType: 'text/csv',
+        type: FileType.custom,
+        allowedExtensions: ['csv'],
+      ),
     );
     return location != null;
   }

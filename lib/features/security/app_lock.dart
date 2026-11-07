@@ -11,6 +11,25 @@ import 'screen_security.dart';
 import '../quick_entry/android_app_shortcuts.dart';
 import '../quick_entry/android_quick_settings_tile.dart';
 
+/// System pickers (files, camera, save dialogs) send iSpend to the background.
+/// While one is open the app must not re-lock, or the screen that asked for
+/// the file is torn down and the result is dropped.
+class AppLockPause {
+  static var _depth = 0;
+  static bool get active => _depth > 0;
+
+  static Future<T> during<T>(Future<T> Function() action) async {
+    _depth++;
+    try {
+      return await action();
+    } finally {
+      // The resume event can arrive just after the picker's Future completes.
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      _depth--;
+    }
+  }
+}
+
 abstract interface class AppLockAuthenticator {
   Future<bool> authenticate();
 }
@@ -239,7 +258,11 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
     }
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
-      if (_authenticating || _authenticationLifecycleTransition) return;
+      if (_authenticating ||
+          _authenticationLifecycleTransition ||
+          AppLockPause.active) {
+        return;
+      }
       if (_externalUri != null && _unlocked) {
         _externalBackgroundedAt ??= DateTime.now();
         return;

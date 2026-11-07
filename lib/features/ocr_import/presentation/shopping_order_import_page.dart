@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../../security/app_lock.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -77,9 +78,11 @@ class _ShoppingOrderImportPageState
     _picking = true;
     final List<PlatformFile> result;
     try {
-      result = await FilePicker.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['png', 'jpg', 'jpeg'],
+      result = await AppLockPause.during(
+        () => FilePicker.pickFiles(
+          type: FileType.custom,
+          allowedExtensions: ['png', 'jpg', 'jpeg'],
+        ),
       );
     } finally {
       _picking = false;

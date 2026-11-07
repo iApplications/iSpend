@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../../security/app_lock.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -94,9 +95,8 @@ class _ReceiptImportPageState extends ConsumerState<ReceiptImportPage> {
     if (_scanning || _saving) return;
     XFile? file;
     try {
-      file = await _picker.pickImage(
-        source: source,
-        requestFullMetadata: false,
+      file = await AppLockPause.during(
+        () => _picker.pickImage(source: source, requestFullMetadata: false),
       );
     } catch (_) {
       if (mounted) AppToast.showError(context, 'Could not open the image.');
@@ -109,9 +109,11 @@ class _ReceiptImportPageState extends ConsumerState<ReceiptImportPage> {
   Future<void> _chooseImageFile() async {
     if (_scanning || _saving) return;
     try {
-      final file = await FilePicker.pickFile(
-        type: FileType.custom,
-        allowedExtensions: ['png', 'jpg', 'jpeg'],
+      final file = await AppLockPause.during(
+        () => FilePicker.pickFile(
+          type: FileType.custom,
+          allowedExtensions: ['png', 'jpg', 'jpeg'],
+        ),
       );
       if (file == null || !mounted) return;
       if (!{'png', 'jpg', 'jpeg'}.contains(file.extension?.toLowerCase())) {
