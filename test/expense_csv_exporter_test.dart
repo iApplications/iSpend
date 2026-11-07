@@ -41,9 +41,28 @@ void main() {
     ], currencyCode: 'MYR');
     expect(bytes.sublist(0, 3), [0xEF, 0xBB, 0xBF]);
     final lines = _text(bytes).trim().split('\r\n');
-    expect(lines.first, ExpenseCsvExporter.header.join(','));
-    expect(lines[1], '2026-10-03,18:30,999.00,MYR,Food,,Cash,,Yes,,,');
-    expect(lines[2], '2026-10-01,09:05,12.50,MYR,Food,Lunch,Cash,,No,,,');
+    expect(lines.first, ExpenseCsvExporter.headerFor('MYR').join(','));
+    expect(lines[1], '2026-10-03,18:30,999.00,MYR,Food,,Cash,,Yes,999.00,');
+    expect(lines[2], '2026-10-01,09:05,12.50,MYR,Food,Lunch,Cash,,No,12.50,');
+  });
+
+  test('a foreign expense shows what was paid, then the converted amount', () {
+    final lines = _text(
+      exporter.build([
+        Expense(
+          id: 'f',
+          amountCents: 4860,
+          category: 'Food',
+          occurredAt: DateTime(2026, 10, 5, 12, 30),
+          createdAt: DateTime(2026, 10, 5),
+          originalAmountCents: 1200,
+          originalCurrency: 'USD',
+          exchangeRate: 4.05,
+        ),
+      ], currencyCode: 'MYR'),
+    ).trim().split('\r\n');
+    expect(lines.first, contains('Amount in MYR'));
+    expect(lines[1], '2026-10-05,12:30,12.00,USD,Food,,,,No,48.60,4.05');
   });
 
   test('quotes commas and quotes, and keeps one row per expense', () {

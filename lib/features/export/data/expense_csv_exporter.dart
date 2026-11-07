@@ -10,7 +10,10 @@ import '../../expenses/data/expense_model.dart';
 class ExpenseCsvExporter {
   const ExpenseCsvExporter();
 
-  static const header = [
+  /// Amount and Currency are what was paid, in the currency the user chose.
+  /// The app-currency value that totals use, and the rate between the two, are
+  /// in their own columns.
+  static List<String> headerFor(String currencyCode) => [
     'Date',
     'Time',
     'Amount',
@@ -20,8 +23,7 @@ class ExpenseCsvExporter {
     'Payment method',
     'Tags',
     'Tax deductible',
-    'Original amount',
-    'Original currency',
+    'Amount in $currencyCode',
     'Exchange rate',
   ];
 
@@ -31,7 +33,7 @@ class ExpenseCsvExporter {
     final sorted = expenses.toList()
       ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
     final lines = [
-      header.join(','),
+      headerFor(currencyCode).join(','),
       for (final expense in sorted) _row(expense, currencyCode).join(','),
     ];
     return Uint8List.fromList([
@@ -48,22 +50,19 @@ class ExpenseCsvExporter {
     return [
       '${at.year}-${two(at.month)}-${two(at.day)}',
       '${two(at.hour)}:${two(at.minute)}',
-      formatCents(expense.amountCents),
-      currencyCode,
+      // What was paid: the original amount for a foreign expense.
+      formatCents(
+        expense.isForeign ? expense.originalAmountCents! : expense.amountCents,
+      ),
+      expense.isForeign ? expense.originalCurrency! : currencyCode,
       _cell(expense.category),
       _cell(expense.merchantOrNote ?? ''),
       _cell(expense.paymentMethod ?? ''),
       _cell(expense.tags.join('; ')),
       expense.isTaxDeductible ? 'Yes' : 'No',
-      if (expense.isForeign) ...[
-        formatCents(expense.originalAmountCents!),
-        expense.originalCurrency!,
-        formatExchangeRate(expense.exchangeRate ?? 0),
-      ] else ...[
-        '',
-        '',
-        '',
-      ],
+      // The converted figure that totals and reports use.
+      formatCents(expense.amountCents),
+      expense.isForeign ? formatExchangeRate(expense.exchangeRate ?? 0) : '',
     ];
   }
 

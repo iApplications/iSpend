@@ -490,7 +490,9 @@ Phase 4a delivered:
   expense is converted **once**, rounded to the nearest cent, and saved in the
   app currency, so every total, budget and report keeps its value when rates
   later move. The original amount, currency and the rate used are kept on the
-  expense, shown in the list, editable, and exported to CSV. The last rate used
+  expense, shown in the list and editable. In the CSV export, **Amount** and
+  **Currency** are what was paid in the chosen currency, followed by
+  **Amount in** (the app currency, the figure totals use) and **Exchange rate**. The last rate used
   for each currency is remembered and offered again. Foreign amounts cannot be
   repeating (recurring) expenses yet.
   * **Recommended rates are optional and off by default** (Settings >
