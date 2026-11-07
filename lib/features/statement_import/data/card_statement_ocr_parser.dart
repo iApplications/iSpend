@@ -43,8 +43,10 @@ class CardStatementLayout {
 
   static final publicBank = CardStatementLayout(
     bank: 'Public Bank',
-    detect: ['transaction details', 'posting date', 'public bank'],
-    header: 'posting date',
+    // OCR often splits or misreads the column headings, so only the bank
+    // name (in the page footer) decides the layout.
+    detect: ['public bank'],
+    header: 'posting',
     tableEnd: ['this month total', 'grand total'],
     printedTotal: RegExp(
       r'total\s+debit\D{0,12}(\d{1,3}(?:,\d{3})*\.\d{2})',

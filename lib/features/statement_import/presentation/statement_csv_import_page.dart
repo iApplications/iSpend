@@ -249,7 +249,14 @@ class _StatementCsvImportPageState
           );
           return _CsvReviewRow(
             item,
-            category: categories.contains(suggestion.category)
+            // Statement lines are rarely food by default, so an unmatched
+            // merchant goes to Other for the user to review.
+            category:
+                suggestion.categorySource ==
+                        QuickEntryCategorySource.defaultCategory &&
+                    categories.contains('Other')
+                ? 'Other'
+                : categories.contains(suggestion.category)
                 ? suggestion.category
                 : categories.first,
             paymentMethod: suggestion.paymentMethod,
