@@ -154,4 +154,93 @@ void main() {
     // 61.78 + 60.26 = 122.04; the instalment booking is excluded.
     expect(result.notice, isNull);
   });
+
+  /// A Public Bank page with [extra] rows appended after the standard ones.
+  List<RecognizedOcrLine> pageWith(
+    List<(String posting, String? trans, String desc, String? amount)> extra, {
+    bool statementDate = true,
+  }) {
+    var y = 100.0;
+    final lines = <RecognizedOcrLine>[
+      if (statementDate) ...[
+        _line('STATEMENT DATE', 700, 10),
+        _line('15 OCT 2026', 900, 10),
+      ],
+      _line('Transaction Details', 80, 60),
+      _line('Posting Date', 80, y),
+    ];
+    for (final (posting, trans, desc, amount) in extra) {
+      y += 40;
+      lines.add(_line(posting, 80, y));
+      if (trans != null) lines.add(_line(trans, 210, y));
+      lines.add(_line(desc, 340, y));
+      if (amount != null) lines.add(_line(amount, 900, y));
+    }
+    y += 40;
+    lines.add(_line('This month total debit', 340, y));
+    lines.add(_line('0.00', 600, y));
+    return lines;
+  }
+
+  test('a row with an unreadable amount is unticked and flagged', () {
+    final rows = parser.parse([
+      pageWith([('21 SEP', '20 SEP', 'CAFE TWO KUALA LUMPUR MY', null)]),
+    ]).rows;
+    expect(rows.single.amountCents, isNull);
+    expect(rows.single.selected, isFalse);
+    expect(rows.single.reason, contains('amount'));
+  });
+
+  test('a lowercase cr marker still marks a credit', () {
+    final rows = parser.parse([
+      pageWith([('21 SEP', '20 SEP', 'SHOP REFUND ADJUST', '12.00cr')]),
+    ]).rows;
+    expect(rows.single.amountCents, 1200);
+    expect(rows.single.selected, isFalse);
+  });
+
+  test('a merchant containing "payment" is a normal purchase', () {
+    final rows = parser.parse([
+      pageWith([('21 SEP', '20 SEP', 'JOMPAY PAYMENT GATEWAY MY', '25.00')]),
+    ]).rows;
+    expect(rows.single.selected, isTrue);
+    expect(rows.single.reason, isNull);
+  });
+
+  test('an OCR-misread day does not roll into another month', () {
+    final rows = parser.parse([
+      pageWith([('31 SEP', '31 SEP', 'CAFE TWO KUALA LUMPUR MY', '9.00')]),
+    ]).rows;
+    expect(rows.single.date, isNull);
+    expect(rows.single.selected, isFalse);
+    expect(rows.single.reason, contains('date'));
+  });
+
+  test('reads amounts that have no thousands separator', () {
+    final rows = parser.parse([
+      pageWith([
+        ('21 SEP', '20 SEP', 'LAPTOP SHOP KUALA LUMPUR MY', '1234.56'),
+      ]),
+    ]).rows;
+    expect(rows.single.amountCents, 123456);
+    expect(rows.single.description, 'LAPTOP SHOP KUALA LUMPUR MY');
+  });
+
+  test('page furniture is not added to the last description', () {
+    final page = pageWith([
+      ('21 SEP', '20 SEP', 'CAFE TWO KUALA LUMPUR MY', '9.00'),
+      ('', null, 'Page 1 of 3', null),
+    ]);
+    final rows = parser.parse([page]).rows;
+    expect(rows.single.description, 'CAFE TWO KUALA LUMPUR MY');
+  });
+
+  test('refuses to guess the year when the statement date is unreadable', () {
+    expect(
+      () => parser.parse([
+        pageWith([('21 SEP', '20 SEP', 'CAFE', '9.00')], statementDate: false),
+      ]),
+      throwsFormatException,
+    );
+  });
 }

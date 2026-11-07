@@ -102,18 +102,25 @@ class CardStatementOcrParser {
     'DEC': 12,
   };
 
-  static final _statementDate = RegExp(
-    r'\b(\d{1,2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d{4})\b',
-  );
   static final _rowStart = RegExp(
     r'^(\d{2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\b\s*'
     r'(?:(\d{2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\b)?\s*(.*)$',
   );
   static final _amountEnd = RegExp(
-    r'^(.*?)\s*(\d{1,3}(?:,\d{3})*\.\d{2})\s*(CR)?$',
+    r'^(.*?)\s*(\d[\d,]*\.\d{2})\s*(CR)?$',
+    caseSensitive: false,
   );
-  static final _creditWords = RegExp(
-    r'\b(payment|refund|reversal|cash\s*back|rebate)\b',
+
+  /// Only used when OCR dropped the `CR` marker; a merchant that merely
+  /// contains "payment" is a normal purchase.
+  static final _creditPhrases = RegExp(
+    r'thank you|payment recd|cash\s*back|refund|reversal|rebate',
+    caseSensitive: false,
+  );
+
+  /// Page furniture that can follow the last row of a page.
+  static final _pageFurniture = RegExp(
+    r'^(page\s+\d+|continued|bersambung|muka surat)',
     caseSensitive: false,
   );
 
@@ -122,18 +129,19 @@ class CardStatementOcrParser {
       for (final page in pages)
         for (final line in page) line.text,
     ].join('\n');
+    final pageRows = [for (final page in pages) _physicalRows(page)];
     final labelled = RegExp(
       r'STATEMENT\s+DATE\D{0,6}(\d{1,2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d{4})',
     );
-    final statement =
-        labelled.firstMatch(
-          [
-            for (final page in pages) ..._physicalRows(page),
-          ].join('\n').toUpperCase(),
-        ) ??
-        _statementDate.firstMatch(allText.toUpperCase());
+    // The statement date sets the year of every row, so it is never guessed
+    // from some other date on the page.
+    final statement = labelled.firstMatch(
+      [for (final lines in pageRows) ...lines].join('\n').toUpperCase(),
+    );
     if (statement == null) {
-      throw const FormatException('Statement date not found.');
+      throw const FormatException(
+        'Could not read the statement date. Try a clearer or complete PDF.',
+      );
     }
     final statementYear = int.parse(statement[3]!);
     final statementMonth = _months[statement[2]]!;
@@ -142,7 +150,7 @@ class CardStatementOcrParser {
     var spendingCents = 0;
     final excludes = layout.totalExcludes;
     String? pending;
-    var pendingDate = DateTime(statementYear);
+    DateTime? pendingDate;
     var pendingAmount = 0;
     var pendingCredit = false;
     var havePending = false;
@@ -158,33 +166,43 @@ class CardStatementOcrParser {
         return;
       }
       lineNumber++;
-      final credit = pendingCredit || _creditWords.hasMatch(description);
-      if (!credit && !(excludes?.hasMatch(description) ?? false)) {
+      final credit = pendingCredit || _creditPhrases.hasMatch(description);
+      final noAmount = pendingAmount <= 0;
+      final noDate = pendingDate == null;
+      if (!credit && !noAmount && !(excludes?.hasMatch(description) ?? false)) {
         spendingCents += pendingAmount;
       }
+      final reason = noAmount
+          ? 'No clear amount — type it in or leave this row unticked'
+          : noDate
+          ? 'Unrecognized date — choose a date'
+          : credit
+          ? 'Credit, payment, or refund — review before adding'
+          : null;
       rows.add(
         StatementRow(
           line: lineNumber,
           description: description,
           date: pendingDate,
-          amountCents: pendingAmount,
-          reason: credit
-              ? 'Credit, payment, or refund — review before adding'
-              : null,
-          selected: !credit && description.isNotEmpty,
+          amountCents: noAmount ? null : pendingAmount,
+          reason: reason,
+          selected: reason == null && description.isNotEmpty,
         ),
       );
     }
 
-    DateTime dateOf(String day, String month) {
+    // A day OCR misread (31 SEP, 00 OCT) must not roll into another month.
+    DateTime? dateOf(String day, String month) {
       final m = _months[month]!;
+      final d = int.parse(day);
       final year = m > statementMonth ? statementYear - 1 : statementYear;
-      return DateTime(year, m, int.parse(day), 12);
+      final date = DateTime(year, m, d, 12);
+      return date.month == m && date.day == d ? date : null;
     }
 
     var inTable = false;
-    for (final page in pages) {
-      for (final physical in _physicalRows(page)) {
+    for (final pageLines in pageRows) {
+      for (final physical in pageLines) {
         final lower = physical.toLowerCase();
         if (lower.contains(layout.header)) {
           inTable = true;
@@ -205,10 +223,13 @@ class CardStatementOcrParser {
               : dateOf(start[3]!, start[4]!);
           // Instalments keep their original purchase date; use the date they
           // were billed in this statement instead.
-          if (posting.difference(transaction).inDays > 40 ||
-              transaction.isAfter(posting)) {
+          if (posting != null &&
+              transaction != null &&
+              (posting.difference(transaction).inDays > 40 ||
+                  transaction.isAfter(posting))) {
             transaction = posting;
           }
+          transaction ??= posting;
           var rest = physical.substring(physical.length - start[5]!.length);
           final amount = _amountEnd.firstMatch(rest);
           if (amount == null) {
@@ -222,7 +243,7 @@ class CardStatementOcrParser {
           }
           pendingDate = transaction;
           havePending = true;
-        } else if (havePending) {
+        } else if (havePending && !_pageFurniture.hasMatch(physical)) {
           final amount = _amountEnd.firstMatch(physical);
           if (amount != null && pendingAmount == 0) {
             pending = '$pending ${amount[1]!}';

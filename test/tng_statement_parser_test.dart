@@ -91,4 +91,15 @@ void main() {
     expect(row.amountCents, isNull);
     expect(row.selected, isFalse);
   });
+
+  test('a negative amount is treated as a refund, not spending', () {
+    final rows = parser.parse(
+      _statement.replaceFirst(
+        'TC_B26 5.30 33.52 PARKING',
+        'TC_B26 -5.30 33.52 PARKING',
+      ),
+    );
+    expect(rows[0].amountCents, 530);
+    expect(rows[0].selected, isFalse);
+  });
 }

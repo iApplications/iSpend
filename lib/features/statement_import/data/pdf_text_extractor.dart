@@ -16,7 +16,7 @@ class PdfTextExtractor {
     }
     final document = await PdfDocument.openData(
       bytes,
-      passwordProvider: () => password,
+      passwordProvider: createSimplePasswordProvider(password),
       firstAttemptByEmptyPassword: true,
     );
     try {

@@ -16,7 +16,7 @@ class TngStatementParser {
   static final _number = RegExp(r'^\d{1,12}$');
   static final _date = RegExp(r'^(\d{2})/(\d{2})/(\d{4})$');
   static final _amountLine = RegExp(
-    r'(?:^|\s)(\d{1,3}(?:,\d{3})*\.\d{2})\s+-?\d{1,3}(?:,\d{3})*\.\d{2}\s+[A-Z][A-Z_ ]*$',
+    r'(?:^|\s)(-?\d{1,3}(?:,\d{3})*\.\d{2})\s+-?\d{1,3}(?:,\d{3})*\.\d{2}\s+[A-Z][A-Z_ ]*$',
   );
   static final _spending = RegExp(
     r'\b(fare|usage|toll|parking|purchase|payment)\b',
@@ -50,11 +50,13 @@ class TngStatementParser {
         final block = <String>[];
         var cursor = index + 1;
         int? amountCents;
+        var negative = false;
         while (cursor < lines.length) {
           final line = lines[cursor];
           final amount = _amountLine.firstMatch(line);
           if (amount != null) {
-            amountCents = _cents(amount[1]!);
+            amountCents = _cents(amount[1]!.replaceFirst('-', ''));
+            negative = amount[1]!.startsWith('-');
             block.add(line.substring(0, amount.start).trim());
             cursor++;
             break;
@@ -68,7 +70,7 @@ class TngStatementParser {
           block.add(line);
           cursor++;
         }
-        result.add(_row(result.length + 1, block, amountCents));
+        result.add(_row(result.length + 1, block, amountCents, negative));
         index = cursor;
       } else {
         index++;
@@ -77,7 +79,12 @@ class TngStatementParser {
     return result;
   }
 
-  StatementRow _row(int line, List<String> block, int? amountCents) {
+  StatementRow _row(
+    int line,
+    List<String> block,
+    int? amountCents,
+    bool negative,
+  ) {
     final entry = _date.firstMatch(block.first)!;
     final date = _validDate(
       int.parse(entry[3]!),
@@ -111,7 +118,7 @@ class TngStatementParser {
     String? reason;
     if (amountCents == null || amountCents <= 0) {
       reason = 'No clear amount — review before adding';
-    } else if (_reload.hasMatch(type)) {
+    } else if (negative || _reload.hasMatch(type)) {
       reason = 'Reload or refund — review before adding';
     } else if (!_spending.hasMatch(type)) {
       reason = 'Unrecognized transaction type — review before adding';

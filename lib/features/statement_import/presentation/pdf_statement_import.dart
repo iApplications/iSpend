@@ -17,8 +17,20 @@ class _Cancelled implements Exception {
   const _Cancelled();
 }
 
+var _importing = false;
+
 /// Picks a PDF statement, reads it on-device, and opens the shared review page.
 Future<void> startPdfStatementImport(BuildContext context) async {
+  if (_importing) return;
+  _importing = true;
+  try {
+    await _runImport(context);
+  } finally {
+    _importing = false;
+  }
+}
+
+Future<void> _runImport(BuildContext context) async {
   final files = await FilePicker.pickFiles(
     type: FileType.custom,
     allowedExtensions: ['pdf'],
@@ -26,6 +38,9 @@ Future<void> startPdfStatementImport(BuildContext context) async {
   if (files.isEmpty || !context.mounted) return;
   final file = files.first;
   try {
+    if (await file.length() > PdfTextExtractor.maxBytes) {
+      throw const FormatException('This PDF is larger than 10 MB.');
+    }
     final bytes = await file.xFile.readAsBytes();
     String? password;
     Future<T> withPassword<T>(Future<T> Function(String?) read) async {
@@ -91,6 +106,8 @@ Future<void> startPdfStatementImport(BuildContext context) async {
     if (context.mounted) {
       AppToast.showError(context, 'That password did not open the PDF.');
     }
+  } on FormatException catch (error) {
+    if (context.mounted) AppToast.showError(context, error.message);
   } catch (_) {
     if (context.mounted) {
       AppToast.showError(context, 'Could not read this PDF.');
@@ -98,32 +115,49 @@ Future<void> startPdfStatementImport(BuildContext context) async {
   }
 }
 
-Future<String?> _askPassword(BuildContext context) {
-  final controller = TextEditingController();
-  return showDialog<String>(
-    context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: const Text('PDF password'),
-      content: TextField(
-        controller: controller,
-        obscureText: true,
-        autofocus: true,
-        decoration: const InputDecoration(
-          labelText: 'Password',
-          helperText: 'Used only to open this file. It is not stored.',
-        ),
-        onSubmitted: (value) => Navigator.pop(dialogContext, value),
+Future<String?> _askPassword(BuildContext context) => showDialog<String>(
+  context: context,
+  builder: (_) => const _PasswordDialog(),
+);
+
+class _PasswordDialog extends StatefulWidget {
+  const _PasswordDialog();
+
+  @override
+  State<_PasswordDialog> createState() => _PasswordDialogState();
+}
+
+class _PasswordDialogState extends State<_PasswordDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('PDF password'),
+    content: TextField(
+      controller: _controller,
+      obscureText: true,
+      autofocus: true,
+      decoration: const InputDecoration(
+        labelText: 'Password',
+        helperText: 'Used only to open this file. It is not stored.',
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(dialogContext, controller.text),
-          child: const Text('Open'),
-        ),
-      ],
+      onSubmitted: (value) => Navigator.pop(context, value),
     ),
-  ).whenComplete(controller.dispose);
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed: () => Navigator.pop(context, _controller.text),
+        child: const Text('Open'),
+      ),
+    ],
+  );
 }

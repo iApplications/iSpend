@@ -638,7 +638,8 @@ class _StatementCsvImportPageState
             ),
             controlAffinity: ListTileControlAffinity.leading,
             value: row.selected,
-            onChanged: valid
+            // A ticked row that is not valid yet can always be unticked.
+            onChanged: valid || row.selected
                 ? (v) => setState(() => row.selected = v ?? false)
                 : null,
           ),
