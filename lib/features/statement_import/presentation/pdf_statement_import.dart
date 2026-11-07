@@ -108,7 +108,9 @@ Future<void> _runImport(BuildContext context) async {
     }
   } on FormatException catch (error) {
     if (context.mounted) AppToast.showError(context, error.message);
-  } catch (_) {
+  } catch (error, stack) {
+    // The cause is otherwise invisible; this shows in `adb logcat`.
+    debugPrint('PDF import failed: $error\n$stack');
     if (context.mounted) {
       AppToast.showError(context, 'Could not read this PDF.');
     }

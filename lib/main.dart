@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pdfrx/pdfrx.dart';
 
 import 'app.dart';
 import 'features/backup/backup_providers.dart';
@@ -22,8 +23,11 @@ import 'features/quick_entry/data/quick_entry_template_repository.dart';
 import 'features/quick_entry/quick_entry_template_providers.dart';
 import 'features/settings/currency_preference.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Loads the native PDF engine used by PDF statement import. Without it
+  // every PDF fails to open.
+  await pdfrxFlutterInitialize();
   runApp(const _ISpendBootstrap());
 }
 

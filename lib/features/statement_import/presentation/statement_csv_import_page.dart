@@ -16,6 +16,7 @@ import '../../expenses/expense_providers.dart';
 import '../../payment_methods/payment_method_providers.dart';
 import '../../quick_entry/data/smart_quick_entry_parser.dart';
 import '../../settings/currency_preference.dart';
+import '../../settings/time_format_preference.dart';
 import '../data/statement_csv_parser.dart';
 import '../data/statement_csv_template.dart';
 import '../data/statement_mapping_repository.dart';
@@ -287,7 +288,44 @@ class _StatementCsvImportPageState
       firstDate: DateTime(1900),
       lastDate: DateTime(2100),
     );
-    if (chosen != null && mounted) setState(() => row.date = chosen);
+    if (chosen == null || !mounted) return;
+    // Keep the time already on the row; the picker only returns a date.
+    final old = row.date;
+    setState(
+      () => row.date = DateTime(
+        chosen.year,
+        chosen.month,
+        chosen.day,
+        old?.hour ?? 12,
+        old?.minute ?? 0,
+        old?.second ?? 0,
+      ),
+    );
+  }
+
+  Future<void> _pickTime(_CsvReviewRow row, bool use24HourFormat) async {
+    final base = row.date ?? DateTime.now();
+    final chosen = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(base),
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(
+          context,
+        ).copyWith(alwaysUse24HourFormat: use24HourFormat),
+        child: child!,
+      ),
+    );
+    if (chosen == null || !mounted) return;
+    setState(() {
+      row.date = DateTime(
+        base.year,
+        base.month,
+        base.day,
+        chosen.hour,
+        chosen.minute,
+      );
+      row.hasTime = true;
+    });
   }
 
   Future<void> _save() async {
@@ -376,6 +414,11 @@ class _StatementCsvImportPageState
     final categories = ref.watch(categoriesProvider);
     final methods = ref.watch(paymentMethodsProvider);
     final currency = ref.watch(appCurrencyProvider);
+    final use24HourFormat = ref
+        .watch(timeFormatPreferenceProvider)
+        .resolve(
+          deviceUses24Hour: MediaQuery.of(context).alwaysUse24HourFormat,
+        );
     final selectedCount = _rows.where((row) => row.selected).length;
     return Scaffold(
       appBar: AppBar(
@@ -572,6 +615,7 @@ class _StatementCsvImportPageState
                     categories,
                     methods,
                     currency.code,
+                    use24HourFormat,
                   ),
                 ),
               ),
@@ -616,6 +660,7 @@ class _StatementCsvImportPageState
     List<String> categories,
     List<String> methods,
     String currency,
+    bool use24HourFormat,
   ) {
     final valid =
         (parseAmountToCents(row.amount.text) ?? 0) > 0 &&
@@ -647,17 +692,20 @@ class _StatementCsvImportPageState
               'Review required: ${row.source.reason}',
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
+          const SizedBox(height: 8),
           TextField(
             controller: row.amount,
             decoration: InputDecoration(labelText: 'Amount ($currency)'),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             onChanged: (_) => setState(() {}),
           ),
+          const SizedBox(height: 16),
           TextField(
             controller: row.description,
             decoration: const InputDecoration(labelText: 'Description'),
             onChanged: (_) => setState(() {}),
           ),
+          const SizedBox(height: 16),
           DropdownButtonFormField<String>(
             isExpanded: true,
             initialValue: row.category,
@@ -670,6 +718,7 @@ class _StatementCsvImportPageState
               if (v != null) setState(() => row.category = v);
             },
           ),
+          const SizedBox(height: 16),
           DropdownButtonFormField<String?>(
             isExpanded: true,
             initialValue: row.paymentMethod,
@@ -684,14 +733,32 @@ class _StatementCsvImportPageState
             ],
             onChanged: (v) => setState(() => row.paymentMethod = v),
           ),
-          TextButton.icon(
-            onPressed: () => _pickDate(row),
-            icon: const Icon(Icons.calendar_month_outlined),
-            label: Text(
-              row.date == null
-                  ? 'Choose date'
-                  : '${row.date!.day}/${row.date!.month}/${row.date!.year}',
-            ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: [
+              TextButton.icon(
+                onPressed: () => _pickDate(row),
+                icon: const Icon(Icons.calendar_month_outlined),
+                label: Text(
+                  row.date == null
+                      ? 'Choose date'
+                      : '${row.date!.day}/${row.date!.month}/${row.date!.year}',
+                ),
+              ),
+              TextButton.icon(
+                onPressed: () => _pickTime(row, use24HourFormat),
+                icon: const Icon(Icons.schedule_outlined),
+                label: Text(
+                  row.hasTime && row.date != null
+                      ? MaterialLocalizations.of(context).formatTimeOfDay(
+                          TimeOfDay.fromDateTime(row.date!),
+                          alwaysUse24HourFormat: use24HourFormat,
+                        )
+                      : 'Add time',
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -711,11 +778,13 @@ class _CsvReviewRow {
        ),
        description = TextEditingController(text: source.description),
        date = source.date,
+       hasTime = source.hasTime,
        selected = source.selected;
   final StatementRow source;
   final TextEditingController amount;
   final TextEditingController description;
   DateTime? date;
+  bool hasTime;
   String category;
   String? paymentMethod;
   bool selected;

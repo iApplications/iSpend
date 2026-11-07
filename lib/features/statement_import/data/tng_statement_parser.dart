@@ -86,10 +86,18 @@ class TngStatementParser {
     bool negative,
   ) {
     final entry = _date.firstMatch(block.first)!;
+    // The entry time follows the entry date, e.g. 19:14:12.
+    final time = block
+        .map((l) => RegExp(r'^(\d{2}):(\d{2}):(\d{2})$').firstMatch(l))
+        .whereType<RegExpMatch>()
+        .firstOrNull;
     final date = _validDate(
       int.parse(entry[3]!),
       int.parse(entry[2]!),
       int.parse(entry[1]!),
+      hour: time == null ? 12 : int.parse(time[1]!),
+      minute: time == null ? 0 : int.parse(time[2]!),
+      second: time == null ? 0 : int.parse(time[3]!),
     );
     // After the dates and times, the posted date is split as "dd/mm" and
     // "/yyyy". The wrapped, mixed-case lines that follow are the type; the
@@ -131,6 +139,7 @@ class TngStatementParser {
       amountCents: amountCents,
       reason: reason,
       selected: reason == null,
+      hasTime: time != null,
     );
   }
 
@@ -139,8 +148,15 @@ class TngStatementParser {
     return int.parse(parts.first) * 100 + int.parse(parts.last);
   }
 
-  DateTime? _validDate(int year, int month, int day) {
-    final date = DateTime(year, month, day, 12);
+  DateTime? _validDate(
+    int year,
+    int month,
+    int day, {
+    int hour = 12,
+    int minute = 0,
+    int second = 0,
+  }) {
+    final date = DateTime(year, month, day, hour, minute, second);
     return date.year == year && date.month == month && date.day == day
         ? date
         : null;

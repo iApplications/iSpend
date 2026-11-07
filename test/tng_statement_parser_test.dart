@@ -65,7 +65,9 @@ void main() {
     final rows = parser.parse(_statement);
     expect(rows, hasLength(3));
     expect(rows[0].amountCents, 530);
-    expect(rows[0].date, DateTime(2026, 10, 31, 12));
+    // The entry time on the statement (19:14:12) is kept.
+    expect(rows[0].date, DateTime(2026, 10, 31, 19, 14, 12));
+    expect(rows[0].hasTime, isTrue);
     expect(rows[0].description, 'Fare Usage - Parking · LRT PWTC');
     expect(rows[0].reason, isNull);
     expect(rows[0].selected, isTrue);
@@ -101,5 +103,16 @@ void main() {
     );
     expect(rows[0].amountCents, 530);
     expect(rows[0].selected, isFalse);
+  });
+
+  test('keeps each row own time and falls back to noon without one', () {
+    final rows = parser.parse(_statement);
+    expect(rows[1].date, DateTime(2026, 10, 30, 19, 7, 1));
+    expect(rows[2].date, DateTime(2026, 10, 29, 19, 9, 52));
+    final noTime = parser.parse(
+      _statement.replaceAll(RegExp(r'\n\d{2}:\d{2}:\d{2}'), ''),
+    );
+    expect(noTime[0].date, DateTime(2026, 10, 31, 12));
+    expect(noTime[0].hasTime, isFalse);
   });
 }
