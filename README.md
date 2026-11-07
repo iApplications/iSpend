@@ -379,7 +379,7 @@ There is no iSpend backend server and no bank-account integration.
 **Phase 2b:** Complete
 **Phase 3:** Complete — OCR capture (its bank CSV import was removed in Phase 3b)
 **Phase 3b:** Complete — PDF statement import (Touch 'n Go, Public Bank, HSBC)
-**Phase 4a:** In progress — data export done; basic reports, tags and multi-currency remain
+**Phase 4a:** In progress — data export and monthly report done; tags and multi-currency remain
 
 Phase 2b delivered:
 
@@ -465,6 +465,11 @@ Phase 4a work in progress:
   that start with `=`, `+`, `-` or `@` are prefixed so a spreadsheet shows
   them as text. The tax export is a record of the user's own entries, not tax
   advice or a tax calculation.
+* **Monthly report**, opened from the Summary page. It shows one month's
+  total, the spending by category with each category's share, and the change
+  from the previous month in amount and percent (new categories show as
+  "new"). A six-month list of totals sits below, with thin bars that only show
+  scale. Expenses dated after today are left out, like the other totals.
 
 ## Branching and pull-request workflow
 
