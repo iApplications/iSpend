@@ -58,7 +58,14 @@ class _ExportDataPageState extends ConsumerState<ExportDataPage> {
         ];
       }
       if (expenses.isEmpty) {
-        AppToast.showError(context, 'There are no expenses to export.');
+        AppToast.showError(
+          context,
+          taxOnly
+              ? 'No expenses are marked tax-deductible'
+                    '${_taxYear == null ? '' : ' in $_taxYear'}. Turn on '
+                    '"Count as tax-deductible" when editing an expense.'
+              : 'There are no expenses to export.',
+        );
         return;
       }
       final stamp = DateTime.now();
@@ -90,15 +97,18 @@ class _ExportDataPageState extends ConsumerState<ExportDataPage> {
     }
   }
 
-  List<int> _taxYears(List<Expense> expenses) => {
-    for (final expense in expenses)
-      if (expense.isTaxDeductible) expense.occurredAt.year,
+  /// Every year with an expense, so the choice is clear even before anything
+  /// has been marked tax-deductible.
+  List<int> _years(List<Expense> expenses) => {
+    DateTime.now().year,
+    for (final expense in expenses) expense.occurredAt.year,
   }.toList()..sort((a, b) => b.compareTo(a));
 
   @override
   Widget build(BuildContext context) {
     final expenses = ref.watch(expensesProvider);
-    final years = _taxYears(expenses);
+    final years = _years(expenses);
+    final taxCount = expenses.where((e) => e.isTaxDeductible).length;
     if (_taxYear != null && !years.contains(_taxYear)) _taxYear = null;
     return Scaffold(
       appBar: AppBar(title: const Text('Export data')),
@@ -145,17 +155,16 @@ class _ExportDataPageState extends ConsumerState<ExportDataPage> {
           ),
           const SizedBox(height: 12),
           OutlinedButton.icon(
-            onPressed: _exporting || years.isEmpty
-                ? null
-                : () => _export(taxOnly: true),
+            onPressed: _exporting ? null : () => _export(taxOnly: true),
             icon: const Icon(Icons.receipt_long_outlined),
             label: const Text('Export tax-deductible'),
           ),
-          if (years.isEmpty)
+          if (taxCount == 0)
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Text(
-                'No expenses are marked tax-deductible yet.',
+                'No expenses are marked tax-deductible yet. Turn on "Count as '
+                'tax-deductible" when adding or editing an expense.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
