@@ -27,6 +27,7 @@ class StatementCsvImportPage extends ConsumerStatefulWidget {
     this.initialFileName = 'statement.csv',
     this.parsedRows,
     this.sourceLabel = 'CSV',
+    this.notice,
   });
 
   /// Allows an already-read CSV to enter the same review path as file picking.
@@ -37,6 +38,9 @@ class StatementCsvImportPage extends ConsumerStatefulWidget {
   /// They go straight to review and are saved by the same path as CSV rows.
   final List<StatementRow>? parsedRows;
   final String sourceLabel;
+
+  /// A warning about the extracted rows, shown above the review list.
+  final String? notice;
 
   @override
   ConsumerState<StatementCsvImportPage> createState() =>
@@ -412,6 +416,13 @@ class _StatementCsvImportPageState
               Text(
                 'Review every transaction from ${widget.sourceLabel} before adding it. iSpend does not convert currencies during import.',
               ),
+            if (widget.notice != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                widget.notice!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
             if (_table.isNotEmpty && _rows.isEmpty) ...[
               const SizedBox(height: 12),
               Expanded(

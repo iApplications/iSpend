@@ -3,9 +3,19 @@ import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 import '../../../core/widgets/app_toast.dart';
+import '../data/pdf_page_ocr.dart';
 import '../data/pdf_text_extractor.dart';
+import '../data/card_statement_ocr_parser.dart';
+import '../data/statement_csv_parser.dart';
 import '../data/tng_statement_parser.dart';
 import 'statement_csv_import_page.dart';
+
+const _unsupported =
+    "This PDF is not a supported statement yet. Touch 'n Go, Public Bank and HSBC card statements are supported.";
+
+class _Cancelled implements Exception {
+  const _Cancelled();
+}
 
 /// Picks a PDF statement, reads it on-device, and opens the shared review page.
 Future<void> startPdfStatementImport(BuildContext context) async {
@@ -17,24 +27,50 @@ Future<void> startPdfStatementImport(BuildContext context) async {
   final file = files.first;
   try {
     final bytes = await file.xFile.readAsBytes();
-    String text;
-    try {
-      text = await const PdfTextExtractor().extract(bytes);
-    } on PdfPasswordException {
-      if (!context.mounted) return;
-      final password = await _askPassword(context);
-      if (password == null || !context.mounted) return;
-      text = await const PdfTextExtractor().extract(bytes, password: password);
+    String? password;
+    Future<T> withPassword<T>(Future<T> Function(String?) read) async {
+      try {
+        return await read(password);
+      } on PdfPasswordException {
+        if (!context.mounted) rethrow;
+        password = await _askPassword(context);
+        if (password == null) throw const _Cancelled();
+        return read(password);
+      }
     }
+
+    final text = await withPassword(
+      (pw) => const PdfTextExtractor().extract(bytes, password: pw),
+    );
     if (!context.mounted) return;
-    if (!TngStatementParser.canParse(text)) {
-      AppToast.showError(
-        context,
-        'This PDF is not a supported statement yet. Touch \'n Go card statements are supported.',
+    List<StatementRow> rows;
+    String label;
+    String? notice;
+    if (TngStatementParser.canParse(text)) {
+      rows = const TngStatementParser().parse(text);
+      label = "Touch 'n Go";
+    } else if (text.trim().length < 40) {
+      // No text layer: the PDF is a scan, so read it with on-device OCR.
+      AppToast.show(context, 'Scanned PDF — reading it on this device…');
+      final pages = await withPassword(
+        (pw) => const PdfPageOcr().recognize(bytes, password: pw),
       );
+      if (!context.mounted) return;
+      final layout = CardStatementLayout.detectFrom([
+        for (final page in pages) page.map((line) => line.text).join('\n'),
+      ]);
+      if (layout == null) {
+        AppToast.showError(context, _unsupported);
+        return;
+      }
+      final result = CardStatementOcrParser(layout).parse(pages);
+      rows = result.rows;
+      notice = result.notice;
+      label = layout.bank;
+    } else {
+      AppToast.showError(context, _unsupported);
       return;
     }
-    final rows = const TngStatementParser().parse(text);
     if (rows.isEmpty) {
       AppToast.showError(context, 'No transactions were found in this PDF.');
       return;
@@ -43,11 +79,14 @@ Future<void> startPdfStatementImport(BuildContext context) async {
       MaterialPageRoute<void>(
         builder: (_) => StatementCsvImportPage(
           parsedRows: rows,
-          sourceLabel: 'Touch \'n Go',
+          sourceLabel: label,
           initialFileName: file.name,
+          notice: notice,
         ),
       ),
     );
+  } on _Cancelled {
+    return;
   } on PdfPasswordException {
     if (context.mounted) {
       AppToast.showError(context, 'That password did not open the PDF.');
