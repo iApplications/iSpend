@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ispend/core/utils/amount_formatter.dart';
 import 'package:ispend/features/expenses/data/expense_model.dart';
@@ -10,22 +11,24 @@ void main() {
   ) async {
     Expense? saved;
     await tester.pumpWidget(
-      MaterialApp(
-        home: Builder(
-          builder: (context) => Scaffold(
-            body: TextButton(
-              onPressed: () async {
-                saved = await showQuickEntrySheet(
-                  context,
-                  categories: const ['Food', 'Transport', 'Other'],
-                  paymentMethods: const ['Cash', 'TNG eWallet'],
-                  history: const [],
-                  currency: const AppCurrency(code: 'MYR', symbol: 'RM'),
-                  categoryNamesById: const {},
-                  paymentMethodNamesById: const {},
-                );
-              },
-              child: const Text('open'),
+      ProviderScope(
+        child: MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () async {
+                  saved = await showQuickEntrySheet(
+                    context,
+                    categories: const ['Food', 'Transport', 'Other'],
+                    paymentMethods: const ['Cash', 'TNG eWallet'],
+                    history: const [],
+                    currency: const AppCurrency(code: 'MYR', symbol: 'RM'),
+                    categoryNamesById: const {},
+                    paymentMethodNamesById: const {},
+                  );
+                },
+                child: const Text('open'),
+              ),
             ),
           ),
         ),
@@ -38,7 +41,7 @@ void main() {
     await tester.pump();
     await tester.enterText(find.byType(TextField).at(1), 'My note');
     await tester.pump();
-    await tester.tap(find.byType(DropdownButtonFormField<String>));
+    await tester.tap(find.byType(DropdownButtonFormField<String>).last);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Transport').last);
     await tester.pumpAndSettle();

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import '../../../core/utils/amount_formatter.dart';
+import '../../../core/utils/currency_catalog.dart';
 import '../../expenses/data/expense_model.dart';
 
 /// Builds a spreadsheet-friendly CSV from the user's own expenses. Nothing is
@@ -9,7 +10,10 @@ import '../../expenses/data/expense_model.dart';
 class ExpenseCsvExporter {
   const ExpenseCsvExporter();
 
-  static const header = [
+  /// Amount and Currency are what was paid, in the currency the user chose.
+  /// The app-currency value that totals use, and the rate between the two, are
+  /// in their own columns.
+  static List<String> headerFor(String currencyCode) => [
     'Date',
     'Time',
     'Amount',
@@ -19,6 +23,8 @@ class ExpenseCsvExporter {
     'Payment method',
     'Tags',
     'Tax deductible',
+    'Amount in $currencyCode',
+    'Exchange rate',
   ];
 
   /// UTF-8 bytes with a byte-order mark so Excel opens non-English merchant
@@ -27,7 +33,7 @@ class ExpenseCsvExporter {
     final sorted = expenses.toList()
       ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
     final lines = [
-      header.join(','),
+      headerFor(currencyCode).join(','),
       for (final expense in sorted) _row(expense, currencyCode).join(','),
     ];
     return Uint8List.fromList([
@@ -44,13 +50,19 @@ class ExpenseCsvExporter {
     return [
       '${at.year}-${two(at.month)}-${two(at.day)}',
       '${two(at.hour)}:${two(at.minute)}',
-      formatCents(expense.amountCents),
-      currencyCode,
+      // What was paid: the original amount for a foreign expense.
+      formatCents(
+        expense.isForeign ? expense.originalAmountCents! : expense.amountCents,
+      ),
+      expense.isForeign ? expense.originalCurrency! : currencyCode,
       _cell(expense.category),
       _cell(expense.merchantOrNote ?? ''),
       _cell(expense.paymentMethod ?? ''),
       _cell(expense.tags.join('; ')),
       expense.isTaxDeductible ? 'Yes' : 'No',
+      // The converted figure that totals and reports use.
+      formatCents(expense.amountCents),
+      expense.isForeign ? formatExchangeRate(expense.exchangeRate ?? 0) : '',
     ];
   }
 

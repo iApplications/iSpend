@@ -441,6 +441,9 @@ class SqlCipherExpenseRepository implements ExpenseRepository {
       'recurring_occurrence_millis':
           expense.recurringOccurrence?.millisecondsSinceEpoch,
       'is_tax_deductible': expense.isTaxDeductible ? 1 : 0,
+      'original_amount_cents': expense.originalAmountCents,
+      'original_currency': expense.originalCurrency,
+      'exchange_rate': expense.exchangeRate,
     };
   }
 
@@ -465,6 +468,9 @@ class SqlCipherExpenseRepository implements ExpenseRepository {
             ),
       isTaxDeductible: (row['is_tax_deductible'] as int? ?? 0) == 1,
       tags: tags,
+      originalAmountCents: row['original_amount_cents'] as int?,
+      originalCurrency: row['original_currency'] as String?,
+      exchangeRate: (row['exchange_rate'] as num?)?.toDouble(),
     );
   }
 

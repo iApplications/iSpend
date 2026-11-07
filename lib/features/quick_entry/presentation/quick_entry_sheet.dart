@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/utils/amount_formatter.dart';
+import '../../../core/utils/currency_catalog.dart';
+import '../../exchange_rates/exchange_rate_providers.dart';
+import '../../exchange_rates/presentation/foreign_currency_section.dart';
 import '../../expenses/data/expense_model.dart';
 import '../../tags/data/tag_rules.dart';
 import '../../tags/presentation/tag_editor.dart';
@@ -32,7 +36,7 @@ Future<Expense?> showQuickEntrySheet(
   ),
 );
 
-class _QuickEntrySheet extends StatefulWidget {
+class _QuickEntrySheet extends ConsumerStatefulWidget {
   const _QuickEntrySheet({
     required this.categories,
     required this.paymentMethods,
@@ -50,10 +54,10 @@ class _QuickEntrySheet extends StatefulWidget {
   final Map<String, String> categoryNamesById;
   final Map<String, String> paymentMethodNamesById;
   @override
-  State<_QuickEntrySheet> createState() => _QuickEntrySheetState();
+  ConsumerState<_QuickEntrySheet> createState() => _QuickEntrySheetState();
 }
 
-class _QuickEntrySheetState extends State<_QuickEntrySheet> {
+class _QuickEntrySheetState extends ConsumerState<_QuickEntrySheet> {
   final _input = TextEditingController();
   final _merchant = TextEditingController();
   final _parser = const SmartQuickEntryParser();
@@ -64,6 +68,7 @@ class _QuickEntrySheetState extends State<_QuickEntrySheet> {
   late DateTime _occurredAt;
   bool _saving = false;
   List<String> _tags = [];
+  ForeignSelection _foreign = const ForeignSelection();
   final _tagController = TextEditingController();
 
   // Fields the user set by hand. Typing in the smart input must not undo them.
@@ -71,6 +76,13 @@ class _QuickEntrySheetState extends State<_QuickEntrySheet> {
   bool _paymentTouched = false;
   bool _merchantTouched = false;
   bool get _templateMode => widget.template != null;
+
+  /// The currency the typed amount is in.
+  AppCurrency get _amountCurrency {
+    final code = _foreign.currency;
+    return (code == null ? null : currencyForCode(code)) ?? widget.currency;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -134,13 +146,40 @@ class _QuickEntrySheetState extends State<_QuickEntrySheet> {
       setState(() => _error = 'Enter a valid amount.');
       return;
     }
+    var baseCents = _amount!;
+    String? originalCurrency;
+    int? originalCents;
+    double? rate;
+    if (_foreign.isForeign && !_templateMode) {
+      rate = _foreign.rate;
+      final converted = rate == null
+          ? null
+          : convertToBaseCents(_amount!, rate);
+      if (converted == null) {
+        setState(
+          () => _error = rate == null
+              ? 'Enter a valid exchange rate.'
+              : 'That amount converts to less than one cent.',
+        );
+        return;
+      }
+      baseCents = converted;
+      originalCurrency = _foreign.currency;
+      originalCents = _amount;
+      ref
+          .read(exchangeRatesProvider.notifier)
+          .rememberRate(originalCurrency!, rate!);
+    }
     setState(() => _saving = true);
     HapticFeedback.lightImpact();
     Navigator.pop(
       context,
       Expense(
         id: const Uuid().v4(),
-        amountCents: _amount!,
+        amountCents: baseCents,
+        originalAmountCents: originalCents,
+        originalCurrency: originalCurrency,
+        exchangeRate: rate,
         category: _category,
         merchantOrNote: _merchant.text.trim().isEmpty
             ? null
@@ -275,7 +314,7 @@ class _QuickEntrySheetState extends State<_QuickEntrySheet> {
               ),
               const SizedBox(height: 16),
               Text(
-                'Amount: ${_amount == null ? '—' : formatCurrencyCents(_amount!, widget.currency)}',
+                'Amount: ${_amount == null ? '—' : formatCurrencyCents(_amount!, _amountCurrency)}',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 16),
@@ -288,6 +327,12 @@ class _QuickEntrySheetState extends State<_QuickEntrySheet> {
                 onChanged: (_) => setState(() => _merchantTouched = true),
               ),
               if (!_templateMode) ...[
+                const SizedBox(height: 16),
+                ForeignCurrencySection(
+                  amountCents: _amount,
+                  onChanged: (selection) =>
+                      setState(() => _foreign = selection),
+                ),
                 const SizedBox(height: 16),
                 TagEditor(
                   tags: _tags,

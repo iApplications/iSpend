@@ -447,6 +447,8 @@ Map<String, Object?> _seriesFields(
   'payment_method_id': references.paymentMethodId,
 };
 
+// Built explicitly, not with copyWith: a cleared note or payment method on
+// the series must clear it on every expense, and copyWith keeps old values.
 Expense _withSeriesFields(Expense expense, RecurringExpense recurring) =>
     Expense(
       id: expense.id,
@@ -459,6 +461,10 @@ Expense _withSeriesFields(Expense expense, RecurringExpense recurring) =>
       recurringRuleId: expense.recurringRuleId,
       recurringOccurrence: expense.recurringOccurrence,
       isTaxDeductible: expense.isTaxDeductible,
+      tags: expense.tags,
+      originalAmountCents: expense.originalAmountCents,
+      originalCurrency: expense.originalCurrency,
+      exchangeRate: expense.exchangeRate,
     );
 
 RecurringExpense _withRecurringSeriesFields(

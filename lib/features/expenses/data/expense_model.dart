@@ -11,6 +11,9 @@ class Expense {
     this.recurringOccurrence,
     this.isTaxDeductible = false,
     this.tags = const [],
+    this.originalAmountCents,
+    this.originalCurrency,
+    this.exchangeRate,
   });
 
   final String id;
@@ -27,6 +30,16 @@ class Expense {
   /// Freeform labels the user added, in addition to the category.
   final List<String> tags;
 
+  /// For an expense paid in another currency: the amount and currency on the
+  /// receipt, and the rate the user confirmed (app-currency units per one
+  /// original unit). [amountCents] is always in the app currency, converted
+  /// once when the expense was entered, so totals never shift with rates.
+  final int? originalAmountCents;
+  final String? originalCurrency;
+  final double? exchangeRate;
+
+  bool get isForeign => originalCurrency != null && originalAmountCents != null;
+
   Expense copyWith({
     int? amountCents,
     String? category,
@@ -37,6 +50,9 @@ class Expense {
     DateTime? recurringOccurrence,
     bool? isTaxDeductible,
     List<String>? tags,
+    int? originalAmountCents,
+    String? originalCurrency,
+    double? exchangeRate,
   }) => Expense(
     id: id,
     amountCents: amountCents ?? this.amountCents,
@@ -49,5 +65,8 @@ class Expense {
     recurringOccurrence: recurringOccurrence ?? this.recurringOccurrence,
     isTaxDeductible: isTaxDeductible ?? this.isTaxDeductible,
     tags: tags ?? this.tags,
+    originalAmountCents: originalAmountCents ?? this.originalAmountCents,
+    originalCurrency: originalCurrency ?? this.originalCurrency,
+    exchangeRate: exchangeRate ?? this.exchangeRate,
   );
 }

@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/utils/amount_formatter.dart';
 import '../../../core/utils/amount_parser.dart';
 import '../../../core/widgets/icon_registry.dart';
+import '../../../core/utils/currency_catalog.dart';
+import '../../exchange_rates/exchange_rate_providers.dart';
+import '../../exchange_rates/presentation/foreign_currency_section.dart';
 import '../../tags/data/tag_rules.dart';
 import '../../tags/presentation/tag_editor.dart';
 import '../data/expense_model.dart';
@@ -45,7 +49,7 @@ Future<ExpenseEntryResult?> showExpenseEntrySheet(
   );
 }
 
-class ExpenseEntrySheet extends StatefulWidget {
+class ExpenseEntrySheet extends ConsumerStatefulWidget {
   const ExpenseEntrySheet({
     required this.use24HourFormat,
     required this.categories,
@@ -79,10 +83,10 @@ class ExpenseEntrySheet extends StatefulWidget {
   final List<Expense> tagHistory;
 
   @override
-  State<ExpenseEntrySheet> createState() => _ExpenseEntrySheetState();
+  ConsumerState<ExpenseEntrySheet> createState() => _ExpenseEntrySheetState();
 }
 
-class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
+class _ExpenseEntrySheetState extends ConsumerState<ExpenseEntrySheet> {
   final _amountController = TextEditingController();
   final _merchantController = TextEditingController();
   String _category = 'Food';
@@ -93,6 +97,7 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
   bool _repeatsMonthly = false;
   bool _isTaxDeductible = false;
   List<String> _tags = [];
+  ForeignSelection _foreign = const ForeignSelection();
   final _tagController = TextEditingController();
 
   bool get _tagsAllowed =>
@@ -101,10 +106,20 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
       widget.expense?.recurringRuleId == null &&
       widget.showRecurringOption;
 
+  /// The currency the amount field is typed in.
+  AppCurrency get _amountCurrency {
+    final code = _foreign.currency;
+    return (code == null ? null : currencyForCode(code)) ?? widget.currency;
+  }
+
   String get _saveLabel {
     final cents = parseAmountToCents(_amountController.text);
     if (cents == null || cents <= 0) return 'Save expense';
-    return 'Save ${formatCurrencyCents(cents, widget.currency)}';
+    // The ISO code, because $ and ¥ alone can mean more than one currency.
+    if (_foreign.isForeign) {
+      return 'Save ${_foreign.currency} ${formatCents(cents)}';
+    }
+    return 'Save ${formatCurrencyCents(cents, _amountCurrency)}';
   }
 
   bool get _isEditing => widget.expense != null;
@@ -115,7 +130,16 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
     _repeatsMonthly = widget.initialRepeatsMonthly;
     final expense = widget.expense;
     if (expense == null) return;
-    _amountController.text = formatCents(expense.amountCents);
+    if (expense.isForeign) {
+      // Editing shows what was paid; the app-currency amount follows from it.
+      _amountController.text = formatCents(expense.originalAmountCents!);
+      _foreign = ForeignSelection(
+        currency: expense.originalCurrency,
+        rate: expense.exchangeRate,
+      );
+    } else {
+      _amountController.text = formatCents(expense.amountCents);
+    }
     _merchantController.text = expense.merchantOrNote ?? '';
     _category = expense.category;
     _paymentMethod = expense.paymentMethod;
@@ -168,13 +192,46 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
       return;
     }
 
+    if (_foreign.isForeign && !_tagsAllowed) {
+      // Never save a typed foreign amount as if it were in the app currency.
+      setState(() => _amountError = 'Choose your own currency to repeat.');
+      return;
+    }
+    var baseCents = amountCents;
+    String? originalCurrency;
+    int? originalCents;
+    double? rate;
+    if (_foreign.isForeign && _tagsAllowed) {
+      rate = _foreign.rate;
+      final converted = rate == null
+          ? null
+          : convertToBaseCents(amountCents, rate);
+      if (converted == null) {
+        setState(
+          () => _amountError = rate == null
+              ? 'Enter a valid exchange rate.'
+              : 'That amount converts to less than one cent.',
+        );
+        return;
+      }
+      baseCents = converted;
+      originalCurrency = _foreign.currency;
+      originalCents = amountCents;
+      ref
+          .read(exchangeRatesProvider.notifier)
+          .rememberRate(originalCurrency!, rate!);
+    }
+
     final merchant = _merchantController.text.trim();
     HapticFeedback.lightImpact();
     Navigator.of(context).pop(
       ExpenseEntryResult(
         expense: Expense(
           id: widget.expense?.id ?? const Uuid().v4(),
-          amountCents: amountCents,
+          amountCents: baseCents,
+          originalAmountCents: originalCents,
+          originalCurrency: originalCurrency,
+          exchangeRate: rate,
           category: _category,
           occurredAt: DateTime(
             _date.year,
@@ -244,13 +301,23 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
               const SizedBox(height: 16),
               _AmountField(
                 controller: _amountController,
-                currency: widget.currency,
+                currency: _amountCurrency,
                 errorText: _amountError,
                 onChanged: () {
                   if (_amountError != null) setState(() => _amountError = null);
                   setState(() {});
                 },
               ),
+              if (_tagsAllowed) ...[
+                const SizedBox(height: 12),
+                ForeignCurrencySection(
+                  amountCents: parseAmountToCents(_amountController.text),
+                  initialCurrency: widget.expense?.originalCurrency,
+                  initialRate: widget.expense?.exchangeRate,
+                  onChanged: (selection) =>
+                      setState(() => _foreign = selection),
+                ),
+              ],
               const SizedBox(height: 24),
               Text('Category', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 10),
@@ -386,9 +453,13 @@ class _ExpenseEntrySheetState extends State<ExpenseEntrySheet> {
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       title: const Text('Repeats monthly'),
+                      subtitle: _foreign.isForeign
+                          ? const Text('Not available for other currencies yet')
+                          : null,
                       value: _repeatsMonthly,
-                      onChanged: (value) =>
-                          setState(() => _repeatsMonthly = value),
+                      onChanged: _foreign.isForeign
+                          ? null
+                          : (value) => setState(() => _repeatsMonthly = value),
                     ),
                     if (_repeatsMonthly)
                       Padding(
