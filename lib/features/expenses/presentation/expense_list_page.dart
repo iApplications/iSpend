@@ -794,6 +794,21 @@ class _DeleteBackground extends StatelessWidget {
   );
 }
 
+const _monthNames = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
 class _SpendingContextCard extends StatelessWidget {
   const _SpendingContextCard({required this.expenses, required this.currency});
 
@@ -817,6 +832,12 @@ class _SpendingContextCard extends StatelessWidget {
       DateTime(now.year, now.month, now.day - 6),
       tomorrow,
     );
+    // The whole previous calendar month, shown as a plain figure rather than
+    // a percentage: comparing it with a month still in progress would mislead.
+    final lastMonthTotal = _sumBetween(
+      DateTime(now.year, now.month - 1),
+      monthStart,
+    );
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: AppColors.heroGradient,
@@ -828,30 +849,39 @@ class _SpendingContextCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Spent today',
+              'Spent in ${_monthNames[now.month - 1]}',
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
                 color: Colors.white.withValues(alpha: 0.88),
               ),
             ),
             const SizedBox(height: 4),
             Text(
-              formatCurrencyCents(todayTotal, currency),
+              formatCurrencyCents(monthTotal, currency),
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 color: Colors.white,
                 fontWeight: FontWeight.w800,
               ),
             ),
+            if (lastMonthTotal > 0) ...[
+              const SizedBox(height: 2),
+              Text(
+                'Last month ${formatCurrencyCents(lastMonthTotal, currency)}',
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.88),
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             Row(
               children: [
                 _ContextAmount(
-                  label: 'Last 7 days',
-                  amount: weekTotal,
+                  label: 'Today',
+                  amount: todayTotal,
                   currency: currency,
                 ),
                 _ContextAmount(
-                  label: 'This month',
-                  amount: monthTotal,
+                  label: 'Last 7 days',
+                  amount: weekTotal,
                   currency: currency,
                 ),
               ],
