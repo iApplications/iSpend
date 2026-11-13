@@ -27,8 +27,19 @@ void main() {
       expect(normalizeDisplayName('   '), isNull);
       expect(normalizeDisplayName('  Sam   Lee \n'), 'Sam Lee');
       expect(normalizeDisplayName('x' * 80)!.length, maxDisplayNameLength);
-      expect(greetingFor(null), 'Welcome back');
-      expect(greetingFor('Sam'), 'Welcome back, Sam');
+      expect(greetingFor(null, now: DateTime(2026, 9, 10, 8)), 'Good morning');
+      expect(
+        greetingFor('Sam', now: DateTime(2026, 9, 10, 13)),
+        'Good afternoon, Sam',
+      );
+      expect(greetingFor(null, now: DateTime(2026, 9, 10, 19)), 'Good evening');
+      expect(greetingFor(null, now: DateTime(2026, 9, 10, 2)), 'Good evening');
+      expect(greetingFor(null, now: DateTime(2026, 9, 10, 5)), 'Good morning');
+      expect(
+        greetingFor(null, now: DateTime(2026, 9, 10, 12)),
+        'Good afternoon',
+      );
+      expect(greetingFor(null, now: DateTime(2026, 9, 10, 18)), 'Good evening');
     });
 
     test('saves, clears and reloads from settings', () async {

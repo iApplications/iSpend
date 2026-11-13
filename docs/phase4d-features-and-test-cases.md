@@ -9,9 +9,11 @@ Traceable to "Phase 4d" in `expense-tracker-app-spec.md`. Code lives in
 - **TC-DN-1 (Auto):** A typed name is trimmed, internal whitespace and control
   characters collapse to single spaces, and it is cut to 30 characters. An
   empty or blank name is stored as "no name".
-- **TC-DN-2:** With no name the greeting on Expenses reads "Welcome back"; with
-  a name it reads "Welcome back, <name>". No placeholder text ever appears.
-  (Auto for the wording; Manual for the Expenses page.)
+- **TC-DN-2:** The greeting on Expenses follows the time of day: Good morning
+  (05:00-11:59), Good afternoon (12:00-17:59), Good evening (otherwise). With
+  no name it is just that phrase; with a name it adds ", <name>". No
+  placeholder text ever appears. (Auto for the wording and hour boundaries;
+  Manual for the Expenses page.)
 - **TC-DN-3 (Auto):** The name is saved in the encrypted `app_settings` table
   (`display_name`) and reloads after restart.
 - **TC-DN-4 (Manual):** Settings > Personalization edits or clears the name and

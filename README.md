@@ -514,8 +514,8 @@ Phase 4d delivered:
   you?" and then introduces only Expenses, Summary and Settings. It can be
   skipped at any point. Someone who already has expenses (for example after an
   update) is not walked through it.
-* **Name**: used only for the greeting on the Expenses page ("Welcome back, Sam",
-  or plain "Welcome back" with no name). Edit or clear it under **Settings >
+* **Name**: used only for the greeting on the Expenses page ("Good morning, Sam",
+  or plain "Good morning" with no name; it follows the time of day). Edit or clear it under **Settings >
   Personalization**. It never touches saved expenses.
 * **Contextual guides**: a short card the first time a feature screen is opened
   (budgets, recurring, quick entry, tags, exchange rates, export, backup,
