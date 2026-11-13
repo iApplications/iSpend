@@ -41,9 +41,7 @@ void main() {
     await tester.pump();
     await tester.enterText(find.byType(TextField).at(1), 'My note');
     await tester.pump();
-    await tester.tap(find.byType(DropdownButtonFormField<String>).last);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Transport').last);
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Transport'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Cash'));
     await tester.pump();
