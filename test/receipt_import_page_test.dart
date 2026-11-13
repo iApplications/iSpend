@@ -39,11 +39,15 @@ void main() {
     expect(tester.widget<CheckboxListTile>(scannedOption).value, isFalse);
 
     await tester.ensureVisible(scannedOption);
+
+    await tester.pumpAndSettle();
     await tester.tap(scannedOption);
     await tester.pumpAndSettle();
     expect(tester.widget<TextField>(amountField).controller!.text, '12.33');
     expect(tester.widget<CheckboxListTile>(scannedOption).value, isTrue);
     expect(find.textContaining('as USD 12.33. No conversion.'), findsOneWidget);
+
+    await tester.ensureVisible(scannedOption);
 
     await tester.tap(scannedOption);
     await tester.pumpAndSettle();

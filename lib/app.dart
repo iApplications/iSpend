@@ -8,6 +8,7 @@ import 'core/theme/app_theme.dart';
 import 'features/expenses/presentation/expense_list_page.dart';
 import 'features/settings/presentation/settings_page.dart';
 import 'features/settings/appearance_preference.dart';
+import 'features/guides/presentation/welcome_flow.dart';
 import 'features/security/app_lock.dart';
 import 'features/summary/presentation/summary_page.dart';
 import 'features/categories/category_providers.dart';
@@ -56,7 +57,7 @@ class ISpendThemedApp extends ConsumerWidget {
     return ISpendApp(
       themeMode: appearance.themeMode,
       home: AppLockGate(
-        child: const AppShell(handleExternalEntries: false),
+        child: const WelcomeGate(child: AppShell(handleExternalEntries: false)),
         externalChildBuilder: (uri, onComplete, requestId) => AppShell(
           handleExternalEntries: false,
           externalOnly: quickLoggingWithoutUnlock == true,

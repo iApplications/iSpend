@@ -1,3 +1,5 @@
+import '../../guides/data/guide_catalog.dart';
+import '../../guides/presentation/contextual_guide.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -18,34 +20,37 @@ class BudgetLimitsPage extends ConsumerWidget {
     final currency = ref.watch(appCurrencyProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Budget limits')),
-      body: ListView.separated(
-        padding: const EdgeInsets.all(20),
-        itemCount: categories.length + 1,
-        separatorBuilder: (_, _) => const SizedBox(height: 8),
-        itemBuilder: (context, index) {
-          if (index == 0) {
-            return const Padding(
-              padding: EdgeInsets.only(bottom: 8),
-              child: Text(
-                'Set a monthly spending target for any category. Limits are for your own tracking.',
+      body: GuidedBody(
+        guideId: GuideIds.budgets,
+        child: ListView.separated(
+          padding: const EdgeInsets.all(20),
+          itemCount: categories.length + 1,
+          separatorBuilder: (_, _) => const SizedBox(height: 8),
+          itemBuilder: (context, index) {
+            if (index == 0) {
+              return const Padding(
+                padding: EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'Set a monthly spending target for any category. Limits are for your own tracking.',
+                ),
+              );
+            }
+            final category = categories[index - 1];
+            final limit = limits[category];
+            return Card(
+              child: ListTile(
+                title: Text(category),
+                subtitle: Text(
+                  limit == null
+                      ? 'No monthly limit'
+                      : 'Monthly limit: ${formatCurrencyCents(limit, currency)}',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _edit(context, ref, category, limit, currency),
               ),
             );
-          }
-          final category = categories[index - 1];
-          final limit = limits[category];
-          return Card(
-            child: ListTile(
-              title: Text(category),
-              subtitle: Text(
-                limit == null
-                    ? 'No monthly limit'
-                    : 'Monthly limit: ${formatCurrencyCents(limit, currency)}',
-              ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => _edit(context, ref, category, limit, currency),
-            ),
-          );
-        },
+          },
+        ),
       ),
     );
   }

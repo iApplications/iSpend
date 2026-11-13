@@ -76,6 +76,8 @@ void main() {
       expect(find.text('Add selected (0)'), findsOneWidget);
 
       await tester.ensureVisible(scannedOption);
+
+      await tester.pumpAndSettle();
       await tester.tap(scannedOption);
       await tester.pumpAndSettle();
       expect(tester.widget<TextField>(amountField).controller!.text, '34.29');
@@ -84,6 +86,8 @@ void main() {
         find.textContaining('as USD 34.29. No conversion.'),
         findsOneWidget,
       );
+
+      await tester.ensureVisible(scannedOption);
 
       await tester.tap(scannedOption);
       await tester.pumpAndSettle();

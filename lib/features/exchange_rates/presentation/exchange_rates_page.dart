@@ -1,3 +1,5 @@
+import '../../guides/data/guide_catalog.dart';
+import '../../guides/presentation/contextual_guide.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -27,79 +29,82 @@ class ExchangeRatesPage extends ConsumerWidget {
         .toList();
     return Scaffold(
       appBar: AppBar(title: const Text('Exchange rates')),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          const Text(
-            'When you add an expense in another currency, iSpend converts it '
-            'once using a rate you confirm, and keeps the original amount. '
-            'Past expenses never change when rates move.',
-          ),
-          const SizedBox(height: 16),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Suggest rates from the internet'),
-            subtitle: const Text(
-              'Off by default. When on, iSpend downloads the European Central '
-              'Bank\'s daily rates (about once a day) to suggest a rate. The '
-              'request contains only your currency code, never your expenses. '
-              'You can always type your own rate instead.',
+      body: GuidedBody(
+        guideId: GuideIds.foreignCurrency,
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            const Text(
+              'When you add an expense in another currency, iSpend converts it '
+              'once using a rate you confirm, and keeps the original amount. '
+              'Past expenses never change when rates move.',
             ),
-            value: rates.suggestionsEnabled,
-            onChanged: rates.loaded ? notifier.setSuggestionsEnabled : null,
-          ),
-          if (rates.suggestionsEnabled) ...[
-            const SizedBox(height: 8),
-            if (cache != null && cache.base == base.code)
-              Text(
-                'Rates published ${cache.date}.',
-                style: theme.textTheme.bodyMedium,
-              )
-            else
-              Text(
-                rates.refreshing
-                    ? 'Downloading rates…'
-                    : 'No rates downloaded yet.',
-                style: theme.textTheme.bodyMedium,
+            const SizedBox(height: 16),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Suggest rates from the internet'),
+              subtitle: const Text(
+                'Off by default. When on, iSpend downloads the European Central '
+                'Bank\'s daily rates (about once a day) to suggest a rate. The '
+                'request contains only your currency code, never your expenses. '
+                'You can always type your own rate instead.',
               ),
-            if (rates.error != null) ...[
-              const SizedBox(height: 4),
-              Text(rates.error!, style: theme.textTheme.bodySmall),
-            ],
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: rates.refreshing
-                  ? null
-                  : () => notifier.refresh(force: true),
-              icon: const Icon(Icons.refresh),
-              label: const Text('Update now'),
+              value: rates.suggestionsEnabled,
+              onChanged: rates.loaded ? notifier.setSuggestionsEnabled : null,
             ),
-            if (shown.isNotEmpty) ...[
-              const SizedBox(height: 20),
-              Text('Recent rates', style: theme.textTheme.titleMedium),
+            if (rates.suggestionsEnabled) ...[
               const SizedBox(height: 8),
-              for (final (code, rate) in shown)
+              if (cache != null && cache.base == base.code)
+                Text(
+                  'Rates published ${cache.date}.',
+                  style: theme.textTheme.bodyMedium,
+                )
+              else
+                Text(
+                  rates.refreshing
+                      ? 'Downloading rates…'
+                      : 'No rates downloaded yet.',
+                  style: theme.textTheme.bodyMedium,
+                ),
+              if (rates.error != null) ...[
+                const SizedBox(height: 4),
+                Text(rates.error!, style: theme.textTheme.bodySmall),
+              ],
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: rates.refreshing
+                    ? null
+                    : () => notifier.refresh(force: true),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Update now'),
+              ),
+              if (shown.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                Text('Recent rates', style: theme.textTheme.titleMedium),
+                const SizedBox(height: 8),
+                for (final (code, rate) in shown)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text('1 $code'),
+                    trailing: Text('${formatExchangeRate(rate!)} ${base.code}'),
+                  ),
+              ],
+            ],
+            if (rates.lastUsed.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              Text('Rates you used', style: theme.textTheme.titleMedium),
+              const SizedBox(height: 8),
+              for (final entry in rates.lastUsed.entries)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text('1 $code'),
-                  trailing: Text('${formatExchangeRate(rate!)} ${base.code}'),
+                  title: Text('1 ${entry.key}'),
+                  trailing: Text(
+                    '${formatExchangeRate(entry.value)} ${base.code}',
+                  ),
                 ),
             ],
           ],
-          if (rates.lastUsed.isNotEmpty) ...[
-            const SizedBox(height: 20),
-            Text('Rates you used', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 8),
-            for (final entry in rates.lastUsed.entries)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text('1 ${entry.key}'),
-                trailing: Text(
-                  '${formatExchangeRate(entry.value)} ${base.code}',
-                ),
-              ),
-          ],
-        ],
+        ),
       ),
     );
   }

@@ -114,10 +114,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(find.byType(DropdownButtonFormField<int?>));
+    await tester.pumpAndSettle();
     await tester.tap(find.byType(DropdownButtonFormField<int?>));
     await tester.pumpAndSettle();
     await tester.tap(find.text('2026').last);
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Export tax-deductible'));
     await tester.tap(find.text('Export tax-deductible'));
     await tester.pumpAndSettle();
     expect(find.text('Save an unencrypted file?'), findsOneWidget);

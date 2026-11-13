@@ -1,3 +1,5 @@
+import '../../guides/data/guide_catalog.dart';
+import '../../guides/presentation/contextual_guide.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -7,6 +9,7 @@ import '../../../core/widgets/app_toast.dart';
 import '../../categories/category_providers.dart';
 import '../../exchange_rates/exchange_rate_providers.dart';
 import '../../expenses/expense_providers.dart';
+import '../../guides/guide_providers.dart';
 import '../../payment_methods/payment_method_providers.dart';
 import '../../settings/appearance_preference.dart';
 import '../../settings/currency_preference.dart';
@@ -132,6 +135,8 @@ class _BackupRestorePageState extends ConsumerState<BackupRestorePage> {
       await ref.read(timeFormatPreferenceProvider.notifier).refresh();
       await ref.read(appearancePreferenceProvider.notifier).refresh();
       await ref.read(appLockEnabledProvider.notifier).refresh();
+      await ref.read(displayNameProvider.notifier).refresh();
+      await ref.read(tutorialProvider.notifier).refresh();
       // The backup also replaced this setting, which gates unlocked quick entry.
       await ref.read(quickLoggingWithoutUnlockProvider.notifier).refresh();
       if (!mounted) return;
@@ -169,38 +174,41 @@ class _BackupRestorePageState extends ConsumerState<BackupRestorePage> {
   @override
   Widget build(BuildContext c) => Scaffold(
     appBar: AppBar(title: const Text('Backup & Restore')),
-    body: ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        Text(
-          'Your data, in your hands',
-          style: Theme.of(c).textTheme.headlineSmall,
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Your expense data stays local. Backups are encrypted and need your recovery passphrase to restore.',
-        ),
-        const SizedBox(height: 24),
-        card(
-          Icons.upload_file_outlined,
-          'Export backup',
-          'Create one encrypted backup file to save safely.',
-          'Create backup',
-          busy ? null : export,
-        ),
-        const SizedBox(height: 16),
-        card(
-          Icons.download_for_offline_outlined,
-          'Restore backup',
-          'Restore a previously exported iSpend backup file.',
-          'Restore backup',
-          busy ? null : restore,
-        ),
-        const SizedBox(height: 24),
-        const Text(
-          'Restoring a backup replaces the expenses and settings currently on this device.',
-        ),
-      ],
+    body: GuidedBody(
+      guideId: GuideIds.backup,
+      child: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Text(
+            'Your data, in your hands',
+            style: Theme.of(c).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Your expense data stays local. Backups are encrypted and need your recovery passphrase to restore.',
+          ),
+          const SizedBox(height: 24),
+          card(
+            Icons.upload_file_outlined,
+            'Export backup',
+            'Create one encrypted backup file to save safely.',
+            'Create backup',
+            busy ? null : export,
+          ),
+          const SizedBox(height: 16),
+          card(
+            Icons.download_for_offline_outlined,
+            'Restore backup',
+            'Restore a previously exported iSpend backup file.',
+            'Restore backup',
+            busy ? null : restore,
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Restoring a backup replaces the expenses and settings currently on this device.',
+          ),
+        ],
+      ),
     ),
   );
   Widget card(IconData i, String t, String d, String b, VoidCallback? f) =>

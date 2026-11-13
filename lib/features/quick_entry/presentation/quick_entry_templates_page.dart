@@ -1,3 +1,5 @@
+import '../../guides/data/guide_catalog.dart';
+import '../../guides/presentation/contextual_guide.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -29,97 +31,100 @@ class QuickEntryTemplatesPage extends ConsumerWidget {
         icon: const Icon(Icons.add),
         label: const Text('Add template'),
       ),
-      body: references.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, _) => const Center(
-          child: Text('Quick Entry templates could not be loaded.'),
-        ),
-        data: (references) {
-          if (templates.isEmpty) {
-            return const _EmptyTemplates();
-          }
-          return ReorderableListView.builder(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
-            itemCount: templates.length,
-            onReorderItem: (oldIndex, newIndex) => ref
-                .read(quickEntryTemplatesProvider.notifier)
-                .reorder(oldIndex, newIndex),
-            itemBuilder: (context, index) {
-              final template = templates[index];
-              final category =
-                  references.categoryNamesById[template.categoryId];
-              final payment = template.paymentMethodId == null
-                  ? null
-                  : references.paymentMethodNamesById[template
-                        .paymentMethodId!];
-              return Card(
-                key: ValueKey(template.id),
-                margin: const EdgeInsets.only(bottom: 10),
-                child: ListTile(
-                  leading: Icon(
-                    template.isFavorite
-                        ? Icons.star_rounded
-                        : Icons.bolt_outlined,
-                    color: template.isFavorite
-                        ? Theme.of(context).colorScheme.primary
-                        : null,
-                  ),
-                  title: Text(template.name),
-                  subtitle: Text(
-                    [
-                      category ?? 'Unavailable category',
-                      if (payment != null) payment,
-                      if (template.merchantOrNote != null)
-                        template.merchantOrNote!,
-                    ].join(' · '),
-                  ),
-                  trailing: PopupMenuButton<_TemplateAction>(
-                    onSelected: (action) {
-                      switch (action) {
-                        case _TemplateAction.use:
-                          _useTemplate(context, ref, references, template);
-                        case _TemplateAction.edit:
-                          _editTemplate(context, ref, references, template);
-                        case _TemplateAction.favorite:
-                          ref
-                              .read(quickEntryTemplatesProvider.notifier)
-                              .save(
-                                template.copyWith(
-                                  isFavorite: !template.isFavorite,
-                                ),
-                              );
-                        case _TemplateAction.delete:
-                          _deleteTemplate(context, ref, template);
-                      }
-                    },
-                    itemBuilder: (_) => [
-                      const PopupMenuItem(
-                        value: _TemplateAction.use,
-                        child: Text('Use template'),
-                      ),
-                      const PopupMenuItem(
-                        value: _TemplateAction.edit,
-                        child: Text('Edit'),
-                      ),
-                      PopupMenuItem(
-                        value: _TemplateAction.favorite,
-                        child: Text(
-                          template.isFavorite
-                              ? 'Remove favourite'
-                              : 'Mark favourite',
+      body: GuidedBody(
+        guideId: GuideIds.quickEntry,
+        child: references.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (_, _) => const Center(
+            child: Text('Quick Entry templates could not be loaded.'),
+          ),
+          data: (references) {
+            if (templates.isEmpty) {
+              return const _EmptyTemplates();
+            }
+            return ReorderableListView.builder(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+              itemCount: templates.length,
+              onReorderItem: (oldIndex, newIndex) => ref
+                  .read(quickEntryTemplatesProvider.notifier)
+                  .reorder(oldIndex, newIndex),
+              itemBuilder: (context, index) {
+                final template = templates[index];
+                final category =
+                    references.categoryNamesById[template.categoryId];
+                final payment = template.paymentMethodId == null
+                    ? null
+                    : references.paymentMethodNamesById[template
+                          .paymentMethodId!];
+                return Card(
+                  key: ValueKey(template.id),
+                  margin: const EdgeInsets.only(bottom: 10),
+                  child: ListTile(
+                    leading: Icon(
+                      template.isFavorite
+                          ? Icons.star_rounded
+                          : Icons.bolt_outlined,
+                      color: template.isFavorite
+                          ? Theme.of(context).colorScheme.primary
+                          : null,
+                    ),
+                    title: Text(template.name),
+                    subtitle: Text(
+                      [
+                        category ?? 'Unavailable category',
+                        if (payment != null) payment,
+                        if (template.merchantOrNote != null)
+                          template.merchantOrNote!,
+                      ].join(' · '),
+                    ),
+                    trailing: PopupMenuButton<_TemplateAction>(
+                      onSelected: (action) {
+                        switch (action) {
+                          case _TemplateAction.use:
+                            _useTemplate(context, ref, references, template);
+                          case _TemplateAction.edit:
+                            _editTemplate(context, ref, references, template);
+                          case _TemplateAction.favorite:
+                            ref
+                                .read(quickEntryTemplatesProvider.notifier)
+                                .save(
+                                  template.copyWith(
+                                    isFavorite: !template.isFavorite,
+                                  ),
+                                );
+                          case _TemplateAction.delete:
+                            _deleteTemplate(context, ref, template);
+                        }
+                      },
+                      itemBuilder: (_) => [
+                        const PopupMenuItem(
+                          value: _TemplateAction.use,
+                          child: Text('Use template'),
                         ),
-                      ),
-                      const PopupMenuItem(
-                        value: _TemplateAction.delete,
-                        child: Text('Delete'),
-                      ),
-                    ],
+                        const PopupMenuItem(
+                          value: _TemplateAction.edit,
+                          child: Text('Edit'),
+                        ),
+                        PopupMenuItem(
+                          value: _TemplateAction.favorite,
+                          child: Text(
+                            template.isFavorite
+                                ? 'Remove favourite'
+                                : 'Mark favourite',
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: _TemplateAction.delete,
+                          child: Text('Delete'),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              );
-            },
-          );
-        },
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }
