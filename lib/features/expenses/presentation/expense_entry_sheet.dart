@@ -5,7 +5,6 @@ import 'package:uuid/uuid.dart';
 
 import '../../../core/utils/amount_formatter.dart';
 import '../../../core/utils/amount_parser.dart';
-import '../../../core/widgets/icon_registry.dart';
 import '../../../core/utils/currency_catalog.dart';
 import '../../exchange_rates/exchange_rate_providers.dart';
 import '../../exchange_rates/presentation/foreign_currency_section.dart';
@@ -13,6 +12,7 @@ import '../../tags/data/tag_rules.dart';
 import '../../tags/presentation/tag_editor.dart';
 import '../data/expense_model.dart';
 import '../data/recurring_expense.dart';
+import 'entry_choices.dart';
 
 Future<ExpenseEntryResult?> showExpenseEntrySheet(
   BuildContext context, {
@@ -123,6 +123,24 @@ class _ExpenseEntrySheetState extends ConsumerState<ExpenseEntrySheet> {
   }
 
   bool get _isEditing => widget.expense != null;
+
+  /// Opens "More options" when something inside is already set (editing).
+  bool get _hasMoreOptionsSet =>
+      _tags.isNotEmpty ||
+      _foreign.isForeign ||
+      _isTaxDeductible ||
+      _repeatsMonthly ||
+      (widget.expense?.isForeign ?? false);
+
+  String? get _moreOptionsSummary {
+    final parts = [
+      if (_tags.isNotEmpty) 'Tags ${_tags.length}',
+      if (_foreign.isForeign) _foreign.currency!,
+      if (_isTaxDeductible) 'Tax-deductible',
+      if (_repeatsMonthly) 'Repeats monthly',
+    ];
+    return parts.isEmpty ? null : parts.join(' · ');
+  }
 
   @override
   void initState() {
@@ -282,10 +300,6 @@ class _ExpenseEntrySheetState extends ConsumerState<ExpenseEntrySheet> {
       _category = uniqueCategories.first;
     }
     final bottomPadding = MediaQuery.viewInsetsOf(context).bottom;
-    final commonCategories = [
-      for (final category in const ['Food', 'Transport', 'Shopping', 'Bills'])
-        if (uniqueCategories.contains(category)) category,
-    ];
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.fromLTRB(20, 20, 20, bottomPadding + 20),
@@ -308,65 +322,24 @@ class _ExpenseEntrySheetState extends ConsumerState<ExpenseEntrySheet> {
                   setState(() {});
                 },
               ),
-              if (_tagsAllowed) ...[
-                const SizedBox(height: 12),
-                ForeignCurrencySection(
-                  amountCents: parseAmountToCents(_amountController.text),
-                  initialCurrency: widget.expense?.originalCurrency,
-                  initialRate: widget.expense?.exchangeRate,
-                  onChanged: (selection) =>
-                      setState(() => _foreign = selection),
-                ),
-              ],
               const SizedBox(height: 24),
               Text('Category', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final category in commonCategories)
-                    _CategoryChoice(
-                      category: category,
-                      selected: category == _category,
-                      onTap: () => setState(() => _category = category),
-                    ),
-                ],
+              CategoryChips(
+                categories: uniqueCategories,
+                selected: _category,
+                onChanged: (category) => setState(() => _category = category),
               ),
-              if (uniqueCategories.length > commonCategories.length) ...[
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => _chooseMoreCategory(uniqueCategories),
-                    icon: const Icon(Icons.more_horiz),
-                    label: const Text('More categories'),
-                  ),
-                ),
-              ],
               const SizedBox(height: 20),
               Text(
                 'Payment method',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 8),
-              DropdownButtonFormField<String?>(
-                initialValue: _paymentMethod,
-                decoration: const InputDecoration(
-                  hintText: 'Select payment method (optional)',
-                ),
-                items: [
-                  const DropdownMenuItem<String?>(
-                    value: null,
-                    child: Text('None'),
-                  ),
-                  ...uniquePaymentMethods.map(
-                    (method) => DropdownMenuItem<String?>(
-                      value: method,
-                      child: Text(method),
-                    ),
-                  ),
-                ],
+              PaymentMethodChips(
+                methods: uniquePaymentMethods,
+                history: widget.tagHistory,
+                selected: _paymentMethod,
                 onChanged: (method) => setState(() => _paymentMethod = method),
               ),
               const SizedBox(height: 16),
@@ -378,24 +351,6 @@ class _ExpenseEntrySheetState extends ConsumerState<ExpenseEntrySheet> {
                   hintText: 'Add an optional note',
                 ),
                 onChanged: (_) => setState(() {}),
-              ),
-              if (_tagsAllowed) ...[
-                const SizedBox(height: 16),
-                TagEditor(
-                  tags: _tags,
-                  controller: _tagController,
-                  history: widget.tagHistory,
-                  merchant: _merchantController.text,
-                  onChanged: (tags) => setState(() => _tags = tags),
-                ),
-              ],
-              const SizedBox(height: 12),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Count as tax-deductible?'),
-                subtitle: const Text('For your own tracking — not tax advice'),
-                value: _isTaxDeductible,
-                onChanged: (value) => setState(() => _isTaxDeductible = value),
               ),
               const SizedBox(height: 12),
               Row(
@@ -444,12 +399,47 @@ class _ExpenseEntrySheetState extends ConsumerState<ExpenseEntrySheet> {
                     child: const Text('View recurring schedule >'),
                   ),
                 ),
-                const SizedBox(height: 12),
-              ] else if (widget.showRecurringOption) ...[
-                ExpansionTile(
-                  tilePadding: EdgeInsets.zero,
-                  title: const Text('More options'),
-                  children: [
+              ],
+              // Optional extras live together so the common path stays short.
+              // maintainState keeps their values while the section is closed.
+              ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                maintainState: true,
+                initiallyExpanded: _hasMoreOptionsSet,
+                title: const Text('More options'),
+                subtitle: _moreOptionsSummary == null
+                    ? null
+                    : Text(_moreOptionsSummary!),
+                children: [
+                  if (_tagsAllowed) ...[
+                    ForeignCurrencySection(
+                      amountCents: parseAmountToCents(_amountController.text),
+                      initialCurrency: widget.expense?.originalCurrency,
+                      initialRate: widget.expense?.exchangeRate,
+                      onChanged: (selection) =>
+                          setState(() => _foreign = selection),
+                    ),
+                    const SizedBox(height: 16),
+                    TagEditor(
+                      tags: _tags,
+                      controller: _tagController,
+                      history: widget.tagHistory,
+                      merchant: _merchantController.text,
+                      onChanged: (tags) => setState(() => _tags = tags),
+                    ),
+                  ],
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Count as tax-deductible?'),
+                    subtitle: const Text(
+                      'For your own tracking — not tax advice',
+                    ),
+                    value: _isTaxDeductible,
+                    onChanged: (value) =>
+                        setState(() => _isTaxDeductible = value),
+                  ),
+                  if (widget.recurringSchedule == null &&
+                      widget.showRecurringOption) ...[
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       title: const Text('Repeats monthly'),
@@ -470,9 +460,8 @@ class _ExpenseEntrySheetState extends ConsumerState<ExpenseEntrySheet> {
                         ),
                       ),
                   ],
-                ),
-                const SizedBox(height: 12),
-              ],
+                ],
+              ),
               const Divider(),
               const SizedBox(height: 12),
               SizedBox(
@@ -505,32 +494,6 @@ class _ExpenseEntrySheetState extends ConsumerState<ExpenseEntrySheet> {
   }
 
   String _formatDate(DateTime date) => '${date.day}/${date.month}/${date.year}';
-
-  Future<void> _chooseMoreCategory(List<String> categories) async {
-    final category = await showModalBottomSheet<String>(
-      context: context,
-      builder: (context) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            for (final category in categories)
-              ListTile(
-                leading: Icon(
-                  categoryIconStyle(category).icon,
-                  color: categoryIconStyle(category).color,
-                ),
-                title: Text(category),
-                trailing: category == _category
-                    ? const Icon(Icons.check)
-                    : null,
-                onTap: () => Navigator.pop(context, category),
-              ),
-          ],
-        ),
-      ),
-    );
-    if (category != null) setState(() => _category = category);
-  }
 }
 
 class ExpenseEntryResult {
@@ -616,31 +579,4 @@ class _AmountField extends StatelessWidget {
     ),
     onChanged: (_) => onChanged(),
   );
-}
-
-class _CategoryChoice extends StatelessWidget {
-  const _CategoryChoice({
-    required this.category,
-    required this.selected,
-    required this.onTap,
-  });
-  final String category;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => AnimatedScale(
-    duration: const Duration(milliseconds: 140),
-    curve: Curves.easeOut,
-    scale: selected ? 1.02 : 1,
-    child: ChoiceChip(
-      selected: selected,
-      onSelected: (_) => onTap(),
-      avatar: Icon(style.icon, size: 18, color: selected ? style.color : null),
-      label: Text(category),
-      showCheckmark: selected,
-    ),
-  );
-
-  CategoryIconStyle get style => categoryIconStyle(category);
 }

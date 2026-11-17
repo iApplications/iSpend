@@ -207,6 +207,9 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField).first, '12');
+    await tester.ensureVisible(find.text('More options'));
+    await tester.tap(find.text('More options'));
+    await tester.pumpAndSettle();
     await tester.tap(
       find.widgetWithText(DropdownButtonFormField<String>, 'Currency'),
     );
@@ -266,6 +269,9 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).first, '12');
+    await tester.ensureVisible(find.text('More options'));
+    await tester.tap(find.text('More options'));
+    await tester.pumpAndSettle();
     await tester.tap(
       find.widgetWithText(DropdownButtonFormField<String>, 'Currency'),
     );
@@ -341,6 +347,9 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).first, '12');
+    await tester.ensureVisible(find.text('More options'));
+    await tester.tap(find.text('More options'));
+    await tester.pumpAndSettle();
     await chooseUsd();
     await tester.enterText(
       find.widgetWithText(TextField, 'Exchange rate'),
@@ -360,6 +369,9 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).first, '5');
+    await tester.ensureVisible(find.text('More options'));
+    await tester.tap(find.text('More options'));
+    await tester.pumpAndSettle();
     await chooseUsd();
     expect(find.widgetWithText(TextField, '4.05'), findsOneWidget);
     expect(find.text('Last used 4.05'), findsOneWidget);

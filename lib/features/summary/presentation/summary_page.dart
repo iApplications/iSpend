@@ -530,14 +530,6 @@ class _Breakdown extends StatelessWidget {
             child: Text('No expenses recorded yet.'),
           )
         else ...[
-          const SizedBox(height: AppSpacing.md),
-          _StackedBreakdownBar(
-            entries: sortedEntries,
-            total: total,
-            type: type,
-            categoryIconKeys: categoryIconKeys,
-            paymentMethodColours: paymentMethodColours,
-          ),
           for (final entry in sortedEntries)
             _BreakdownLegendRow(
               label: entry.key,
@@ -552,50 +544,6 @@ class _Breakdown extends StatelessWidget {
       ],
     );
   }
-}
-
-class _StackedBreakdownBar extends StatelessWidget {
-  const _StackedBreakdownBar({
-    required this.entries,
-    required this.total,
-    required this.type,
-    required this.categoryIconKeys,
-    required this.paymentMethodColours,
-  });
-
-  final List<MapEntry<String, int>> entries;
-  final int total;
-  final _BreakdownType type;
-  final Map<String, String> categoryIconKeys;
-  final Map<String, String> paymentMethodColours;
-
-  @override
-  Widget build(BuildContext context) => ClipRRect(
-    borderRadius: AppRadii.pillBorder,
-    child: SizedBox(
-      height: 10,
-      child: LayoutBuilder(
-        builder: (context, constraints) => Row(
-          children: [
-            for (final entry in entries)
-              SizedBox(
-                width: constraints.maxWidth * entry.value / total,
-                height: constraints.maxHeight,
-                child: ColoredBox(
-                  color: _breakdownColor(
-                    context,
-                    label: entry.key,
-                    type: type,
-                    categoryIconKey: categoryIconKeys[entry.key],
-                    paymentMethodColour: paymentMethodColours[entry.key],
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    ),
-  );
 }
 
 class _BreakdownLegendRow extends StatelessWidget {
@@ -630,45 +578,51 @@ class _BreakdownLegendRow extends StatelessWidget {
     );
 
     return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.md),
-      child: Row(
+      padding: const EdgeInsets.only(top: AppSpacing.lg),
+      child: Column(
         children: [
-          SizedBox(
-            width: 9,
-            height: 9,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: AppRadii.pillBorder,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                formatCurrencyCents(amount, currency),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              SizedBox(
+                width: 36,
+                child: Text(
+                  percentLabel,
+                  textAlign: TextAlign.right,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              label,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(
+          const SizedBox(height: 6),
+          // The bar only shows scale; the amount and percentage are text.
+          ClipRRect(
+            borderRadius: AppRadii.pillBorder,
+            child: LinearProgressIndicator(
+              value: percentage.clamp(0.0, 1.0),
+              minHeight: 6,
+              color: color,
+              backgroundColor: Theme.of(
                 context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Text(
-            formatCurrencyCents(amount, currency),
-            style: Theme.of(
-              context,
-            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          SizedBox(
-            width: 36,
-            child: Text(
-              percentLabel,
-              textAlign: TextAlign.right,
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+              ).colorScheme.surfaceContainerHighest,
             ),
           ),
         ],

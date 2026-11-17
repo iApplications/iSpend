@@ -8,6 +8,7 @@ import '../../../core/utils/currency_catalog.dart';
 import '../../exchange_rates/exchange_rate_providers.dart';
 import '../../exchange_rates/presentation/foreign_currency_section.dart';
 import '../../expenses/data/expense_model.dart';
+import '../../expenses/presentation/entry_choices.dart';
 import '../../tags/data/tag_rules.dart';
 import '../../tags/presentation/tag_editor.dart';
 import '../data/quick_entry_template.dart';
@@ -235,54 +236,12 @@ class _QuickEntrySheetState extends ConsumerState<_QuickEntrySheet> {
     }
   }
 
-  List<String> get _recentPaymentMethods {
-    final recent = <String>[];
-    final orderedHistory = [...widget.history]
-      ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
-    for (final expense in orderedHistory) {
-      final method = expense.paymentMethod;
-      if (method != null && widget.paymentMethods.contains(method)) {
-        if (!recent.contains(method)) recent.add(method);
-        if (recent.length == 3) break;
-      }
-    }
-    if (_payment != null && !recent.contains(_payment)) {
-      recent.insert(0, _payment!);
-    }
-    if (recent.isEmpty) recent.addAll(widget.paymentMethods.take(3));
-    return recent.take(3).toList();
-  }
-
-  Future<void> _choosePaymentMethod() async {
-    final choice = await showModalBottomSheet<String?>(
-      context: context,
-      builder: (context) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            const ListTile(title: Text('Payment method')),
-            ListTile(
-              leading: const Icon(Icons.remove_circle_outline),
-              title: const Text('None'),
-              trailing: _payment == null ? const Icon(Icons.check) : null,
-              onTap: () => Navigator.pop(context),
-            ),
-            for (final method in widget.paymentMethods)
-              ListTile(
-                title: Text(method),
-                trailing: _payment == method ? const Icon(Icons.check) : null,
-                onTap: () => Navigator.pop(context, method),
-              ),
-          ],
-        ),
-      ),
-    );
-    if (choice != _payment) {
-      setState(() {
-        _payment = choice;
-        _paymentTouched = true;
-      });
-    }
+  String? get _moreOptionsSummary {
+    final parts = [
+      if (_tags.isNotEmpty) 'Tags ${_tags.length}',
+      if (_foreign.isForeign) _foreign.currency!,
+    ];
+    return parts.isEmpty ? null : parts.join(' · ');
   }
 
   @override
@@ -326,31 +285,14 @@ class _QuickEntrySheetState extends ConsumerState<_QuickEntrySheet> {
                 textCapitalization: TextCapitalization.sentences,
                 onChanged: (_) => setState(() => _merchantTouched = true),
               ),
-              if (!_templateMode) ...[
-                const SizedBox(height: 16),
-                ForeignCurrencySection(
-                  amountCents: _amount,
-                  onChanged: (selection) =>
-                      setState(() => _foreign = selection),
-                ),
-                const SizedBox(height: 16),
-                TagEditor(
-                  tags: _tags,
-                  controller: _tagController,
-                  history: widget.history,
-                  merchant: _merchant.text,
-                  onChanged: (tags) => setState(() => _tags = tags),
-                ),
-              ],
               const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: _category,
-                decoration: const InputDecoration(labelText: 'Category'),
-                items: widget.categories
-                    .map((v) => DropdownMenuItem(value: v, child: Text(v)))
-                    .toList(),
-                onChanged: (v) => setState(() {
-                  _category = v!;
+              Text('Category', style: Theme.of(context).textTheme.labelLarge),
+              const SizedBox(height: 8),
+              CategoryChips(
+                categories: widget.categories,
+                selected: _category,
+                onChanged: (category) => setState(() {
+                  _category = category;
                   _categoryTouched = true;
                 }),
               ),
@@ -360,29 +302,22 @@ class _QuickEntrySheetState extends ConsumerState<_QuickEntrySheet> {
                 style: Theme.of(context).textTheme.labelLarge,
               ),
               const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final method in _recentPaymentMethods)
-                    ChoiceChip(
-                      label: Text(method),
-                      selected: _payment == method,
-                      onSelected: (_) => setState(() {
-                        _payment = method;
-                        _paymentTouched = true;
-                      }),
-                    ),
-                  ActionChip(
-                    avatar: const Icon(Icons.more_horiz, size: 18),
-                    label: const Text('More…'),
-                    onPressed: _choosePaymentMethod,
-                  ),
-                ],
+              PaymentMethodChips(
+                methods: widget.paymentMethods,
+                history: widget.history,
+                selected: _payment,
+                onChanged: (method) => setState(() {
+                  _payment = method;
+                  _paymentTouched = true;
+                }),
               ),
               ExpansionTile(
                 tilePadding: EdgeInsets.zero,
+                maintainState: true,
                 title: const Text('More options'),
+                subtitle: _moreOptionsSummary == null
+                    ? null
+                    : Text(_moreOptionsSummary!),
                 children: [
                   Row(
                     children: [
@@ -407,6 +342,22 @@ class _QuickEntrySheetState extends ConsumerState<_QuickEntrySheet> {
                       ),
                     ],
                   ),
+                  if (!_templateMode) ...[
+                    const SizedBox(height: 16),
+                    ForeignCurrencySection(
+                      amountCents: _amount,
+                      onChanged: (selection) =>
+                          setState(() => _foreign = selection),
+                    ),
+                    const SizedBox(height: 16),
+                    TagEditor(
+                      tags: _tags,
+                      controller: _tagController,
+                      history: widget.history,
+                      merchant: _merchant.text,
+                      onChanged: (tags) => setState(() => _tags = tags),
+                    ),
+                  ],
                 ],
               ),
               const SizedBox(height: 20),
