@@ -20,9 +20,17 @@ String? normalizeDisplayName(String raw) {
       : text;
 }
 
-/// "Welcome back" without a name, "Welcome back, Sam" with one.
-String greetingFor(String? name) =>
-    name == null ? 'Welcome back' : 'Welcome back, $name';
+/// "Good morning" / "Good afternoon" / "Good evening" by the hour of [now]
+/// (default: the current time), with ", Sam" added when a name is set.
+String greetingFor(String? name, {DateTime? now}) {
+  final hour = (now ?? DateTime.now()).hour;
+  final part = hour >= 5 && hour < 12
+      ? 'Good morning'
+      : hour >= 12 && hour < 18
+      ? 'Good afternoon'
+      : 'Good evening';
+  return name == null ? part : '$part, $name';
+}
 
 /// The optional name shown in greetings. A local preference only: it is kept
 /// in the encrypted app settings and never leaves the device.

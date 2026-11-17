@@ -5,7 +5,7 @@ import '../../../core/widgets/app_toast.dart';
 import '../guide_providers.dart';
 
 /// Edit or clear the optional name used in greetings. Clearing it returns the
-/// greeting to plain "Welcome back"; saved expenses are never touched.
+/// greeting to plain "Good morning" (by time of day); saved expenses are never touched.
 class PersonalizationPage extends ConsumerStatefulWidget {
   const PersonalizationPage({super.key});
 
