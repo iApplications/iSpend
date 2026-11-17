@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/amount_formatter.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_surface.dart';
 import '../../../core/widgets/icon_registry.dart';
 import '../../categories/category_providers.dart';
 import '../../budgets/budget_providers.dart';
@@ -90,12 +91,14 @@ class _SummaryPageState extends ConsumerState<SummaryPage> {
         ),
         if (budgetLimits.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.xl),
-          _BudgetLimitsCard(
-            limits: budgetLimits,
-            expenses: expenses,
-            referenceDate: now,
-            currency: currency,
-            categoryIconKeys: categoryIconKeys,
+          AppSurface(
+            child: _BudgetLimitsCard(
+              limits: budgetLimits,
+              expenses: expenses,
+              referenceDate: now,
+              currency: currency,
+              categoryIconKeys: categoryIconKeys,
+            ),
           ),
         ],
         const SizedBox(height: AppSpacing.xl),
@@ -303,14 +306,14 @@ class _TotalsCard extends StatelessWidget {
       borderRadius: AppRadii.cardBorder,
     ),
     child: Padding(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.card),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             periodLabel,
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: Colors.white.withValues(alpha: 0.82),
+              color: Colors.white.withValues(alpha: 0.95),
             ),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -518,30 +521,30 @@ class _Breakdown extends StatelessWidget {
     final sortedEntries = totals.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     final total = totals.values.fold(0, (sum, amount) => sum + amount);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Divider(),
-        const SizedBox(height: AppSpacing.lg),
-        Text(title, style: Theme.of(context).textTheme.titleLarge),
-        if (totals.isEmpty)
-          const Padding(
-            padding: EdgeInsets.only(top: 12),
-            child: Text('No expenses recorded yet.'),
-          )
-        else ...[
-          for (final entry in sortedEntries)
-            _BreakdownLegendRow(
-              label: entry.key,
-              amount: entry.value,
-              total: total,
-              currency: currency,
-              type: type,
-              categoryIconKey: categoryIconKeys[entry.key],
-              paymentMethodColour: paymentMethodColours[entry.key],
-            ),
+    return AppSurface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleLarge),
+          if (totals.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 12),
+              child: Text('No expenses recorded yet.'),
+            )
+          else ...[
+            for (final entry in sortedEntries)
+              _BreakdownLegendRow(
+                label: entry.key,
+                amount: entry.value,
+                total: total,
+                currency: currency,
+                type: type,
+                categoryIconKey: categoryIconKeys[entry.key],
+                paymentMethodColour: paymentMethodColours[entry.key],
+              ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }
@@ -587,9 +590,9 @@ class _BreakdownLegendRow extends StatelessWidget {
                 child: Text(
                   label,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),

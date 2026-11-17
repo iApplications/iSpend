@@ -16,7 +16,7 @@ abstract final class AppTheme {
           primary: isDark ? const Color(0xFF35D1CD) : AppColors.teal,
           secondary: isDark ? const Color(0xFF61DDE6) : AppColors.cyan,
           error: isDark ? const Color(0xFFFF6B6B) : const Color(0xFFB3261E),
-          surface: isDark ? AppColors.darkSurface : const Color(0xFFF8FAFC),
+          surface: isDark ? AppColors.darkSurface : const Color(0xFFEEF3F6),
           surfaceContainerHighest: isDark
               ? AppColors.darkSurfaceVariant
               : const Color(0xFFEAF1F3),
@@ -28,7 +28,7 @@ abstract final class AppTheme {
       colorScheme: scheme,
       scaffoldBackgroundColor: isDark
           ? AppColors.navy
-          : const Color(0xFFF8FAFC),
+          : const Color(0xFFEEF3F6),
       textTheme: textTheme.copyWith(
         headlineMedium: textTheme.headlineMedium?.copyWith(
           fontWeight: FontWeight.w700,
@@ -53,9 +53,7 @@ abstract final class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: AppRadii.cardBorder,
           side: BorderSide(
-            color: isDark
-                ? scheme.outlineVariant.withValues(alpha: 0.4)
-                : const Color(0xFFE3E8EF),
+            color: isDark ? const Color(0xFF2E4360) : const Color(0xFFD3DDE3),
           ),
         ),
         clipBehavior: Clip.antiAlias,

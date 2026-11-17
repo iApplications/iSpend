@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/widgets/app_toast.dart';
+import '../../../core/widgets/empty_state.dart';
 import '../../categories/category_providers.dart';
 import '../../expenses/expense_providers.dart';
 import '../../payment_methods/payment_method_providers.dart';
@@ -40,7 +41,19 @@ class QuickEntryTemplatesPage extends ConsumerWidget {
           ),
           data: (references) {
             if (templates.isEmpty) {
-              return const _EmptyTemplates();
+              return ListView(
+                padding: const EdgeInsets.all(20),
+                children: const [
+                  EmptyState(
+                    icon: Icons.bolt_outlined,
+                    title: 'Save your usual spends',
+                    message:
+                        'Make a template for lunch, petrol or groceries, then log it from the widget in two taps. Amounts are entered when you log an expense.',
+                    previewRows: 2,
+                    previewLabel: 'Your templates will look like this',
+                  ),
+                ],
+              );
             }
             return ReorderableListView.builder(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
@@ -228,37 +241,6 @@ class QuickEntryTemplatesPage extends ConsumerWidget {
     await ref.read(quickEntryTemplatesProvider.notifier).delete(template.id);
     if (context.mounted) AppToast.show(context, 'Quick Entry template deleted');
   }
-}
-
-class _EmptyTemplates extends StatelessWidget {
-  const _EmptyTemplates();
-
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.bolt_outlined,
-            size: 48,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No Quick Entry templates yet',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Save common categories and payment methods here. Amounts are entered when you log an expense.',
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    ),
-  );
 }
 
 class _TemplateDialog extends StatefulWidget {

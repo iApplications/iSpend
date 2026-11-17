@@ -3,6 +3,8 @@ import '../../guides/presentation/contextual_guide.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/widgets/empty_state.dart';
+
 import '../../../core/utils/amount_formatter.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../expenses/data/expense_model.dart';
@@ -26,14 +28,18 @@ class TagsPage extends ConsumerWidget {
       body: GuidedBody(
         guideId: GuideIds.tags,
         child: usage.isEmpty
-            ? const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Text(
-                    'No tags yet. Add tags when you add or edit an expense.',
-                    textAlign: TextAlign.center,
+            ? ListView(
+                padding: const EdgeInsets.all(20),
+                children: const [
+                  EmptyState(
+                    icon: Icons.sell_outlined,
+                    title: 'Label spending your way',
+                    message:
+                        'Add tags like trip or gift under More options when you add or edit an expense. They show up here with a running total.',
+                    previewRows: 2,
+                    previewLabel: 'Your tags will look like this',
                   ),
-                ),
+                ],
               )
             : ListView(
                 padding: const EdgeInsets.all(20),

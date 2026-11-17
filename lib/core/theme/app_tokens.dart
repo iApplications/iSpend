@@ -3,12 +3,15 @@ import 'package:flutter/material.dart';
 abstract final class AppColors {
   static const teal = Color(0xFF0D7C78);
   static const cyan = Color(0xFF22B8C7);
+  // The hero gradient's far end: dark enough that white text on it keeps
+  // good contrast (cyan under white text was about 2.4 to 1).
+  static const tealDeep = Color(0xFF0A6A88);
   static const navy = Color(0xFF101A2B);
   static const darkSurface = Color(0xFF18263A);
   static const darkSurfaceVariant = Color(0xFF22334A);
 
   static const heroGradient = LinearGradient(
-    colors: [teal, cyan],
+    colors: [teal, tealDeep],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
@@ -21,6 +24,9 @@ abstract final class AppSpacing {
   static const lg = 16.0;
   static const xl = 20.0;
   static const xxl = 28.0;
+
+  /// Padding inside a card.
+  static const card = 20.0;
 
   static const screen = EdgeInsets.fromLTRB(xl, xl, xl, 0);
   static const listScreen = EdgeInsets.fromLTRB(xl, xl, xl, 24);
