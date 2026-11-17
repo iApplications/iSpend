@@ -7,6 +7,7 @@ import '../../../core/utils/amount_formatter.dart';
 import '../../../core/widgets/icon_registry.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_toast.dart';
+import '../../../core/widgets/empty_state.dart';
 import '../../categories/category_providers.dart';
 import '../../payment_methods/payment_method_providers.dart';
 import '../../quick_entry/presentation/quick_entry_sheet.dart';
@@ -187,7 +188,21 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
             const SizedBox(height: AppSpacing.lg),
             Expanded(
               child: expenses.isEmpty
-                  ? _EmptyExpenses()
+                  ? ListView(
+                      padding: EdgeInsets.zero,
+                      children: [
+                        EmptyState(
+                          icon: Icons.receipt_long_outlined,
+                          title: 'Add your first expense',
+                          message:
+                              'Type something like "hokkien mee 8.20" and iSpend fills in the rest.',
+                          actionLabel: 'Add expense',
+                          onAction: addExpense,
+                          previewRows: 4,
+                          previewLabel: 'Your expenses will look like this',
+                        ),
+                      ],
+                    )
                   : NotificationListener<UserScrollNotification>(
                       onNotification: _handleExpenseListScroll,
                       child: ListView(
@@ -639,34 +654,6 @@ class _PendingRecurringSection extends StatelessWidget {
   }
 }
 
-class _EmptyExpenses extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.receipt_long_outlined,
-            size: 48,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No expenses yet',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Your spending history will appear here.',
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _ExpenseRow extends StatelessWidget {
   const _ExpenseRow({
     required this.expense,
@@ -844,14 +831,14 @@ class _SpendingContextCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(AppSpacing.card),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'Spent in ${_monthNames[now.month - 1]}',
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: Colors.white.withValues(alpha: 0.88),
+                color: Colors.white.withValues(alpha: 0.95),
               ),
             ),
             const SizedBox(height: 4),
@@ -920,7 +907,7 @@ class _ContextAmount extends StatelessWidget {
         Text(
           label,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: Colors.white.withValues(alpha: 0.78),
+            color: Colors.white.withValues(alpha: 0.92),
           ),
         ),
         const SizedBox(height: 2),

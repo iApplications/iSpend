@@ -12,7 +12,7 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: ISpendApp()));
 
     expect(find.text('Expenses'), findsWidgets);
-    expect(find.text('No expenses yet'), findsOneWidget);
+    expect(find.text('Add your first expense'), findsOneWidget);
     expect(find.textContaining('('), findsOneWidget);
 
     await tester.tap(find.text('Summary').last);
@@ -89,7 +89,7 @@ void main() {
     expect(find.text('Delete expense?'), findsOneWidget);
     await tester.tap(find.text('Delete').last);
     await tester.pumpAndSettle();
-    expect(find.text('No expenses yet'), findsOneWidget);
+    expect(find.text('Add your first expense'), findsOneWidget);
   });
 
   testWidgets('manages an unused category from Settings', (tester) async {

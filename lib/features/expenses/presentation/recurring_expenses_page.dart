@@ -3,6 +3,8 @@ import '../../guides/presentation/contextual_guide.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/widgets/empty_state.dart';
+
 import '../../../core/utils/amount_formatter.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../categories/category_providers.dart';
@@ -25,7 +27,19 @@ class RecurringExpensesPage extends ConsumerWidget {
       body: GuidedBody(
         guideId: GuideIds.recurring,
         child: items.isEmpty
-            ? const Center(child: Text('No recurring expenses yet.'))
+            ? ListView(
+                padding: const EdgeInsets.all(20),
+                children: const [
+                  EmptyState(
+                    icon: Icons.repeat_outlined,
+                    title: 'Track bills that repeat',
+                    message:
+                        'Turn on Repeats monthly under More options when you add an expense. A draft appears each month for you to confirm.',
+                    previewRows: 2,
+                    previewLabel: 'Your schedules will look like this',
+                  ),
+                ],
+              )
             : ListView.separated(
                 padding: const EdgeInsets.all(20),
                 itemCount: items.length,

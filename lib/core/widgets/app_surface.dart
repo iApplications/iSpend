@@ -5,7 +5,7 @@ import '../theme/app_tokens.dart';
 class AppSurface extends StatelessWidget {
   const AppSurface({
     required this.child,
-    this.padding = const EdgeInsets.all(AppSpacing.lg),
+    this.padding = const EdgeInsets.all(AppSpacing.card),
     this.margin,
     super.key,
   });
