@@ -151,6 +151,7 @@ void main() {
     await tester.tap(find.text('Settings').last);
     await tester.pumpAndSettle();
     final budgetTile = find.widgetWithText(ListTile, 'Budget limits');
+    await tester.scrollUntilVisible(budgetTile, 200);
     tester.widget<ListTile>(budgetTile).onTap!.call();
     await tester.pumpAndSettle();
     await tester.tap(find.text('Food'));
@@ -431,6 +432,7 @@ void main() {
     await tester.tap(find.text('Settings').last);
     await tester.pumpAndSettle();
     final recurringTile = find.widgetWithText(ListTile, 'Recurring expenses');
+    await tester.scrollUntilVisible(recurringTile, 200);
     // Settings keeps growing, so scroll to the tile instead of a fixed offset.
     await tester.ensureVisible(recurringTile);
     await tester.pumpAndSettle();
