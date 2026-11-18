@@ -56,6 +56,27 @@ void main() {
     await tester.pump(const Duration(seconds: 4));
   });
 
+  testWidgets('groups a day into one card with the day total in its header', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const ProviderScope(child: ISpendApp()));
+
+    for (final amount in const ['5.00', '7.50']) {
+      await tester.tap(find.text('Add'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).first, amount);
+      await tester.ensureVisible(find.text('Save expense'));
+      await tester.tap(find.text('Save expense'));
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 4));
+    }
+
+    expect(find.text('Today'), findsWidgets);
+    expect(find.byType(Dismissible), findsNWidgets(2));
+    expect(find.byType(Divider), findsOneWidget);
+    expect(find.textContaining('12.50'), findsWidgets);
+  });
+
   testWidgets('edits and deletes a saved expense', (tester) async {
     await tester.pumpWidget(const ProviderScope(child: ISpendApp()));
 

@@ -211,45 +211,41 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
                         ),
                         children: [
                           for (final entry in expensesByDay.entries) ...[
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
-                              child: Text(
-                                _dateLabel(entry.key),
-                                style: Theme.of(context).textTheme.titleSmall,
+                            _DayHeader(
+                              label: _dateLabel(entry.key),
+                              detail: _dateDetail(entry.key),
+                              total: formatCurrencyCents(
+                                entry.value.fold<int>(
+                                  0,
+                                  (sum, e) => sum + e.amountCents,
+                                ),
+                                currency,
                               ),
                             ),
-                            for (final expense in entry.value)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: Dismissible(
-                                  key: Key('expense-${expense.id}'),
-                                  direction: DismissDirection.endToStart,
-                                  background: const _DeleteBackground(),
-                                  confirmDismiss: (_) =>
-                                      _confirmDelete(context, ref, expense),
-                                  onDismissed: (_) =>
-                                      _deleteExpense(ref, expense),
-                                  child: _ExpenseRow(
-                                    expense: expense,
-                                    hasImage: imageIds.contains(expense.id),
-                                    onViewImage: () => _showExpenseImage(
+                            Card(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              clipBehavior: Clip.antiAlias,
+                              child: Column(
+                                children: [
+                                  for (
+                                    var i = 0;
+                                    i < entry.value.length;
+                                    i++
+                                  ) ...[
+                                    if (i > 0) const Divider(height: 1),
+                                    _dismissibleRow(
                                       context,
                                       ref,
-                                      expense.id,
-                                    ),
-                                    currency: currency,
-                                    categoryIconKey:
-                                        categoryIconKeys[expense.category],
-                                    use24HourFormat: use24HourFormat,
-                                    onEdit: () => _editExpense(
-                                      context,
-                                      ref,
-                                      expense,
+                                      entry.value[i],
+                                      imageIds,
+                                      currency,
+                                      categoryIconKeys,
                                       use24HourFormat,
                                     ),
-                                  ),
-                                ),
+                                  ],
+                                ],
                               ),
+                            ),
                           ],
                         ],
                       ),
@@ -259,6 +255,57 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
         ),
       ),
     );
+  }
+
+  Widget _dismissibleRow(
+    BuildContext context,
+    WidgetRef ref,
+    Expense expense,
+    Set<String> imageIds,
+    AppCurrency currency,
+    Map<String, String> categoryIconKeys,
+    bool use24HourFormat,
+  ) {
+    return Dismissible(
+      key: Key('expense-${expense.id}'),
+      direction: DismissDirection.endToStart,
+      background: const _DeleteBackground(),
+      confirmDismiss: (_) => _confirmDelete(context, ref, expense),
+      onDismissed: (_) => _deleteExpense(ref, expense),
+      child: _ExpenseRow(
+        expense: expense,
+        hasImage: imageIds.contains(expense.id),
+        onViewImage: () => _showExpenseImage(context, ref, expense.id),
+        currency: currency,
+        categoryIconKey: categoryIconKeys[expense.category],
+        use24HourFormat: use24HourFormat,
+        onEdit: () => _editExpense(context, ref, expense, use24HourFormat),
+      ),
+    );
+  }
+
+  String _dateDetail(DateTime date) {
+    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final weekday = weekdays[date.weekday - 1];
+    final label = _dateLabel(date);
+    if (label == 'Today' || label == 'Yesterday') {
+      return '$weekday ${date.day} ${months[date.month - 1]}';
+    }
+    return weekday;
   }
 
   bool _handleExpenseListScroll(UserScrollNotification notification) {
@@ -654,6 +701,45 @@ class _PendingRecurringSection extends StatelessWidget {
   }
 }
 
+class _DayHeader extends StatelessWidget {
+  const _DayHeader({
+    required this.label,
+    required this.detail,
+    required this.total,
+  });
+
+  final String label;
+  final String detail;
+  final String total;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final muted = theme.colorScheme.onSurfaceVariant;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          Text(label, style: theme.textTheme.titleSmall),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              detail,
+              style: theme.textTheme.bodySmall?.copyWith(color: muted),
+            ),
+          ),
+          Text(
+            total,
+            style: theme.textTheme.labelLarge?.copyWith(color: muted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ExpenseRow extends StatelessWidget {
   const _ExpenseRow({
     required this.expense,
@@ -685,7 +771,8 @@ class _ExpenseRow extends StatelessWidget {
         '${expense.originalCurrency} ${formatCents(expense.originalAmountCents!)}',
       for (final tag in expense.tags) '#$tag',
     ];
-    return Card(
+    return Material(
+      color: Colors.transparent,
       child: ListTile(
         onTap: onEdit,
         leading: DecoratedBox(
@@ -766,7 +853,6 @@ class _DeleteBackground extends StatelessWidget {
   Widget build(BuildContext context) => DecoratedBox(
     decoration: BoxDecoration(
       color: Theme.of(context).colorScheme.errorContainer,
-      borderRadius: BorderRadius.circular(20),
     ),
     child: Padding(
       padding: const EdgeInsets.only(right: 24),
