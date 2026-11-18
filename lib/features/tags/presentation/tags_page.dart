@@ -1,6 +1,7 @@
 import '../../guides/data/guide_catalog.dart';
 import '../../guides/presentation/contextual_guide.dart';
 import 'package:flutter/material.dart';
+import '../../../core/widgets/confirm_delete_dialog.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/widgets/empty_state.dart';
@@ -151,22 +152,13 @@ class TagsPage extends ConsumerWidget {
   ) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text('Remove "$tag"?'),
-        content: Text(
-          'It will be taken off $count ${count == 1 ? 'expense' : 'expenses'}. '
-          'The expenses themselves stay.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Remove'),
-          ),
-        ],
+      builder: (_) => ConfirmDeleteDialog(
+        title: 'Remove "$tag"?',
+        message:
+            'It will be taken off $count ${count == 1 ? 'expense' : 'expenses'}. '
+            'The expenses themselves stay.',
+        confirmLabel: 'Remove',
+        icon: Icons.sell_outlined,
       ),
     );
     if (confirmed != true || !context.mounted) return;

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/confirm_delete_dialog.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/widgets/grouped_list_card.dart';
 import '../../../core/widgets/icon_registry.dart';
@@ -169,19 +170,8 @@ class PaymentMethodManagementPage extends ConsumerWidget {
     }
     final ok = await showDialog<bool>(
       context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('Delete payment method?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(c, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      builder: (_) =>
+          const ConfirmDeleteDialog(title: 'Delete payment method?'),
     );
     if (ok == true) {
       await ref.read(paymentMethodsProvider.notifier).delete(name);
