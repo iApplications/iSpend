@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/widgets/grouped_list_card.dart';
 import '../../../core/widgets/icon_registry.dart';
+import '../../expenses/expense_providers.dart';
 import '../payment_method_providers.dart';
 
 class PaymentMethodManagementPage extends ConsumerWidget {
@@ -8,6 +10,11 @@ class PaymentMethodManagementPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final methods = ref.watch(paymentMethodsProvider);
+    final usage = <String, int>{};
+    for (final e in ref.watch(expensesProvider)) {
+      final m = e.paymentMethod;
+      if (m != null) usage[m] = (usage[m] ?? 0) + 1;
+    }
     final colourKeys = ref.watch(paymentMethodColourKeysProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Payment methods')),
@@ -16,50 +23,55 @@ class PaymentMethodManagementPage extends ConsumerWidget {
         icon: const Icon(Icons.add),
         label: const Text('Add method'),
       ),
-      body: ListView.separated(
+      body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 96),
-        separatorBuilder: (_, _) => const SizedBox(height: 8),
-        itemCount: methods.length,
-        itemBuilder: (context, index) {
-          final method = methods[index];
-          final style = paymentMethodIconStyle(method);
-          final colourKey = colourKeys[method] ?? 'default';
-          return Card(
-            child: ListTile(
-              leading: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: paymentMethodBadgeColor(
-                    colourKey,
-                    Theme.of(context).brightness,
-                    style.color,
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Icon(style.icon, color: style.color),
-                ),
-              ),
-              title: Text(method),
-              onTap: () => _edit(context, ref, method),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    tooltip: 'Badge colour',
-                    icon: const Icon(Icons.palette_outlined),
-                    onPressed: () =>
-                        _chooseColour(context, ref, method, colourKey),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline),
-                    onPressed: () => _delete(context, ref, method),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
+        children: [
+          GroupedListCard(
+            children: [
+              for (final method in methods)
+                _methodTile(context, ref, method, colourKeys, usage),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _methodTile(
+    BuildContext context,
+    WidgetRef ref,
+    String method,
+    Map<String, String> colourKeys,
+    Map<String, int> usage,
+  ) {
+    final style = paymentMethodIconStyle(method);
+    final colourKey = colourKeys[method] ?? 'default';
+    return ListTile(
+      leading: IconBadge(
+        icon: style.icon,
+        color: style.color,
+        background: paymentMethodBadgeColor(
+          colourKey,
+          Theme.of(context).brightness,
+          style.color,
+        ),
+      ),
+      title: Text(method),
+      subtitle: Text(usageLabel(usage[method] ?? 0)),
+      onTap: () => _edit(context, ref, method),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            tooltip: 'Badge colour',
+            icon: const Icon(Icons.palette_outlined),
+            onPressed: () => _chooseColour(context, ref, method, colourKey),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            onPressed: () => _delete(context, ref, method),
+          ),
+        ],
       ),
     );
   }

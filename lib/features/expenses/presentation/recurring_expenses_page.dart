@@ -7,6 +7,8 @@ import '../../../core/widgets/empty_state.dart';
 
 import '../../../core/utils/amount_formatter.dart';
 import '../../../core/widgets/app_toast.dart';
+import '../../../core/widgets/grouped_list_card.dart';
+import '../../../core/widgets/icon_registry.dart';
 import '../../categories/category_providers.dart';
 import '../../payment_methods/payment_method_providers.dart';
 import '../../settings/currency_preference.dart';
@@ -22,6 +24,8 @@ class RecurringExpensesPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final items = ref.watch(recurringExpensesProvider).value ?? const [];
     final currency = ref.watch(appCurrencyProvider);
+    final iconKeys =
+        ref.watch(categoryIconKeysProvider).value ?? const <String, String>{};
     return Scaffold(
       appBar: AppBar(title: const Text('Recurring expenses')),
       body: GuidedBody(
@@ -40,60 +44,126 @@ class RecurringExpensesPage extends ConsumerWidget {
                   ),
                 ],
               )
-            : ListView.separated(
+            : ListView(
                 padding: const EdgeInsets.all(20),
-                itemCount: items.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 8),
-                itemBuilder: (context, index) {
-                  final item = items[index];
-                  return Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item.merchantOrNote ?? item.category,
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${formatCurrencyCents(item.amountCents, currency)} · ${item.category}',
-                          ),
-                          if (item.paymentMethod != null)
-                            Text('Payment: ${item.paymentMethod}'),
-                          Text(
-                            item.isActive
-                                ? 'Next: ${_date(item.nextOccurrence)}'
-                                : 'Stopped · last next date ${_date(item.nextOccurrence)}',
-                          ),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 8,
-                            children: [
-                              if (item.isActive) ...[
-                                TextButton(
-                                  onPressed: () => _edit(context, ref, item),
-                                  child: const Text('Edit schedule'),
-                                ),
-                                TextButton(
-                                  onPressed: () => _stop(context, ref, item),
-                                  child: const Text('Stop recurring'),
-                                ),
-                              ] else
-                                FilledButton.tonal(
-                                  onPressed: () =>
-                                      _reactivate(context, ref, item),
-                                  child: const Text('Reactivate recurring'),
-                                ),
-                            ],
-                          ),
-                        ],
+                children: [
+                  GroupedListCard(
+                    children: [
+                      for (final item in items)
+                        _recurringTile(context, ref, item, currency, iconKeys),
+                    ],
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  Widget _recurringTile(
+    BuildContext context,
+    WidgetRef ref,
+    RecurringExpense item,
+    AppCurrency currency,
+    Map<String, String> iconKeys,
+  ) {
+    final theme = Theme.of(context);
+    final style = categoryIconStyleForKey(
+      iconKeys[item.category] ?? defaultCategoryIconKey(item.category),
+    );
+    final muted = theme.colorScheme.onSurfaceVariant;
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          IconBadge(icon: style.icon, color: style.color),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        item.merchantOrNote ?? item.category,
+                        style: theme.textTheme.titleSmall,
                       ),
                     ),
-                  );
-                },
-              ),
+                    Text(
+                      formatCurrencyCents(item.amountCents, currency),
+                      style: theme.textTheme.titleSmall,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  [
+                    item.category,
+                    if (item.paymentMethod != null) item.paymentMethod!,
+                  ].join(' · '),
+                  style: theme.textTheme.bodySmall?.copyWith(color: muted),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  children: [
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: item.isActive
+                            ? theme.colorScheme.primaryContainer
+                            : theme.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 2,
+                        ),
+                        child: Text(
+                          item.isActive ? 'Active' : 'Stopped',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: item.isActive
+                                ? theme.colorScheme.onPrimaryContainer
+                                : muted,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Text(
+                      item.isActive
+                          ? 'Next: ${_date(item.nextOccurrence)}'
+                          : 'Last due ${_date(item.nextOccurrence)}',
+                      style: theme.textTheme.bodySmall?.copyWith(color: muted),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    if (item.isActive) ...[
+                      OutlinedButton(
+                        onPressed: () => _edit(context, ref, item),
+                        child: const Text('Edit schedule'),
+                      ),
+                      OutlinedButton(
+                        onPressed: () => _stop(context, ref, item),
+                        child: const Text('Stop recurring'),
+                      ),
+                    ] else
+                      FilledButton.tonal(
+                        onPressed: () => _reactivate(context, ref, item),
+                        child: const Text('Reactivate recurring'),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
