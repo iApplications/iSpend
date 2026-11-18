@@ -1,6 +1,7 @@
 import '../../guides/data/guide_catalog.dart';
 import '../../guides/presentation/contextual_guide.dart';
 import 'package:flutter/material.dart';
+import '../../../core/widgets/confirm_delete_dialog.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/widgets/app_toast.dart';
@@ -222,19 +223,9 @@ class QuickEntryTemplatesPage extends ConsumerWidget {
   ) async {
     final approved = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete template?'),
-        content: Text('Delete “${template.name}”? This cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
-          ),
-        ],
+      builder: (_) => ConfirmDeleteDialog(
+        title: 'Delete template?',
+        message: 'Delete “${template.name}”? This cannot be undone.',
       ),
     );
     if (approved != true) return;

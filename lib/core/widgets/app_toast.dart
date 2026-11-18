@@ -81,56 +81,86 @@ class _ToastMessage extends StatelessWidget {
             liveRegion: true,
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 420),
-              child: Material(
-                color: isError
-                    ? Theme.of(context).colorScheme.errorContainer
-                    : Theme.of(context).colorScheme.inverseSurface,
-                borderRadius: BorderRadius.circular(20),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        isError
-                            ? Icons.error_outline
-                            : Icons.check_circle_outline,
-                        size: 18,
-                        color: isError
-                            ? Theme.of(context).colorScheme.onErrorContainer
-                            : Theme.of(context).colorScheme.inversePrimary,
+              child: Builder(
+                builder: (context) {
+                  final theme = Theme.of(context);
+                  final scheme = theme.colorScheme;
+                  final dark = theme.brightness == Brightness.dark;
+                  final badge = isError
+                      ? (dark
+                            ? const Color(0xFF4A2326)
+                            : const Color(0xFFFCE8E6))
+                      : (dark
+                            ? const Color(0xFF1E4642)
+                            : const Color(0xFFDDF0EE));
+                  final badgeIcon = isError
+                      ? scheme.error
+                      : (dark
+                            ? const Color(0xFF9BE7E2)
+                            : const Color(0xFF0B5F5B));
+                  return Material(
+                    color: dark ? const Color(0xFF18263A) : Colors.white,
+                    elevation: 4,
+                    shadowColor: const Color(0x330F172A),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(
+                        color: dark
+                            ? const Color(0xFF2E4360)
+                            : const Color(0xFFD3DDE3),
                       ),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          message,
-                          style: TextStyle(
-                            color: isError
-                                ? Theme.of(context).colorScheme.onErrorContainer
-                                : Theme.of(
-                                    context,
-                                  ).colorScheme.onInverseSurface,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
                       ),
-                      if (actionLabel != null)
-                        TextButton(
-                          style: TextButton.styleFrom(
-                            minimumSize: const Size(48, 36),
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            visualDensity: VisualDensity.compact,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: badge,
+                              shape: BoxShape.circle,
+                            ),
+                            child: SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: Icon(
+                                isError ? Icons.error_outline : Icons.check,
+                                size: 16,
+                                color: badgeIcon,
+                              ),
+                            ),
                           ),
-                          onPressed: onAction,
-                          child: Text(actionLabel!),
-                        ),
-                    ],
-                  ),
-                ),
+                          const SizedBox(width: 10),
+                          Flexible(
+                            child: Text(
+                              message,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: scheme.onSurface,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          if (actionLabel != null)
+                            TextButton(
+                              style: TextButton.styleFrom(
+                                minimumSize: const Size(48, 36),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                visualDensity: VisualDensity.compact,
+                              ),
+                              onPressed: onAction,
+                              child: Text(actionLabel!),
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           ),

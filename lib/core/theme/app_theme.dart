@@ -65,9 +65,25 @@ abstract final class AppTheme {
         backgroundColor: scheme.primary,
         foregroundColor: scheme.onPrimary,
       ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: BorderSide(
+            color: isDark ? const Color(0xFF2E4360) : const Color(0xFFD3DDE3),
+          ),
+        ),
+        titleTextStyle: textTheme.titleLarge?.copyWith(
+          fontWeight: FontWeight.w700,
+          color: scheme.onSurface,
+        ),
+      ),
       navigationBarTheme: NavigationBarThemeData(
         height: 70,
-        backgroundColor: scheme.surface,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
         indicatorColor: scheme.primary.withValues(alpha: 0.14),
         labelTextStyle: WidgetStateProperty.resolveWith(
           (states) => textTheme.labelMedium?.copyWith(

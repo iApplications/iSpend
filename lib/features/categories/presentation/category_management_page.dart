@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/confirm_delete_dialog.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/widgets/grouped_list_card.dart';
@@ -131,19 +132,9 @@ class CategoryManagementPage extends ConsumerWidget {
 
     final shouldDelete = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete category?'),
-        content: Text('"$category" will be removed.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Delete'),
-          ),
-        ],
+      builder: (_) => ConfirmDeleteDialog(
+        title: 'Delete category?',
+        message: '"$category" will be removed.',
       ),
     );
     if (shouldDelete != true) return;

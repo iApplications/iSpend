@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/confirm_delete_dialog.dart';
 import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -453,20 +454,11 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
               onPressed: () async {
                 final remove = await showDialog<bool>(
                   context: dialogContext,
-                  builder: (confirmContext) => AlertDialog(
-                    title: const Text('Delete saved image?'),
-                    content: const Text('The expense will stay in your list.'),
-                    actions: [
-                      TextButton(
-                        onPressed: () =>
-                            Navigator.of(confirmContext).pop(false),
-                        child: const Text('Cancel'),
-                      ),
-                      FilledButton(
-                        onPressed: () => Navigator.of(confirmContext).pop(true),
-                        child: const Text('Delete image'),
-                      ),
-                    ],
+                  builder: (_) => const ConfirmDeleteDialog(
+                    title: 'Delete saved image?',
+                    message: 'The expense will stay in your list.',
+                    confirmLabel: 'Delete image',
+                    icon: Icons.image_not_supported_outlined,
                   ),
                 );
                 if (remove != true || !dialogContext.mounted) return;
@@ -587,19 +579,9 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
   ) async {
     final shouldDelete = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete expense?'),
-        content: const Text('This expense will be permanently removed.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Delete'),
-          ),
-        ],
+      builder: (_) => const ConfirmDeleteDialog(
+        title: 'Delete expense?',
+        message: 'This expense will be permanently removed.',
       ),
     );
     return shouldDelete ?? false;

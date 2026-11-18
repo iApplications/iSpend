@@ -1,6 +1,7 @@
 import '../../guides/data/guide_catalog.dart';
 import '../../guides/presentation/contextual_guide.dart';
 import 'package:flutter/material.dart';
+import '../../../core/widgets/confirm_delete_dialog.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/widgets/empty_state.dart';
@@ -218,21 +219,12 @@ class RecurringExpensesPage extends ConsumerWidget {
   ) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Stop recurring expense?'),
-        content: const Text(
-          'No more monthly drafts will be created. Existing expenses are kept.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Stop recurring'),
-          ),
-        ],
+      builder: (_) => const ConfirmDeleteDialog(
+        title: 'Stop recurring expense?',
+        message:
+            'No more monthly drafts will be created. Existing expenses are kept.',
+        confirmLabel: 'Stop recurring',
+        icon: Icons.stop_circle_outlined,
       ),
     );
     if (confirmed != true) return;
