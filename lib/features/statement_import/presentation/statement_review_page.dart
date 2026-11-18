@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/callout.dart';
+import '../../../core/widgets/review_row_card.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/utils/amount_formatter.dart';
 import '../../../core/utils/amount_parser.dart';
-import '../../../core/widgets/app_surface.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../categories/category_providers.dart';
 import '../../expenses/data/expense_model.dart';
@@ -237,50 +238,51 @@ class _StatementReviewPageState extends ConsumerState<StatementReviewPage> {
     final selectedCount = _rows.where((row) => row.selected).length;
     return Scaffold(
       appBar: AppBar(title: Text('Import ${widget.sourceLabel} statement')),
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Review every transaction from ${widget.sourceLabel} before adding it. iSpend does not convert currencies during import.',
-            ),
-            if (widget.notice != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                widget.notice!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-            ],
-            if (_rows.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(
-                '${_rows.length} transactions · $selectedCount selected',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: ListView.separated(
-                  itemCount: _rows.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 8),
-                  itemBuilder: (_, index) => _rowCard(
-                    _rows[index],
-                    categories,
-                    methods,
-                    currency.code,
-                    use24HourFormat,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Review every transaction from ${widget.sourceLabel} before adding it. iSpend does not convert currencies during import.',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                if (widget.notice != null) ...[
+                  const SizedBox(height: 8),
+                  Callout(
+                    icon: Icons.warning_amber_rounded,
+                    child: Text(widget.notice!),
                   ),
+                ],
+              ],
+            ),
+          ),
+          if (_rows.isNotEmpty) ...[
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                itemCount: _rows.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 8),
+                itemBuilder: (_, index) => _rowCard(
+                  _rows[index],
+                  categories,
+                  methods,
+                  currency.code,
+                  use24HourFormat,
                 ),
               ),
-              FilledButton.icon(
-                onPressed: selectedCount == 0 || _saving ? null : _save,
-                icon: const Icon(Icons.add),
-                label: Text('Add selected ($selectedCount)'),
-              ),
-            ] else
-              const Expanded(child: SizedBox.shrink()),
-          ],
-        ),
+            ),
+            ReviewBottomBar(
+              summary: '${_rows.length} transactions · $selectedCount selected',
+              actionLabel: 'Add selected ($selectedCount)',
+              onAction: selectedCount == 0 || _saving ? null : _save,
+            ),
+          ] else
+            const Expanded(child: SizedBox.shrink()),
+        ],
       ),
     );
   }
@@ -296,102 +298,105 @@ class _StatementReviewPageState extends ConsumerState<StatementReviewPage> {
         (parseAmountToCents(row.amount.text) ?? 0) > 0 &&
         row.date != null &&
         row.description.text.trim().isNotEmpty;
-    return AppSurface(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CheckboxListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(
-              '${widget.sourceLabel} row ${row.source.line} · ${row.description.text}',
-              maxLines: 2,
+    final date = row.date;
+    return ReviewRowCard(
+      title: row.description.text.trim().isEmpty
+          ? 'No description'
+          : row.description.text,
+      subtitle: [
+        '${widget.sourceLabel} row ${row.source.line}',
+        if (date != null) '${date.day}/${date.month}/${date.year}',
+      ].join(' · '),
+      amount: row.amount.text.trim().isEmpty
+          ? 'No amount'
+          : '$currency ${row.amount.text.trim()}',
+      selected: row.selected,
+      // A ticked row that is not valid yet can always be unticked.
+      onSelectedChanged: valid || row.selected
+          ? (v) => setState(() => row.selected = v)
+          : null,
+      ready: valid && row.source.reason == null,
+      initiallyExpanded: !valid || row.source.reason != null,
+      notes: [
+        if (row.source.reason != null)
+          Callout(
+            icon: Icons.warning_amber_rounded,
+            child: Text('Review required: ${row.source.reason}'),
+          ),
+      ],
+      summary: [
+        row.category,
+        if (row.paymentMethod != null) row.paymentMethod!,
+      ],
+      fields: [
+        TextField(
+          controller: row.amount,
+          decoration: InputDecoration(labelText: 'Amount ($currency)'),
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          controller: row.description,
+          decoration: const InputDecoration(labelText: 'Description'),
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 16),
+        DropdownButtonFormField<String>(
+          isExpanded: true,
+          initialValue: row.category,
+          decoration: const InputDecoration(labelText: 'Category'),
+          items: [
+            for (final category in categories)
+              DropdownMenuItem(value: category, child: Text(category)),
+          ],
+          onChanged: (v) {
+            if (v != null) setState(() => row.category = v);
+          },
+        ),
+        const SizedBox(height: 16),
+        DropdownButtonFormField<String?>(
+          isExpanded: true,
+          initialValue: row.paymentMethod,
+          decoration: const InputDecoration(labelText: 'Payment method'),
+          items: [
+            const DropdownMenuItem<String?>(
+              value: null,
+              child: Text('Not specified'),
             ),
-            subtitle: Text(
-              row.source.reason ?? 'Spending · review before adding',
+            for (final method in methods)
+              DropdownMenuItem<String?>(value: method, child: Text(method)),
+          ],
+          onChanged: (v) => setState(() => row.paymentMethod = v),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          children: [
+            OutlinedButton.icon(
+              onPressed: () => _pickDate(row),
+              icon: const Icon(Icons.calendar_month_outlined),
+              label: Text(
+                row.date == null
+                    ? 'Choose date'
+                    : '${row.date!.day}/${row.date!.month}/${row.date!.year}',
+              ),
             ),
-            controlAffinity: ListTileControlAffinity.leading,
-            value: row.selected,
-            // A ticked row that is not valid yet can always be unticked.
-            onChanged: valid || row.selected
-                ? (v) => setState(() => row.selected = v ?? false)
-                : null,
-          ),
-          if (row.source.reason != null)
-            Text(
-              'Review required: ${row.source.reason}',
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            OutlinedButton.icon(
+              onPressed: () => _pickTime(row, use24HourFormat),
+              icon: const Icon(Icons.schedule_outlined),
+              label: Text(
+                row.hasTime && row.date != null
+                    ? MaterialLocalizations.of(context).formatTimeOfDay(
+                        TimeOfDay.fromDateTime(row.date!),
+                        alwaysUse24HourFormat: use24HourFormat,
+                      )
+                    : 'Add time',
+              ),
             ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: row.amount,
-            decoration: InputDecoration(labelText: 'Amount ($currency)'),
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            onChanged: (_) => setState(() {}),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: row.description,
-            decoration: const InputDecoration(labelText: 'Description'),
-            onChanged: (_) => setState(() {}),
-          ),
-          const SizedBox(height: 16),
-          DropdownButtonFormField<String>(
-            isExpanded: true,
-            initialValue: row.category,
-            decoration: const InputDecoration(labelText: 'Category'),
-            items: [
-              for (final category in categories)
-                DropdownMenuItem(value: category, child: Text(category)),
-            ],
-            onChanged: (v) {
-              if (v != null) setState(() => row.category = v);
-            },
-          ),
-          const SizedBox(height: 16),
-          DropdownButtonFormField<String?>(
-            isExpanded: true,
-            initialValue: row.paymentMethod,
-            decoration: const InputDecoration(labelText: 'Payment method'),
-            items: [
-              const DropdownMenuItem<String?>(
-                value: null,
-                child: Text('Not specified'),
-              ),
-              for (final method in methods)
-                DropdownMenuItem<String?>(value: method, child: Text(method)),
-            ],
-            onChanged: (v) => setState(() => row.paymentMethod = v),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            children: [
-              TextButton.icon(
-                onPressed: () => _pickDate(row),
-                icon: const Icon(Icons.calendar_month_outlined),
-                label: Text(
-                  row.date == null
-                      ? 'Choose date'
-                      : '${row.date!.day}/${row.date!.month}/${row.date!.year}',
-                ),
-              ),
-              TextButton.icon(
-                onPressed: () => _pickTime(row, use24HourFormat),
-                icon: const Icon(Icons.schedule_outlined),
-                label: Text(
-                  row.hasTime && row.date != null
-                      ? MaterialLocalizations.of(context).formatTimeOfDay(
-                          TimeOfDay.fromDateTime(row.date!),
-                          alwaysUse24HourFormat: use24HourFormat,
-                        )
-                      : 'Add time',
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+          ],
+        ),
+      ],
     );
   }
 }

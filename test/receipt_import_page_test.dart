@@ -10,6 +10,9 @@ void main() {
   testWidgets('foreign receipt amount is copied only when opted in', (
     tester,
   ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(800, 2200);
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
