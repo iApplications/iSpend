@@ -28,6 +28,7 @@ void main() {
       find.widgetWithText(TextField, 'Confirm recovery passphrase'),
       'different value',
     );
+    await tester.ensureVisible(find.text('Continue'));
     await tester.tap(find.text('Continue'));
     await tester.pump();
 
@@ -38,6 +39,7 @@ void main() {
       find.widgetWithText(TextField, 'Confirm recovery passphrase'),
       'correct horse battery staple',
     );
+    await tester.ensureVisible(find.text('Continue'));
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
     expect(submitted, 'correct horse battery staple');
@@ -83,6 +85,7 @@ void main() {
         find.widgetWithText(TextField, 'Confirm recovery passphrase'),
         'short',
       );
+      await tester.ensureVisible(find.text('Continue'));
       await tester.tap(find.text('Continue'));
       await tester.pump();
 

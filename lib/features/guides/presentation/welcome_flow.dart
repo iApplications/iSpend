@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_surface.dart';
 import '../../expenses/expense_providers.dart';
 import '../guide_providers.dart';
 
@@ -76,6 +78,7 @@ class _WelcomeFlowPageState extends ConsumerState<WelcomeFlowPage> {
       body:
           'Add spending in seconds and review what you have logged. Tap Add '
           'and type something like "hokkien mee 8.20".',
+      preview: _ExpensesPreview(),
     ),
     _Slide(
       icon: Icons.pie_chart_outline,
@@ -83,6 +86,7 @@ class _WelcomeFlowPageState extends ConsumerState<WelcomeFlowPage> {
       body:
           'See where your money went by category and payment method, and '
           'follow your budgets.',
+      preview: _SummaryPreview(),
     ),
     _Slide(
       icon: Icons.settings_outlined,
@@ -90,6 +94,7 @@ class _WelcomeFlowPageState extends ConsumerState<WelcomeFlowPage> {
       body:
           'Customize categories and payment methods, back up your data, and '
           'choose your privacy options.',
+      preview: _SettingsPreview(),
     ),
   ];
 
@@ -163,12 +168,13 @@ class _WelcomeFlowPageState extends ConsumerState<WelcomeFlowPage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     for (var i = 0; i < _pageCount; i++)
-                      Container(
-                        width: 8,
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: i == _index ? 20 : 8,
                         height: 8,
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        margin: const EdgeInsets.symmetric(horizontal: 3),
                         decoration: BoxDecoration(
-                          shape: BoxShape.circle,
+                          borderRadius: BorderRadius.circular(4),
                           color: i == _index
                               ? theme.colorScheme.primary
                               : theme.colorScheme.outlineVariant,
@@ -194,11 +200,20 @@ class _WelcomeFlowPageState extends ConsumerState<WelcomeFlowPage> {
 }
 
 class _Slide {
-  const _Slide({required this.icon, required this.title, required this.body});
+  const _Slide({
+    required this.icon,
+    required this.title,
+    required this.body,
+    required this.preview,
+  });
 
   final IconData icon;
   final String title;
   final String body;
+
+  /// A small sketch of the real screen, so the slide matches what the user
+  /// will see.
+  final Widget preview;
 }
 
 class _NamePage extends StatelessWidget {
@@ -214,17 +229,45 @@ class _NamePage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 24),
-          Icon(
-            Icons.waving_hand_outlined,
-            size: 48,
-            color: theme.colorScheme.primary,
+          const SizedBox(height: 8),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: SizedBox(
+              width: 56,
+              height: 56,
+              child: Icon(
+                Icons.waving_hand_outlined,
+                size: 28,
+                color: theme.colorScheme.onPrimary,
+              ),
+            ),
           ),
           const SizedBox(height: 16),
           Text('Welcome to iSpend', style: theme.textTheme.headlineMedium),
           const SizedBox(height: 8),
-          const Text(
-            'Your private expense tracker. Everything stays on this phone.',
+          Text(
+            'Your private expense tracker.',
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _ReassuranceChip(
+                icon: Icons.phone_android_outlined,
+                label: 'Stays on this phone',
+              ),
+              _ReassuranceChip(
+                icon: Icons.no_accounts_outlined,
+                label: 'No account',
+              ),
+            ],
           ),
           const SizedBox(height: 28),
           TextField(
@@ -255,16 +298,250 @@ class _SlidePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 8),
+          ExcludeSemantics(child: slide.preview),
+          const SizedBox(height: 24),
+          Text(slide.title, style: theme.textTheme.headlineMedium),
+          const SizedBox(height: 8),
+          Text(
+            slide.body,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReassuranceChip extends StatelessWidget {
+  const _ReassuranceChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardTheme.color,
+        border: Border.all(color: scheme.outlineVariant),
+        borderRadius: AppRadii.pillBorder,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: scheme.primary),
+            const SizedBox(width: 6),
+            Text(label, style: Theme.of(context).textTheme.labelMedium),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The small sketches below are plain, fixed shapes that echo the real tabs.
+/// They hold sample text only to show the layout; no real data is read.
+class _ExpensesPreview extends StatelessWidget {
+  const _ExpensesPreview();
+
+  @override
+  Widget build(BuildContext context) => AppSurface(
+    child: Column(
+      children: [
+        DecoratedBox(
+          decoration: const BoxDecoration(
+            gradient: AppColors.heroGradient,
+            borderRadius: AppRadii.rowBorder,
+          ),
+          child: const SizedBox(
+            width: double.infinity,
+            child: Padding(
+              padding: EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Spent in November',
+                    style: TextStyle(color: Colors.white, fontSize: 12),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'RM 1,284.50',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        const _PreviewRow(
+          color: Color(0xFFF6D2CC),
+          title: 'Hokkien mee',
+          subtitle: 'Food · Cash',
+          amount: '8.20',
+        ),
+        const _PreviewRow(
+          color: Color(0xFFCADDF2),
+          title: 'Grab',
+          subtitle: 'Transport',
+          amount: '15.80',
+        ),
+      ],
+    ),
+  );
+}
+
+class _PreviewRow extends StatelessWidget {
+  const _PreviewRow({
+    required this.color,
+    required this.title,
+    required this.subtitle,
+    required this.amount,
+  });
+
+  final Color color;
+  final String title;
+  final String subtitle;
+  final String amount;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: const SizedBox(width: 30, height: 30),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: text.titleSmall),
+                Text(
+                  subtitle,
+                  style: text.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(amount, style: text.titleSmall),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryPreview extends StatelessWidget {
+  const _SummaryPreview();
+
+  @override
+  Widget build(BuildContext context) => const AppSurface(
+    child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(slide.icon, size: 56, color: theme.colorScheme.primary),
-        const SizedBox(height: 20),
-        Text(slide.title, style: theme.textTheme.headlineMedium),
-        const SizedBox(height: 12),
-        Text(slide.body, style: theme.textTheme.bodyLarge),
+        _PreviewBar(label: 'Food', percent: 40, color: Color(0xFFE5806F)),
+        SizedBox(height: 12),
+        _PreviewBar(label: 'Shopping', percent: 27, color: Color(0xFFD4789F)),
+        SizedBox(height: 12),
+        _PreviewBar(label: 'Transport', percent: 18, color: Color(0xFF5B93D0)),
       ],
+    ),
+  );
+}
+
+class _PreviewBar extends StatelessWidget {
+  const _PreviewBar({
+    required this.label,
+    required this.percent,
+    required this.color,
+  });
+
+  final String label;
+  final int percent;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        children: [
+          Expanded(
+            child: Text(label, style: Theme.of(context).textTheme.titleSmall),
+          ),
+          Text('$percent%', style: Theme.of(context).textTheme.labelMedium),
+        ],
+      ),
+      const SizedBox(height: 6),
+      ClipRRect(
+        borderRadius: AppRadii.pillBorder,
+        child: LinearProgressIndicator(
+          value: percent / 100,
+          minHeight: 6,
+          color: color,
+          backgroundColor: Theme.of(
+            context,
+          ).colorScheme.surfaceContainerHighest,
+        ),
+      ),
+    ],
+  );
+}
+
+class _SettingsPreview extends StatelessWidget {
+  const _SettingsPreview();
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    Widget row(String label, String? value) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        children: [
+          Expanded(child: Text(label, style: text.titleSmall)),
+          if (value != null)
+            Text(value, style: text.bodySmall?.copyWith(color: muted)),
+          Icon(Icons.chevron_right, size: 18, color: muted),
+        ],
+      ),
+    );
+    return AppSurface(
+      child: Column(
+        children: [
+          row('Categories', '8'),
+          const Divider(height: 1),
+          row('Budget limits', '3 set'),
+          const Divider(height: 1),
+          row('App lock', 'Off'),
+          const Divider(height: 1),
+          row('Backup & Restore', null),
+        ],
+      ),
     );
   }
 }

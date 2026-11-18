@@ -1,5 +1,79 @@
 import 'package:flutter/material.dart';
 
+/// A rounded teal tile holding the page's icon.
+class _BrandTile extends StatelessWidget {
+  const _BrandTile({required this.icon});
+
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: scheme.primary,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: SizedBox(
+          width: 56,
+          height: 56,
+          child: Icon(icon, size: 28, color: scheme.onPrimary),
+        ),
+      ),
+    );
+  }
+}
+
+/// The one message that must not be missed: there is no way back from a
+/// forgotten passphrase. It is stated in words and does not rely on colour.
+class _WarningCallout extends StatelessWidget {
+  const _WarningCallout();
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final background = dark ? const Color(0xFF3A2E14) : const Color(0xFFFBF0D9);
+    final border = dark ? const Color(0xFF8A6A22) : const Color(0xFFE2C27B);
+    final foreground = dark ? const Color(0xFFF6DFA8) : const Color(0xFF5C3B06);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: background,
+        border: Border.all(color: border),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.warning_amber_rounded, color: foreground),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text.rich(
+                TextSpan(
+                  style: TextStyle(color: foreground),
+                  children: const [
+                    TextSpan(
+                      text: 'There is no reset or bypass. ',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    TextSpan(
+                      text:
+                          'If you forget it, that backup cannot be restored. Keep it somewhere safe.',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class RecoveryPassphrasePage extends StatefulWidget {
   const RecoveryPassphrasePage({
     required this.isRestore,
@@ -123,30 +197,28 @@ class _RecoveryPassphrasePageState extends State<RecoveryPassphrasePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Icon(Icons.savings_outlined, size: 64),
+                  const _BrandTile(icon: Icons.shield_outlined),
                   const SizedBox(height: 20),
                   Text(
                     widget.isRestore
                         ? 'Restore your iSpend data'
                         : 'Protect your iSpend backup',
-                    textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   Text(
                     widget.isRestore
                         ? 'Enter the recovery passphrase you created on your previous device.'
                         : 'Create a recovery passphrase so an automatic device backup can be opened on a new device.',
-                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   if (!widget.isRestore) ...[
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Keep it somewhere safe. If you forget it, that backup cannot be restored. There is no reset or bypass.',
-                      textAlign: TextAlign.center,
-                    ),
+                    const SizedBox(height: 16),
+                    const _WarningCallout(),
                   ],
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 24),
                   TextField(
                     controller: _passphraseController,
                     obscureText: _obscure,
