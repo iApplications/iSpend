@@ -48,7 +48,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Restore backup'));
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Restore backup'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'correct passphrase');
     await tester.tap(find.text('Continue'));
@@ -73,7 +73,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Restore backup'));
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Restore backup'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'correct passphrase');
     await tester.tap(find.text('Continue'));

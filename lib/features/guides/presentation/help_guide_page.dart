@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/widgets/app_toast.dart';
+import '../../../core/widgets/grouped_list_card.dart';
 import '../data/guide_catalog.dart';
 import '../guide_providers.dart';
 import 'welcome_flow.dart';
@@ -44,52 +45,63 @@ class HelpGuidePage extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          const Text(
-            'Short explanations of what iSpend can do. Each one also appears '
-            'once, the first time you open that feature.',
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 0, 4, 16),
+            child: Text(
+              'Short explanations of what iSpend can do. Each one also appears '
+              'once, the first time you open that feature.',
+              style: theme.textTheme.bodyMedium,
+            ),
           ),
-          const SizedBox(height: 16),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.play_circle_outline),
-              title: const Text('Replay the welcome guide'),
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  fullscreenDialog: true,
-                  builder: (_) => const WelcomeFlowPage(),
+          GroupedListCard(
+            children: [
+              ListTile(
+                leading: IconBadge(
+                  icon: Icons.play_circle_outline,
+                  color: theme.colorScheme.primary,
+                ),
+                title: const Text('Replay the welcome guide'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    fullscreenDialog: true,
+                    builder: (_) => const WelcomeFlowPage(),
+                  ),
                 ),
               ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          for (final topic in guideTopics)
-            Card(
-              child: ExpansionTile(
-                leading: Icon(topic.icon),
-                title: Text(topic.title),
-                subtitle: Text(topic.summary),
-                childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                expandedCrossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final step in topic.steps)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('•  '),
-                          Expanded(
-                            child: Text(
-                              step,
-                              style: theme.textTheme.bodyMedium,
+              for (final topic in guideTopics)
+                ExpansionTile(
+                  shape: const Border(),
+                  collapsedShape: const Border(),
+                  leading: IconBadge(
+                    icon: topic.icon,
+                    color: theme.colorScheme.primary,
+                  ),
+                  title: Text(topic.title),
+                  subtitle: Text(topic.summary),
+                  childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  expandedCrossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final step in topic.steps)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('•  '),
+                            Expanded(
+                              child: Text(
+                                step,
+                                style: theme.textTheme.bodyMedium,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                ],
-              ),
-            ),
+                  ],
+                ),
+            ],
+          ),
           const SizedBox(height: 16),
           OutlinedButton.icon(
             onPressed: () => _reset(context, ref),
