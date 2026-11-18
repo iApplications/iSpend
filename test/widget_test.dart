@@ -188,7 +188,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Monthly budgets'), findsOneWidget);
     expect(find.textContaining('40.00'), findsNWidgets(2));
-    expect(find.textContaining('of'), findsOneWidget);
+    expect(find.textContaining('60.00 left'), findsOneWidget);
     await tester.pump(const Duration(seconds: 2));
   });
 
