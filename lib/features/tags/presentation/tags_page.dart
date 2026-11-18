@@ -7,6 +7,7 @@ import '../../../core/widgets/empty_state.dart';
 
 import '../../../core/utils/amount_formatter.dart';
 import '../../../core/widgets/app_toast.dart';
+import '../../../core/widgets/grouped_list_card.dart';
 import '../../expenses/data/expense_model.dart';
 import '../../expenses/expense_providers.dart';
 import '../../settings/currency_preference.dart';
@@ -44,38 +45,43 @@ class TagsPage extends ConsumerWidget {
             : ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
-                  for (final entry in usage)
-                    Card(
-                      child: ListTile(
-                        leading: const Icon(Icons.sell_outlined),
-                        title: Text(entry.key),
-                        subtitle: Text(
-                          '${entry.value} ${entry.value == 1 ? 'expense' : 'expenses'} · '
-                          '${formatCurrencyCents(_total(expenses, entry.key), currency)}',
-                        ),
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => TagExpensesPage(tag: entry.key),
+                  GroupedListCard(
+                    children: [
+                      for (final entry in usage)
+                        ListTile(
+                          leading: IconBadge(
+                            icon: Icons.sell_outlined,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          title: Text(entry.key),
+                          subtitle: Text(
+                            '${entry.value} ${entry.value == 1 ? 'expense' : 'expenses'} · '
+                            '${formatCurrencyCents(_total(expenses, entry.key), currency)}',
+                          ),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => TagExpensesPage(tag: entry.key),
+                            ),
+                          ),
+                          trailing: PopupMenuButton<String>(
+                            tooltip: 'Tag options',
+                            onSelected: (action) => action == 'rename'
+                                ? _rename(context, ref, entry.key)
+                                : _delete(context, ref, entry.key, entry.value),
+                            itemBuilder: (_) => const [
+                              PopupMenuItem(
+                                value: 'rename',
+                                child: Text('Rename'),
+                              ),
+                              PopupMenuItem(
+                                value: 'delete',
+                                child: Text('Remove tag'),
+                              ),
+                            ],
                           ),
                         ),
-                        trailing: PopupMenuButton<String>(
-                          tooltip: 'Tag options',
-                          onSelected: (action) => action == 'rename'
-                              ? _rename(context, ref, entry.key)
-                              : _delete(context, ref, entry.key, entry.value),
-                          itemBuilder: (_) => const [
-                            PopupMenuItem(
-                              value: 'rename',
-                              child: Text('Rename'),
-                            ),
-                            PopupMenuItem(
-                              value: 'delete',
-                              child: Text('Remove tag'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                    ],
+                  ),
                 ],
               ),
       ),
@@ -201,25 +207,27 @@ class TagExpensesPage extends ConsumerWidget {
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
                 const SizedBox(height: 12),
-                for (final e in expenses)
-                  Card(
-                    child: ListTile(
-                      title: Text(
-                        e.merchantOrNote ?? e.category,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                GroupedListCard(
+                  children: [
+                    for (final e in expenses)
+                      ListTile(
+                        title: Text(
+                          e.merchantOrNote ?? e.category,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text(
+                          '${e.category} · ${e.occurredAt.year}-'
+                          '${e.occurredAt.month.toString().padLeft(2, '0')}-'
+                          '${e.occurredAt.day.toString().padLeft(2, '0')}',
+                        ),
+                        trailing: Text(
+                          formatCurrencyCents(e.amountCents, currency),
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
                       ),
-                      subtitle: Text(
-                        '${e.category} · ${e.occurredAt.year}-'
-                        '${e.occurredAt.month.toString().padLeft(2, '0')}-'
-                        '${e.occurredAt.day.toString().padLeft(2, '0')}',
-                      ),
-                      trailing: Text(
-                        formatCurrencyCents(e.amountCents, currency),
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ),
-                  ),
+                  ],
+                ),
               ],
             ),
     );

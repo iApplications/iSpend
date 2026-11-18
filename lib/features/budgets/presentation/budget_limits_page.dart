@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/amount_formatter.dart';
 import '../../../core/utils/amount_parser.dart';
 import '../../../core/widgets/app_toast.dart';
+import '../../../core/widgets/grouped_list_card.dart';
+import '../../../core/widgets/icon_registry.dart';
 import '../../categories/category_providers.dart';
 import '../../settings/currency_preference.dart';
 import '../budget_providers.dart';
@@ -17,41 +19,71 @@ class BudgetLimitsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final categories = ref.watch(categoriesProvider);
     final limits = ref.watch(budgetLimitsProvider);
+    final iconKeys =
+        ref.watch(categoryIconKeysProvider).value ?? const <String, String>{};
     final currency = ref.watch(appCurrencyProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Budget limits')),
       body: GuidedBody(
         guideId: GuideIds.budgets,
-        child: ListView.separated(
+        child: ListView(
           padding: const EdgeInsets.all(20),
-          itemCount: categories.length + 1,
-          separatorBuilder: (_, _) => const SizedBox(height: 8),
-          itemBuilder: (context, index) {
-            if (index == 0) {
-              return const Padding(
-                padding: EdgeInsets.only(bottom: 8),
-                child: Text(
-                  'Set a monthly spending target for any category. Limits are for your own tracking.',
-                ),
-              );
-            }
-            final category = categories[index - 1];
-            final limit = limits[category];
-            return Card(
-              child: ListTile(
-                title: Text(category),
-                subtitle: Text(
-                  limit == null
-                      ? 'No monthly limit'
-                      : 'Monthly limit: ${formatCurrencyCents(limit, currency)}',
-                ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _edit(context, ref, category, limit, currency),
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(4, 0, 4, 12),
+              child: Text(
+                'Set a monthly spending target for any category. Limits are for your own tracking.',
               ),
-            );
-          },
+            ),
+            GroupedListCard(
+              children: [
+                for (final category in categories)
+                  _limitTile(
+                    context,
+                    ref,
+                    category,
+                    limits[category],
+                    currency,
+                    iconKeys,
+                  ),
+              ],
+            ),
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _limitTile(
+    BuildContext context,
+    WidgetRef ref,
+    String category,
+    int? limit,
+    AppCurrency currency,
+    Map<String, String> iconKeys,
+  ) {
+    final theme = Theme.of(context);
+    final style = categoryIconStyleForKey(
+      iconKeys[category] ?? defaultCategoryIconKey(category),
+    );
+    return ListTile(
+      leading: IconBadge(icon: style.icon, color: style.color),
+      title: Text(category),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            limit == null
+                ? 'No monthly limit'
+                : formatCurrencyCents(limit, currency),
+            style: limit == null
+                ? theme.textTheme.bodySmall
+                : theme.textTheme.titleSmall,
+          ),
+          const Icon(Icons.chevron_right),
+        ],
+      ),
+      onTap: () => _edit(context, ref, category, limit, currency),
     );
   }
 

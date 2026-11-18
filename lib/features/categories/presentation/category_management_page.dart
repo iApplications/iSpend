@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/widgets/grouped_list_card.dart';
 import '../../../core/widgets/icon_registry.dart';
+import '../../expenses/expense_providers.dart';
 import '../category_providers.dart';
 
 class CategoryManagementPage extends ConsumerWidget {
@@ -10,6 +12,10 @@ class CategoryManagementPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final categories = ref.watch(categoriesProvider);
+    final usage = <String, int>{};
+    for (final e in ref.watch(expensesProvider)) {
+      usage[e.category] = (usage[e.category] ?? 0) + 1;
+    }
     final iconKeys =
         ref.watch(categoryIconKeysProvider).value ?? const <String, String>{};
     return Scaffold(
@@ -19,49 +25,54 @@ class CategoryManagementPage extends ConsumerWidget {
         icon: const Icon(Icons.add),
         label: const Text('Add category'),
       ),
-      body: ListView.separated(
+      body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 96),
-        itemCount: categories.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 8),
-        itemBuilder: (context, index) {
-          final category = categories[index];
-          final iconStyle = categoryIconStyleForKey(
-            iconKeys[category] ?? defaultCategoryIconKey(category),
-          );
-          return Card(
-            child: ListTile(
-              leading: Icon(iconStyle.icon, color: iconStyle.color),
-              title: Text(category),
-              trailing: PopupMenuButton<_CategoryAction>(
-                tooltip: 'Category options',
-                onSelected: (action) {
-                  switch (action) {
-                    case _CategoryAction.rename:
-                      _showNameDialog(context, ref, existingName: category);
-                    case _CategoryAction.changeIcon:
-                      _showIconPicker(context, ref, category);
-                    case _CategoryAction.delete:
-                      _confirmDelete(context, ref, category);
-                  }
-                },
-                itemBuilder: (_) => const [
-                  PopupMenuItem(
-                    value: _CategoryAction.rename,
-                    child: Text('Rename'),
-                  ),
-                  PopupMenuItem(
-                    value: _CategoryAction.changeIcon,
-                    child: Text('Change icon'),
-                  ),
-                  PopupMenuItem(
-                    value: _CategoryAction.delete,
-                    child: Text('Delete'),
-                  ),
-                ],
-              ),
-            ),
-          );
+        children: [
+          GroupedListCard(
+            children: [
+              for (final category in categories)
+                _categoryTile(context, ref, category, iconKeys, usage),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _categoryTile(
+    BuildContext context,
+    WidgetRef ref,
+    String category,
+    Map<String, String> iconKeys,
+    Map<String, int> usage,
+  ) {
+    final iconStyle = categoryIconStyleForKey(
+      iconKeys[category] ?? defaultCategoryIconKey(category),
+    );
+    return ListTile(
+      leading: IconBadge(icon: iconStyle.icon, color: iconStyle.color),
+      title: Text(category),
+      subtitle: Text(usageLabel(usage[category] ?? 0)),
+      trailing: PopupMenuButton<_CategoryAction>(
+        tooltip: 'Category options',
+        onSelected: (action) {
+          switch (action) {
+            case _CategoryAction.rename:
+              _showNameDialog(context, ref, existingName: category);
+            case _CategoryAction.changeIcon:
+              _showIconPicker(context, ref, category);
+            case _CategoryAction.delete:
+              _confirmDelete(context, ref, category);
+          }
         },
+        itemBuilder: (_) => const [
+          PopupMenuItem(value: _CategoryAction.rename, child: Text('Rename')),
+          PopupMenuItem(
+            value: _CategoryAction.changeIcon,
+            child: Text('Change icon'),
+          ),
+          PopupMenuItem(value: _CategoryAction.delete, child: Text('Delete')),
+        ],
       ),
     );
   }
