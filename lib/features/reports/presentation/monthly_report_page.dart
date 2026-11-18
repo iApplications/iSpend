@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/amount_formatter.dart';
+import '../../../core/widgets/app_surface.dart';
 import '../../../core/widgets/icon_registry.dart';
 import '../../categories/category_providers.dart';
 import '../../expenses/expense_providers.dart';
@@ -30,6 +31,25 @@ String _monthLabel(DateTime month) =>
 String _signed(int cents, AppCurrency currency) {
   if (cents == 0) return formatCurrencyCents(0, currency);
   return '${cents > 0 ? '+' : '-'}${formatCurrencyCents(cents.abs(), currency)}';
+}
+
+String _arrow(int cents) => cents > 0
+    ? '\u25B2 '
+    : cents < 0
+    ? '\u25BC '
+    : '';
+
+/// Up (more spending) and down (less spending) text colours; the arrow and
+/// sign carry the meaning too, so colour is never the only signal.
+Color _changeColor(BuildContext context, int cents) {
+  final dark = Theme.of(context).brightness == Brightness.dark;
+  if (cents > 0) {
+    return dark ? const Color(0xFFF4A77B) : const Color(0xFF9A3412);
+  }
+  if (cents < 0) {
+    return dark ? const Color(0xFF7FD9A8) : const Color(0xFF0F6B45);
+  }
+  return Theme.of(context).colorScheme.onSurfaceVariant;
 }
 
 String _percent(double? value) {
@@ -83,78 +103,171 @@ class _MonthlyReportPageState extends ConsumerState<MonthlyReportPage> {
       body: ListView(
         padding: AppSpacing.listScreen,
         children: [
-          Row(
-            children: [
-              IconButton(
-                tooltip: 'Previous month',
-                onPressed: () => _shift(-1),
-                icon: const Icon(Icons.chevron_left),
-              ),
-              Expanded(
-                child: Text(
-                  _monthLabel(_month),
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.titleLarge,
-                ),
-              ),
-              IconButton(
-                tooltip: 'Next month',
-                onPressed: _isCurrentMonth ? null : () => _shift(1),
-                icon: const Icon(Icons.chevron_right),
-              ),
-            ],
+          _MonthSwitcher(
+            label: _monthLabel(_month),
+            onPrevious: () => _shift(-1),
+            onNext: _isCurrentMonth ? null : () => _shift(1),
           ),
           const SizedBox(height: AppSpacing.lg),
-          Text('Total spent', style: theme.textTheme.labelLarge),
-          const SizedBox(height: 2),
-          Text(
-            formatCurrencyCents(report.totalCents, currency),
-            style: theme.textTheme.headlineMedium,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            report.previousTotalCents == 0
+          _ReportHero(
+            total: formatCurrencyCents(report.totalCents, currency),
+            comparison: report.previousTotalCents == 0
                 ? 'No spending recorded in $previousLabel to compare with.'
                 : 'vs $previousLabel ${formatCurrencyCents(report.previousTotalCents, currency)}: '
-                      '${_signed(report.deltaCents, currency)} '
+                      '${_arrow(report.deltaCents)}${_signed(report.deltaCents, currency)} '
                       '(${_percent(report.percentChange)})',
-            style: theme.textTheme.bodyMedium,
           ),
-          const SizedBox(height: AppSpacing.xl),
-          Text('By category', style: theme.textTheme.titleMedium),
-          const SizedBox(height: AppSpacing.sm),
-          if (report.categories.isEmpty)
-            Text(
-              'No expenses in ${_monthLabel(_month)}.',
-              style: theme.textTheme.bodyMedium,
-            )
-          else
-            for (final item in report.categories)
-              _CategoryRow(
-                item: item,
-                share: report.totalCents == 0
-                    ? 0
-                    : item.currentCents * 100 / report.totalCents,
-                currency: currency,
-                iconKey: iconKeys[item.category],
-                previousLabel: previousLabel,
-              ),
-          const SizedBox(height: AppSpacing.xl),
-          Text(
-            'Last ${report.trend.length} months',
-            style: theme.textTheme.titleMedium,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          for (final item in report.trend)
-            _TrendRow(
-              item: item,
-              fraction: largestMonth == 0 ? 0 : item.totalCents / largestMonth,
-              currency: currency,
-              highlight:
-                  item.month.year == _month.year &&
-                  item.month.month == _month.month,
+          const SizedBox(height: AppSpacing.lg),
+          AppSurface(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('By category', style: theme.textTheme.titleMedium),
+                const SizedBox(height: AppSpacing.sm),
+                if (report.categories.isEmpty)
+                  Text(
+                    'No expenses in ${_monthLabel(_month)}.',
+                    style: theme.textTheme.bodyMedium,
+                  )
+                else
+                  for (var i = 0; i < report.categories.length; i++) ...[
+                    if (i > 0) const Divider(height: 1),
+                    _CategoryRow(
+                      item: report.categories[i],
+                      share: report.totalCents == 0
+                          ? 0
+                          : report.categories[i].currentCents *
+                                100 /
+                                report.totalCents,
+                      currency: currency,
+                      iconKey: iconKeys[report.categories[i].category],
+                      previousLabel: previousLabel,
+                    ),
+                  ],
+              ],
             ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          AppSurface(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Last ${report.trend.length} months',
+                  style: theme.textTheme.titleMedium,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                for (final item in report.trend)
+                  _TrendRow(
+                    item: item,
+                    fraction: largestMonth == 0
+                        ? 0
+                        : item.totalCents / largestMonth,
+                    currency: currency,
+                    highlight:
+                        item.month.year == _month.year &&
+                        item.month.month == _month.month,
+                  ),
+              ],
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _MonthSwitcher extends StatelessWidget {
+  const _MonthSwitcher({
+    required this.label,
+    required this.onPrevious,
+    required this.onNext,
+  });
+
+  final String label;
+  final VoidCallback onPrevious;
+  final VoidCallback? onNext;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.cardTheme.color ?? theme.colorScheme.surface,
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            tooltip: 'Previous month',
+            onPressed: onPrevious,
+            icon: const Icon(Icons.chevron_left),
+          ),
+          Expanded(
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.titleMedium,
+            ),
+          ),
+          IconButton(
+            tooltip: 'Next month',
+            onPressed: onNext,
+            icon: const Icon(Icons.chevron_right),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReportHero extends StatelessWidget {
+  const _ReportHero({required this.total, required this.comparison});
+
+  final String total;
+  final String comparison;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: AppColors.heroGradient,
+        borderRadius: AppRadii.cardBorder,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.card),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Total spent',
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: Colors.white.withValues(alpha: 0.95),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                total,
+                style: theme.textTheme.displaySmall?.copyWith(
+                  fontSize: 30,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.4,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              comparison,
+              style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -184,10 +297,10 @@ class _CategoryRow extends StatelessWidget {
     final change = item.previousCents == 0 && item.currentCents == 0
         ? ''
         : item.previousCents == 0
-        ? 'new this month'
-        : '${_signed(item.deltaCents, currency)} (${_percent(item.percentChange)}) vs $previousLabel';
+        ? 'New this month'
+        : '${_arrow(item.deltaCents)}${_signed(item.deltaCents, currency)} (${_percent(item.percentChange)}) vs $previousLabel';
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -206,24 +319,51 @@ class _CategoryRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.category, style: theme.textTheme.titleSmall),
-                if (change.isNotEmpty)
-                  Text(change, style: theme.textTheme.bodySmall),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        item.category,
+                        style: theme.textTheme.titleSmall,
+                      ),
+                    ),
+                    Text(
+                      formatCurrencyCents(item.currentCents, currency),
+                      style: theme.textTheme.titleSmall,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: (share / 100).clamp(0, 1),
+                    minHeight: 6,
+                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Expanded(
+                      child: change.isEmpty
+                          ? const SizedBox.shrink()
+                          : Text(
+                              change,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: _changeColor(context, item.deltaCents),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                    ),
+                    Text(
+                      '${share.toStringAsFixed(0)}%',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ),
               ],
             ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                formatCurrencyCents(item.currentCents, currency),
-                style: theme.textTheme.titleSmall,
-              ),
-              Text(
-                '${share.toStringAsFixed(0)}%',
-                style: theme.textTheme.bodySmall,
-              ),
-            ],
           ),
         ],
       ),
