@@ -78,9 +78,44 @@ class _SummaryPageState extends ConsumerState<SummaryPage> {
           endingLabel: _endingLabel(now),
           expenseCount: filteredExpenses.length,
           onPickDate: _chooseReferenceDate,
+          comparisonLabel: _comparisonLabel(
+            expenses,
+            now,
+            filteredExpenses,
+            currency,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _TaxDeductibleCard(
+                  expenses: filteredExpenses
+                      .where((expense) => expense.isTaxDeductible)
+                      .toList(),
+                  currency: currency,
+                  onView: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => TaxDeductibleExpensesPage(
+                        expenses: filteredExpenses
+                            .where((expense) => expense.isTaxDeductible)
+                            .toList(),
+                        currency: currency,
+                        periodLabel: periodLabel,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              const Expanded(child: _MonthlyReportLink()),
+            ],
+          ),
         ),
         if (budgetLimits.isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.xl),
+          const _SectionLabel('Budgets'),
           AppSurface(
             child: _BudgetLimitsCard(
               limits: budgetLimits,
@@ -91,31 +126,7 @@ class _SummaryPageState extends ConsumerState<SummaryPage> {
             ),
           ),
         ],
-        const SizedBox(height: AppSpacing.xl),
-        GroupedListCard(
-          children: [
-            _TaxDeductibleCard(
-              expenses: filteredExpenses
-                  .where((expense) => expense.isTaxDeductible)
-                  .toList(),
-              currency: currency,
-              periodLabel: periodLabel,
-              onView: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => TaxDeductibleExpensesPage(
-                    expenses: filteredExpenses
-                        .where((expense) => expense.isTaxDeductible)
-                        .toList(),
-                    currency: currency,
-                    periodLabel: periodLabel,
-                  ),
-                ),
-              ),
-            ),
-            const _MonthlyReportLink(),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.xl),
+        const _SectionLabel('Where it went'),
         _Breakdown(
           title: 'Category breakdown',
           totals: _group(filteredExpenses, (expense) => expense.category),
@@ -123,7 +134,7 @@ class _SummaryPageState extends ConsumerState<SummaryPage> {
           categoryIconKeys: categoryIconKeys,
           type: _BreakdownType.category,
         ),
-        const SizedBox(height: AppSpacing.xl),
+        const SizedBox(height: AppSpacing.lg),
         _Breakdown(
           title: 'Payment method breakdown',
           totals: _group(
@@ -136,6 +147,34 @@ class _SummaryPageState extends ConsumerState<SummaryPage> {
         ),
       ],
     );
+  }
+
+  /// Spending against the equal stretch just before this period: yesterday for
+  /// Today, otherwise the same number of days again.
+  String _comparisonLabel(
+    List<Expense> all,
+    DateTime now,
+    List<Expense> current,
+    AppCurrency currency,
+  ) {
+    final days = switch (_period) {
+      _SummaryPeriod.today => 1,
+      _SummaryPeriod.last7Days => 7,
+      _SummaryPeriod.last30Days => 30,
+    };
+    final previousEnd = DateTime(now.year, now.month, now.day - days);
+    final previousTotal = _total(all, (d) => _includes(d, previousEnd));
+    final currentTotal = _total(current, (_) => true);
+    final noun = switch (_period) {
+      _SummaryPeriod.today => 'yesterday',
+      _SummaryPeriod.last7Days => 'previous 7 days',
+      _SummaryPeriod.last30Days => 'previous 30 days',
+    };
+    if (previousTotal == 0) return 'No spending in the $noun to compare with';
+    final delta = currentTotal - previousTotal;
+    if (delta == 0) return 'Same as the $noun';
+    final arrow = delta > 0 ? '\u25B2 +' : '\u25BC -';
+    return '$arrow${formatCurrencyCents(delta.abs(), currency)} vs $noun';
   }
 
   static const _shortMonths = [
@@ -177,24 +216,120 @@ class _SummaryPageState extends ConsumerState<SummaryPage> {
   }
 }
 
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(4, AppSpacing.xl, 4, AppSpacing.sm),
+    child: Text(
+      text.toUpperCase(),
+      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.6,
+      ),
+    ),
+  );
+}
+
+/// A compact tile that opens another page: icon and name, a value line, and
+/// a caption that says where it goes.
+class _LinkTile extends StatelessWidget {
+  const _LinkTile({
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.caption,
+    required this.onTap,
+    this.muted = false,
+    this.valueIsAmount = true,
+  });
+
+  final IconData icon;
+  final String title;
+  final String value;
+  final String caption;
+  final VoidCallback onTap;
+  final bool muted;
+  final bool valueIsAmount;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Card(
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    icon,
+                    size: 18,
+                    color: muted ? scheme.onSurfaceVariant : scheme.primary,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                value,
+                style: valueIsAmount
+                    ? theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: muted ? scheme.onSurfaceVariant : null,
+                      )
+                    : theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+              ),
+              const Spacer(),
+              const SizedBox(height: 8),
+              Text(
+                caption,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: scheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _MonthlyReportLink extends StatelessWidget {
   const _MonthlyReportLink();
 
   @override
-  Widget build(BuildContext context) => ListTile(
+  Widget build(BuildContext context) => _LinkTile(
+    icon: Icons.bar_chart_outlined,
+    title: 'Monthly report',
+    value: 'Change from last month',
+    valueIsAmount: false,
+    caption: 'Open \u203A',
     onTap: () => Navigator.of(
       context,
     ).push(MaterialPageRoute<void>(builder: (_) => const MonthlyReportPage())),
-    leading: IconBadge(
-      icon: Icons.bar_chart_outlined,
-      color: Theme.of(context).colorScheme.primary,
-    ),
-    title: Text(
-      'Monthly report',
-      style: Theme.of(context).textTheme.titleMedium,
-    ),
-    subtitle: const Text('Categories and change from last month'),
-    trailing: const Icon(Icons.chevron_right),
   );
 }
 
@@ -202,13 +337,11 @@ class _TaxDeductibleCard extends StatelessWidget {
   const _TaxDeductibleCard({
     required this.expenses,
     required this.currency,
-    required this.periodLabel,
     required this.onView,
   });
 
   final List<Expense> expenses;
   final AppCurrency currency;
-  final String periodLabel;
   final VoidCallback onView;
 
   @override
@@ -217,36 +350,15 @@ class _TaxDeductibleCard extends StatelessWidget {
       0,
       (sum, expense) => sum + expense.amountCents,
     );
-    final scheme = Theme.of(context).colorScheme;
-    return ListTile(
+    return _LinkTile(
+      icon: Icons.receipt_long_outlined,
+      title: 'Tax-deductible',
+      value: formatCurrencyCents(total, currency),
+      muted: expenses.isEmpty,
+      caption: expenses.isEmpty
+          ? 'None tagged \u203A'
+          : '${expenses.length} tagged \u203A',
       onTap: onView,
-      leading: IconBadge(
-        icon: Icons.receipt_long_outlined,
-        color: expenses.isEmpty ? scheme.onSurfaceVariant : scheme.primary,
-      ),
-      title: Text(
-        'Tax-deductible expenses',
-        style: Theme.of(context).textTheme.titleMedium,
-      ),
-      subtitle: Text(
-        expenses.isEmpty
-            ? 'None tagged · ${periodLabel.toLowerCase()}'
-            : '${expenses.length} tagged · ${periodLabel.toLowerCase()}',
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            formatCurrencyCents(total, currency),
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: expenses.isEmpty ? scheme.onSurfaceVariant : null,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          const Icon(Icons.chevron_right),
-        ],
-      ),
     );
   }
 }
@@ -259,6 +371,7 @@ class _TotalsCard extends StatelessWidget {
     required this.endingLabel,
     required this.expenseCount,
     required this.onPickDate,
+    required this.comparisonLabel,
   });
 
   final AppCurrency currency;
@@ -267,82 +380,95 @@ class _TotalsCard extends StatelessWidget {
   final String endingLabel;
   final int expenseCount;
   final VoidCallback onPickDate;
+  final String comparisonLabel;
 
   @override
-  Widget build(BuildContext context) => DecoratedBox(
-    decoration: const BoxDecoration(
-      gradient: AppColors.heroGradient,
-      borderRadius: AppRadii.cardBorder,
-    ),
-    child: Padding(
-      padding: const EdgeInsets.all(AppSpacing.card),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            periodLabel,
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: Colors.white.withValues(alpha: 0.95),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              formatCurrencyCents(total, currency),
-              style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                fontSize: 28,
-                fontWeight: FontWeight.w500,
-                letterSpacing: -0.4,
-                color: Colors.white,
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Semantics(
-            button: true,
-            label: 'Change period end date',
-            child: InkWell(
-              onTap: onPickDate,
-              borderRadius: BorderRadius.circular(999),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.calendar_today_outlined,
-                        size: 14,
-                        color: Colors.white,
-                      ),
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          '$endingLabel · $expenseCount '
-                          '${expenseCount == 1 ? 'expense' : 'expenses'}',
-                          style: Theme.of(context).textTheme.labelMedium
-                              ?.copyWith(color: Colors.white),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+  Widget build(BuildContext context) {
+    final labelStyle = Theme.of(
+      context,
+    ).textTheme.labelMedium?.copyWith(color: Colors.white);
+    Widget pill({required Widget child, VoidCallback? onTap}) => InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: child,
+        ),
       ),
-    ),
-  );
+    );
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: AppColors.heroGradient,
+        borderRadius: AppRadii.cardBorder,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.card),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              periodLabel,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: Colors.white.withValues(alpha: 0.95),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                formatCurrencyCents(total, currency),
+                style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: -0.4,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                Semantics(
+                  button: true,
+                  label: 'Change period end date',
+                  child: pill(
+                    onTap: onPickDate,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.calendar_today_outlined,
+                          size: 14,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            '$endingLabel \u00B7 $expenseCount '
+                            '${expenseCount == 1 ? 'expense' : 'expenses'}',
+                            style: labelStyle,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                pill(child: Text(comparisonLabel, style: labelStyle)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _BudgetLimitsCard extends StatelessWidget {
@@ -377,17 +503,25 @@ class _BudgetLimitsCard extends StatelessWidget {
         final comparison = bPercentage.compareTo(aPercentage);
         return comparison != 0 ? comparison : a.key.compareTo(b.key);
       });
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Wrap(
-          spacing: AppSpacing.sm,
-          runSpacing: AppSpacing.xs,
-          crossAxisAlignment: WrapCrossAlignment.center,
+        Row(
           children: [
-            Text(
-              'Monthly budgets',
-              style: Theme.of(context).textTheme.titleLarge,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Monthly budgets', style: theme.textTheme.titleLarge),
+                  Text(
+                    '${_monthName(referenceDate.month)} ${referenceDate.year} \u00B7 calendar month',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).push(
@@ -399,21 +533,17 @@ class _BudgetLimitsCard extends StatelessWidget {
             ),
           ],
         ),
-        Text(
-          '${_monthName(referenceDate.month)} ${referenceDate.year} · calendar month',
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
         const SizedBox(height: AppSpacing.sm),
-        for (final entry in entries)
+        for (var i = 0; i < entries.length; i++) ...[
+          if (i > 0) const Divider(height: 1),
           _BudgetLimitRow(
-            category: entry.key,
-            spent: totals[entry.key] ?? 0,
-            limit: entry.value,
+            category: entries[i].key,
+            spent: totals[entries[i].key] ?? 0,
+            limit: entries[i].value,
             currency: currency,
-            categoryIconKey: categoryIconKeys[entry.key],
+            categoryIconKey: categoryIconKeys[entries[i].key],
           ),
+        ],
       ],
     );
   }
@@ -436,70 +566,78 @@ class _BudgetLimitRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final difference = limit - spent;
     final isOverBudget = difference < 0;
     final style = categoryIconKey == null
         ? categoryIconStyle(category)
         : categoryIconStyleForKey(categoryIconKey!);
     final valueColor = isOverBudget
-        ? Theme.of(context).colorScheme.error
-        : style.color;
+        ? theme.colorScheme.error
+        : theme.colorScheme.primary;
+    final status = isOverBudget
+        ? 'Over by ${formatCurrencyCents(-difference, currency)} \u00B7 limit ${formatCurrencyCents(limit, currency)}'
+        : '${formatCurrencyCents(difference, currency)} left \u00B7 limit ${formatCurrencyCents(limit, currency)}';
     return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.md),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: style.color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: SizedBox(
-              width: 26,
-              height: 26,
-              child: Icon(style.icon, color: style.color, size: 16),
-            ),
-          ),
+          IconBadge(icon: style.icon, color: style.color),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(category, style: Theme.of(context).textTheme.titleSmall),
-                const SizedBox(height: 4),
-                LinearProgressIndicator(
-                  value: (spent / limit).clamp(0, 1),
-                  minHeight: 3,
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(category, style: theme.textTheme.titleSmall),
+                    ),
+                    Text(
+                      formatCurrencyCents(spent, currency),
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                ClipRRect(
                   borderRadius: AppRadii.pillBorder,
-                  color: valueColor,
-                  backgroundColor: Theme.of(
-                    context,
-                  ).colorScheme.surfaceContainerHighest,
+                  child: LinearProgressIndicator(
+                    value: (spent / limit).clamp(0, 1),
+                    minHeight: 6,
+                    color: valueColor,
+                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    if (isOverBudget) ...[
+                      Icon(
+                        Icons.warning_amber_rounded,
+                        size: 14,
+                        color: valueColor,
+                      ),
+                      const SizedBox(width: 4),
+                    ],
+                    Expanded(
+                      child: Text(
+                        status,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: isOverBudget
+                              ? valueColor
+                              : theme.colorScheme.onSurfaceVariant,
+                          fontWeight: isOverBudget ? FontWeight.w600 : null,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                formatCurrencyCents(spent, currency),
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: valueColor,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                isOverBudget
-                    ? '${formatCurrencyCents(-difference, currency)} over'
-                    : 'of ${formatCurrencyCents(limit, currency)}',
-                style: Theme.of(
-                  context,
-                ).textTheme.labelSmall?.copyWith(color: valueColor),
-              ),
-            ],
           ),
         ],
       ),
@@ -541,16 +679,19 @@ class _Breakdown extends StatelessWidget {
               child: Text('No expenses recorded yet.'),
             )
           else ...[
-            for (final entry in sortedEntries)
+            const SizedBox(height: AppSpacing.sm),
+            for (var i = 0; i < sortedEntries.length; i++) ...[
+              if (i > 0) const Divider(height: 1),
               _BreakdownLegendRow(
-                label: entry.key,
-                amount: entry.value,
+                label: sortedEntries[i].key,
+                amount: sortedEntries[i].value,
                 total: total,
                 currency: currency,
                 type: type,
-                categoryIconKey: categoryIconKeys[entry.key],
-                paymentMethodColour: paymentMethodColours[entry.key],
+                categoryIconKey: categoryIconKeys[sortedEntries[i].key],
+                paymentMethodColour: paymentMethodColours[sortedEntries[i].key],
               ),
+            ],
           ],
         ],
       ),
@@ -579,6 +720,7 @@ class _BreakdownLegendRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final percentage = total == 0 ? 0.0 : amount / total;
     final percentLabel = '${(percentage * 100).round()}%';
     final color = _breakdownColor(
@@ -588,53 +730,75 @@ class _BreakdownLegendRow extends StatelessWidget {
       categoryIconKey: categoryIconKey,
       paymentMethodColour: paymentMethodColour,
     );
+    final badge = type == _BreakdownType.category
+        ? (categoryIconKey == null
+              ? categoryIconStyle(label)
+              : categoryIconStyleForKey(categoryIconKey!))
+        : paymentMethodIconStyle(label);
 
     return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.lg),
-      child: Column(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  label,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+          IconBadge(
+            icon: badge.icon,
+            color: badge.color,
+            background: type == _BreakdownType.paymentMethod
+                ? paymentMethodBadgeColor(
+                    paymentMethodColour ?? 'default',
+                    theme.brightness,
+                    badge.color,
+                  )
+                : null,
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        label,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Text(
+                      formatCurrencyCents(amount, currency),
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Text(
-                formatCurrencyCents(amount, currency),
-                style: Theme.of(
-                  context,
-                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              SizedBox(
-                width: 36,
-                child: Text(
-                  percentLabel,
-                  textAlign: TextAlign.right,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                const SizedBox(height: 6),
+                // The bar only shows scale; the amount and percentage are text.
+                ClipRRect(
+                  borderRadius: AppRadii.pillBorder,
+                  child: LinearProgressIndicator(
+                    value: percentage.clamp(0.0, 1.0),
+                    minHeight: 6,
+                    color: color,
+                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          // The bar only shows scale; the amount and percentage are text.
-          ClipRRect(
-            borderRadius: AppRadii.pillBorder,
-            child: LinearProgressIndicator(
-              value: percentage.clamp(0.0, 1.0),
-              minHeight: 6,
-              color: color,
-              backgroundColor: Theme.of(
-                context,
-              ).colorScheme.surfaceContainerHighest,
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    percentLabel,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
