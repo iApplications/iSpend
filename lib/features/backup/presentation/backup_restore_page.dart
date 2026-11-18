@@ -5,7 +5,10 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/database/recovery_key.dart';
+import '../../../core/widgets/app_surface.dart';
 import '../../../core/widgets/app_toast.dart';
+import '../../../core/widgets/callout.dart';
+import '../../../core/widgets/grouped_list_card.dart';
 import '../../categories/category_providers.dart';
 import '../../exchange_rates/exchange_rate_providers.dart';
 import '../../expenses/expense_providers.dart';
@@ -179,21 +182,20 @@ class _BackupRestorePageState extends ConsumerState<BackupRestorePage> {
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Text(
-            'Your data, in your hands',
-            style: Theme.of(c).textTheme.headlineSmall,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 0, 4, 16),
+            child: Text(
+              'Your expense data stays local. Backups are encrypted and need your recovery passphrase to restore.',
+              style: Theme.of(c).textTheme.bodyMedium,
+            ),
           ),
-          const SizedBox(height: 8),
-          const Text(
-            'Your expense data stays local. Backups are encrypted and need your recovery passphrase to restore.',
-          ),
-          const SizedBox(height: 24),
           card(
             Icons.upload_file_outlined,
             'Export backup',
             'Create one encrypted backup file to save safely.',
             'Create backup',
             busy ? null : export,
+            primary: true,
           ),
           const SizedBox(height: 16),
           card(
@@ -203,32 +205,44 @@ class _BackupRestorePageState extends ConsumerState<BackupRestorePage> {
             'Restore backup',
             busy ? null : restore,
           ),
-          const SizedBox(height: 24),
-          const Text(
-            'Restoring a backup replaces the expenses and settings currently on this device.',
+          const SizedBox(height: 16),
+          const Callout(
+            icon: Icons.warning_amber_rounded,
+            child: Text(
+              'Restoring a backup replaces the expenses and settings currently on this device.',
+            ),
           ),
         ],
       ),
     ),
   );
-  Widget card(IconData i, String t, String d, String b, VoidCallback? f) =>
-      Card(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(i),
-              const SizedBox(height: 12),
-              Text(t, style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 4),
-              Text(d),
-              const SizedBox(height: 16),
-              FilledButton.icon(onPressed: f, icon: Icon(i), label: Text(b)),
-            ],
-          ),
+
+  Widget card(
+    IconData i,
+    String t,
+    String d,
+    String b,
+    VoidCallback? f, {
+    bool primary = false,
+  }) => AppSurface(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        IconBadge(icon: i, color: Theme.of(context).colorScheme.primary),
+        const SizedBox(height: 12),
+        Text(t, style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 4),
+        Text(d, style: Theme.of(context).textTheme.bodyMedium),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: primary
+              ? FilledButton(onPressed: f, child: Text(b))
+              : OutlinedButton(onPressed: f, child: Text(b)),
         ),
-      );
+      ],
+    ),
+  );
 }
 
 class _PassphraseDialog extends StatefulWidget {

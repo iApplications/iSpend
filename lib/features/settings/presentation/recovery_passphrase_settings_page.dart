@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/widgets/app_surface.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../backup/backup_providers.dart';
 
@@ -75,17 +76,14 @@ class _RecoveryPassphraseSettingsPageState
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                'Your current device can protect future backups with a new passphrase. '
-                'Backups created before this change still require the old passphrase.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
+          AppSurface(
+            child: Text(
+              'Your current device can protect future backups with a new passphrase. '
+              'Backups created before this change still require the old passphrase.',
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           _PassphraseField(
             controller: _newController,
             label: 'New recovery passphrase',
