@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/amount_formatter.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_surface.dart';
+import '../../../core/widgets/grouped_list_card.dart';
 import '../../../core/widgets/icon_registry.dart';
 import '../../categories/category_providers.dart';
 import '../../budgets/budget_providers.dart';
@@ -69,25 +70,14 @@ class _SummaryPageState extends ConsumerState<SummaryPage> {
           onSelectionChanged: (selection) =>
               setState(() => _period = selection.first),
         ),
-        const SizedBox(height: 8),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-            ),
-            onPressed: _chooseReferenceDate,
-            icon: const Icon(Icons.calendar_today_outlined),
-            label: Text(
-              'Period ending ${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}',
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xl),
+        const SizedBox(height: AppSpacing.lg),
         _TotalsCard(
           currency: currency,
           periodLabel: periodLabel,
           total: _total(filteredExpenses, (_) => true),
+          endingLabel: _endingLabel(now),
+          expenseCount: filteredExpenses.length,
+          onPickDate: _chooseReferenceDate,
         ),
         if (budgetLimits.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.xl),
@@ -102,26 +92,29 @@ class _SummaryPageState extends ConsumerState<SummaryPage> {
           ),
         ],
         const SizedBox(height: AppSpacing.xl),
-        _TaxDeductibleCard(
-          expenses: filteredExpenses
-              .where((expense) => expense.isTaxDeductible)
-              .toList(),
-          currency: currency,
-          periodLabel: periodLabel,
-          onView: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => TaxDeductibleExpensesPage(
-                expenses: filteredExpenses
-                    .where((expense) => expense.isTaxDeductible)
-                    .toList(),
-                currency: currency,
-                periodLabel: periodLabel,
+        GroupedListCard(
+          children: [
+            _TaxDeductibleCard(
+              expenses: filteredExpenses
+                  .where((expense) => expense.isTaxDeductible)
+                  .toList(),
+              currency: currency,
+              periodLabel: periodLabel,
+              onView: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => TaxDeductibleExpensesPage(
+                    expenses: filteredExpenses
+                        .where((expense) => expense.isTaxDeductible)
+                        .toList(),
+                    currency: currency,
+                    periodLabel: periodLabel,
+                  ),
+                ),
               ),
             ),
-          ),
+            const _MonthlyReportLink(),
+          ],
         ),
-        const SizedBox(height: AppSpacing.xl),
-        const _MonthlyReportLink(),
         const SizedBox(height: AppSpacing.xl),
         _Breakdown(
           title: 'Category breakdown',
@@ -144,6 +137,24 @@ class _SummaryPageState extends ConsumerState<SummaryPage> {
       ],
     );
   }
+
+  static const _shortMonths = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+
+  String _endingLabel(DateTime date) =>
+      'Ending ${date.day} ${_shortMonths[date.month - 1]} ${date.year}';
 
   bool _includes(DateTime date, DateTime now) => switch (_period) {
     _SummaryPeriod.today => _sameDay(date, now),
@@ -170,48 +181,21 @@ class _MonthlyReportLink extends StatelessWidget {
   const _MonthlyReportLink();
 
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        const Divider(),
-        InkWell(
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(builder: (_) => const MonthlyReportPage()),
-          ),
-          borderRadius: AppRadii.rowBorder,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.bar_chart_outlined,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Monthly report',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Categories and change from last month',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(Icons.chevron_right),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => ListTile(
+    onTap: () => Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const MonthlyReportPage())),
+    leading: IconBadge(
+      icon: Icons.bar_chart_outlined,
+      color: Theme.of(context).colorScheme.primary,
+    ),
+    title: Text(
+      'Monthly report',
+      style: Theme.of(context).textTheme.titleMedium,
+    ),
+    subtitle: const Text('Categories and change from last month'),
+    trailing: const Icon(Icons.chevron_right),
+  );
 }
 
 class _TaxDeductibleCard extends StatelessWidget {
@@ -233,57 +217,36 @@ class _TaxDeductibleCard extends StatelessWidget {
       0,
       (sum, expense) => sum + expense.amountCents,
     );
-    return Column(
-      children: [
-        const Divider(),
-        InkWell(
-          onTap: onView,
-          borderRadius: AppRadii.rowBorder,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.receipt_long_outlined,
-                  color: expenses.isEmpty
-                      ? Theme.of(context).colorScheme.onSurfaceVariant
-                      : Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Tax-deductible expenses',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        expenses.isEmpty
-                            ? 'None tagged · ${periodLabel.toLowerCase()}'
-                            : '${expenses.length} tagged · ${periodLabel.toLowerCase()}',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  formatCurrencyCents(total, currency),
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: expenses.isEmpty
-                        ? Theme.of(context).colorScheme.onSurfaceVariant
-                        : null,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                const Icon(Icons.chevron_right),
-              ],
+    final scheme = Theme.of(context).colorScheme;
+    return ListTile(
+      onTap: onView,
+      leading: IconBadge(
+        icon: Icons.receipt_long_outlined,
+        color: expenses.isEmpty ? scheme.onSurfaceVariant : scheme.primary,
+      ),
+      title: Text(
+        'Tax-deductible expenses',
+        style: Theme.of(context).textTheme.titleMedium,
+      ),
+      subtitle: Text(
+        expenses.isEmpty
+            ? 'None tagged · ${periodLabel.toLowerCase()}'
+            : '${expenses.length} tagged · ${periodLabel.toLowerCase()}',
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            formatCurrencyCents(total, currency),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: expenses.isEmpty ? scheme.onSurfaceVariant : null,
+              fontWeight: FontWeight.w700,
             ),
           ),
-        ),
-      ],
+          const SizedBox(width: AppSpacing.sm),
+          const Icon(Icons.chevron_right),
+        ],
+      ),
     );
   }
 }
@@ -293,11 +256,17 @@ class _TotalsCard extends StatelessWidget {
     required this.currency,
     required this.periodLabel,
     required this.total,
+    required this.endingLabel,
+    required this.expenseCount,
+    required this.onPickDate,
   });
 
   final AppCurrency currency;
   final String periodLabel;
   final int total;
+  final String endingLabel;
+  final int expenseCount;
+  final VoidCallback onPickDate;
 
   @override
   Widget build(BuildContext context) => DecoratedBox(
@@ -327,6 +296,46 @@ class _TotalsCard extends StatelessWidget {
                 fontWeight: FontWeight.w500,
                 letterSpacing: -0.4,
                 color: Colors.white,
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Semantics(
+            button: true,
+            label: 'Change period end date',
+            child: InkWell(
+              onTap: onPickDate,
+              borderRadius: BorderRadius.circular(999),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.calendar_today_outlined,
+                        size: 14,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          '$endingLabel · $expenseCount '
+                          '${expenseCount == 1 ? 'expense' : 'expenses'}',
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
