@@ -5,6 +5,8 @@ import 'dart:async';
 import '../../security/app_lock.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import '../../../core/widgets/callout.dart';
+import '../../../core/widgets/grouped_list_card.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -378,6 +380,19 @@ class _ReceiptImportPageState extends ConsumerState<ReceiptImportPage> {
     }
   }
 
+  Widget _sourceTile(IconData icon, String label, VoidCallback onTap) {
+    return ListTile(
+      enabled: !_scanning,
+      leading: IconBadge(
+        icon: icon,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+      title: Text(label),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: _scanning ? null : onTap,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final categories = ref.watch(categoriesProvider);
@@ -404,30 +419,49 @@ class _ReceiptImportPageState extends ConsumerState<ReceiptImportPage> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
             children: [
-              const Text(
-                'Take a photo or choose an existing receipt or payment screenshot. Files in Downloads can be selected with Browse files. Check the details before adding it.',
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 0, 4, 0),
+                child: Text(
+                  'Take a photo or choose an existing receipt or payment screenshot. Files in Downloads can be selected with Browse files. Check the details before adding it.',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
               ),
               const SizedBox(height: 16),
-              OutlinedButton.icon(
-                onPressed: _scanning
-                    ? null
-                    : () => _chooseImage(ImageSource.camera),
-                icon: const Icon(Icons.photo_camera_outlined),
-                label: const Text('Take receipt photo'),
+              GroupedListCard(
+                children: [
+                  _sourceTile(
+                    Icons.photo_camera_outlined,
+                    'Take receipt photo',
+                    () => _chooseImage(ImageSource.camera),
+                  ),
+                  _sourceTile(
+                    Icons.photo_library_outlined,
+                    'Choose photo or screenshot',
+                    () => _chooseImage(ImageSource.gallery),
+                  ),
+                  _sourceTile(
+                    Icons.folder_open_outlined,
+                    'Browse files in Downloads',
+                    _chooseImageFile,
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: _scanning
-                    ? null
-                    : () => _chooseImage(ImageSource.gallery),
-                icon: const Icon(Icons.photo_library_outlined),
-                label: const Text('Choose photo or screenshot'),
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: _scanning ? null : _chooseImageFile,
-                icon: const Icon(Icons.folder_open_outlined),
-                label: const Text('Browse files in Downloads'),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Icon(
+                    Icons.lock_outline,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Images are read on this device. Nothing is uploaded.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                ],
               ),
               if (_scanning) ...[
                 const SizedBox(height: 16),
@@ -453,14 +487,20 @@ class _ReceiptImportPageState extends ConsumerState<ReceiptImportPage> {
                       if (suggestion.amountNeedsReview &&
                           suggestion.foreignAmountReference == null) ...[
                         const SizedBox(height: 8),
-                        const Text(
-                          'Amount needs review: no clear final payment was found.',
+                        const Callout(
+                          icon: Icons.warning_amber_rounded,
+                          child: Text(
+                            'Amount needs review: no clear final payment was found.',
+                          ),
                         ),
                       ],
                       if (suggestion.foreignAmountReference != null) ...[
                         const SizedBox(height: 8),
-                        Text(
-                          'Detected ${suggestion.foreignAmountReference}. Enter an amount in ${currency.code}, or choose to copy the scanned number unchanged. No currency conversion is applied.',
+                        Callout(
+                          icon: Icons.currency_exchange,
+                          child: Text(
+                            'Detected ${suggestion.foreignAmountReference}. Enter an amount in ${currency.code}, or choose to copy the scanned number unchanged. No currency conversion is applied.',
+                          ),
                         ),
                       ],
                       const SizedBox(height: 12),
@@ -509,8 +549,14 @@ class _ReceiptImportPageState extends ConsumerState<ReceiptImportPage> {
                         ),
                       ),
                       if (suggestion.merchant == null)
-                        const Text(
-                          'Merchant needs review: enter a shop or note if known.',
+                        const Padding(
+                          padding: EdgeInsets.only(top: 8),
+                          child: Callout(
+                            icon: Icons.warning_amber_rounded,
+                            child: Text(
+                              'Merchant needs review: enter a shop or note if known.',
+                            ),
+                          ),
                         ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
@@ -549,11 +595,17 @@ class _ReceiptImportPageState extends ConsumerState<ReceiptImportPage> {
                       ),
                       const SizedBox(height: 8),
                       if (suggestion.dateNeedsReview)
-                        const Text('Purchase date needs review.'),
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 8),
+                          child: Callout(
+                            icon: Icons.warning_amber_rounded,
+                            child: Text('Purchase date needs review.'),
+                          ),
+                        ),
                       Wrap(
                         spacing: 8,
                         children: [
-                          TextButton.icon(
+                          OutlinedButton.icon(
                             onPressed: _chooseDate,
                             icon: const Icon(Icons.calendar_month_outlined),
                             label: Text(
@@ -562,7 +614,7 @@ class _ReceiptImportPageState extends ConsumerState<ReceiptImportPage> {
                                   : '${_occurredAt!.day}/${_occurredAt!.month}/${_occurredAt!.year}',
                             ),
                           ),
-                          TextButton.icon(
+                          OutlinedButton.icon(
                             onPressed: _chooseTime,
                             icon: const Icon(Icons.schedule_outlined),
                             label: Text(
