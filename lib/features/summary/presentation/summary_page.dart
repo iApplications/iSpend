@@ -724,11 +724,9 @@ class _BreakdownLegendRow extends StatelessWidget {
     final percentage = total == 0 ? 0.0 : amount / total;
     final percentLabel = '${(percentage * 100).round()}%';
     final color = _breakdownColor(
-      context,
       label: label,
       type: type,
       categoryIconKey: categoryIconKey,
-      paymentMethodColour: paymentMethodColour,
     );
     final badge = type == _BreakdownType.category
         ? (categoryIconKey == null
@@ -807,25 +805,19 @@ class _BreakdownLegendRow extends StatelessWidget {
   }
 }
 
-Color _breakdownColor(
-  BuildContext context, {
+Color _breakdownColor({
   required String label,
   required _BreakdownType type,
   String? categoryIconKey,
-  String? paymentMethodColour,
 }) {
   final style = type == _BreakdownType.category
       ? categoryIconKey == null
             ? categoryIconStyle(label)
             : categoryIconStyleForKey(categoryIconKey)
       : paymentMethodIconStyle(label);
-  return type == _BreakdownType.paymentMethod
-      ? paymentMethodBadgeColor(
-          paymentMethodColour ?? 'default',
-          Theme.of(context).brightness,
-          style.color,
-        )
-      : style.color;
+  // The bar uses the strong icon colour, not the pale badge tint, so it stays
+  // visible on both light and dark cards.
+  return style.color;
 }
 
 int _total(List<Expense> expenses, bool Function(DateTime) includes) => expenses
