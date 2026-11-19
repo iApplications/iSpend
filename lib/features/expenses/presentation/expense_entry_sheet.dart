@@ -32,6 +32,8 @@ Future<ExpenseEntryResult?> showExpenseEntrySheet(
   return showModalBottomSheet<ExpenseEntryResult>(
     context: context,
     isScrollControlled: true,
+    // Keeps the title clear of the status bar when the sheet is tall.
+    useSafeArea: true,
     builder: (_) => ExpenseEntrySheet(
       use24HourFormat: use24HourFormat,
       categories: categories,

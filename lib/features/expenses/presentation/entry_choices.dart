@@ -123,9 +123,15 @@ class _CategoryChoice extends StatelessWidget {
       child: ChoiceChip(
         selected: selected,
         onSelected: (_) => onTap(),
-        avatar: Icon(style.icon, size: 18, color: selected ? style.color : null),
+        // A check replaces the icon when selected, so the two never overlap
+        // and the selection is not shown by colour alone.
+        avatar: Icon(
+          selected ? Icons.check : style.icon,
+          size: 18,
+          color: selected ? null : style.color,
+        ),
         label: Text(category),
-        showCheckmark: selected,
+        showCheckmark: false,
       ),
     );
   }

@@ -26,6 +26,7 @@ Future<Expense?> showQuickEntrySheet(
 }) => showModalBottomSheet<Expense>(
   context: context,
   isScrollControlled: true,
+  useSafeArea: true,
   builder: (_) => _QuickEntrySheet(
     categories: categories,
     paymentMethods: paymentMethods,

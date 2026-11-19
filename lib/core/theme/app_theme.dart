@@ -65,6 +65,11 @@ abstract final class AppTheme {
         backgroundColor: scheme.primary,
         foregroundColor: scheme.onPrimary,
       ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: isDark ? AppColors.navy : Colors.white,
+        surfaceTintColor: Colors.transparent,
+        showDragHandle: true,
+      ),
       dialogTheme: DialogThemeData(
         backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
         surfaceTintColor: Colors.transparent,
